@@ -482,11 +482,12 @@ public:
                  "------+"
                  "\n";
     std::cout
-        << "|                (DP was here!) Multi-Layer Perceptron (MLP) info   "
+        << "|                 Multi-Layer Perceptron (MLP) info                "
            "|\n";
     std::cout << "+------------------------------------------------------------"
                  "------+"
               << std::endl;
+
 
     /* For every loaded MLP, display the inputs, outputs, activation functions,
      * and architecture. */
