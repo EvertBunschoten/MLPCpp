@@ -43,4 +43,10 @@ The MLPCpp module allows for the evaluation of the analytical first-order and se
 
 # Test Case
 
-Under ```TestCase```, one can find a demonstration of the MLPCpp library. [Here](TestCase/test_problem.py), an MLP with two inputs and one output is trained using TensorFlow, converted to MLPCpp ASCII format, and evaluated using the functions in the MLPCpp library. 
+Under ```TestCase```, one can find a demonstration of the MLPCpp library. [Here](TestCase/test_problem.py), an MLP with two inputs and one output is trained using TensorFlow, converted to MLPCpp ASCII format, and evaluated using the functions in the MLPCpp library. To compile the MLPCpp source code and run the test case, run the following commands:
+```
+cd TestCase
+g++ ../main.cpp -o test_MLPCpp
+python test_problem.py
+```
+This will train an MLP on some reference data, write the .mlp output file, and evaluate the network output using the MLPCpp module. 
