@@ -123,42 +123,43 @@ private:
   ENUM_SCALING_FUNCTIONS input_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX},
                          output_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX};
 public:
-  ~CNeuralNetwork() {
-    delete inputLayer;
-    delete outputLayer;
-    for (std::size_t i = 1; i < total_layers.size() - 1; i++) {
-      delete total_layers[i];
-    }
+~CNeuralNetwork() {
     delete[] ANN_outputs;
     
     if (weights_mat != nullptr) {
-      // Clean up first layer (input to first hidden)
-      if (n_hidden_layers > 0) {
-        for (auto iNeuron = 0u; iNeuron < hiddenLayers[0]->GetNNeurons(); iNeuron++) {
-          delete[] weights_mat[0][iNeuron];
+        // Clean up first layer (input to first hidden)
+        if (n_hidden_layers > 0) {
+            for (auto iNeuron = 0u; iNeuron < hiddenLayers[0]->GetNNeurons(); iNeuron++) {
+                delete[] weights_mat[0][iNeuron];
+            }
+            delete[] weights_mat[0];
         }
-        delete[] weights_mat[0];
-      }
-      
-      // Clean up hidden layers
-      for (auto iLayer = 1u; iLayer < n_hidden_layers; iLayer++) {
-        for (auto iNeuron = 0u; iNeuron < hiddenLayers[iLayer]->GetNNeurons(); iNeuron++) {
-          delete[] weights_mat[iLayer][iNeuron];
+        
+        // Clean up hidden layers
+        for (auto iLayer = 1u; iLayer < n_hidden_layers; iLayer++) {
+            for (auto iNeuron = 0u; iNeuron < hiddenLayers[iLayer]->GetNNeurons(); iNeuron++) {
+                delete[] weights_mat[iLayer][iNeuron];
+            }
+            delete[] weights_mat[iLayer];
         }
-        delete[] weights_mat[iLayer];
-      }
-      
-      // Clean up last layer (last hidden to output)
-      if (outputLayer != nullptr) {
-        for (auto iNeuron = 0u; iNeuron < outputLayer->GetNNeurons(); iNeuron++) {
-          delete[] weights_mat[n_hidden_layers][iNeuron];
+        
+        // Clean up last layer (last hidden to output)
+        if (outputLayer != nullptr) {
+            for (auto iNeuron = 0u; iNeuron < outputLayer->GetNNeurons(); iNeuron++) {
+                delete[] weights_mat[n_hidden_layers][iNeuron];
+            }
+            delete[] weights_mat[n_hidden_layers];
         }
-        delete[] weights_mat[n_hidden_layers];
-      }
-      
-      delete[] weights_mat;
+        
+        delete[] weights_mat;
     }
-  };
+    
+    delete inputLayer;
+    delete outputLayer;
+    for (std::size_t i = 1; i < total_layers.size() - 1; i++) {
+        delete total_layers[i];
+    }
+};
   /*!
    * \brief Set the input layer of the network.
    * \param[in] n_neurons - Number of inputs
