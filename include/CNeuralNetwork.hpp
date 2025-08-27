@@ -66,7 +66,7 @@ private:
 
   // std::vector<su2activematrix> weights_mat; /*!< Weights of synapses
   // connecting layers */
-  std::vector<std::vector<std::vector<mlpdouble>>> weights_mat;
+  mlpdouble*** weights_mat;
 
   std::vector<std::pair<mlpdouble, mlpdouble>>
       input_norm,  /*!< Normalization factors for network inputs */
@@ -130,6 +130,34 @@ public:
       delete total_layers[i];
     }
     delete[] ANN_outputs;
+    
+    if (weights_mat != nullptr) {
+      // Clean up first layer (input to first hidden)
+      if (n_hidden_layers > 0) {
+        for (auto iNeuron = 0u; iNeuron < hiddenLayers[0]->GetNNeurons(); iNeuron++) {
+          delete[] weights_mat[0][iNeuron];
+        }
+        delete[] weights_mat[0];
+      }
+      
+      // Clean up hidden layers
+      for (auto iLayer = 1u; iLayer < n_hidden_layers; iLayer++) {
+        for (auto iNeuron = 0u; iNeuron < hiddenLayers[iLayer]->GetNNeurons(); iNeuron++) {
+          delete[] weights_mat[iLayer][iNeuron];
+        }
+        delete[] weights_mat[iLayer];
+      }
+      
+      // Clean up last layer (last hidden to output)
+      if (outputLayer != nullptr) {
+        for (auto iNeuron = 0u; iNeuron < outputLayer->GetNNeurons(); iNeuron++) {
+          delete[] weights_mat[n_hidden_layers][iNeuron];
+        }
+        delete[] weights_mat[n_hidden_layers];
+      }
+      
+      delete[] weights_mat;
+    }
   };
   /*!
    * \brief Set the input layer of the network.
@@ -374,23 +402,21 @@ public:
     }
     total_layers[total_layers.size() - 1] = outputLayer;
 
-    weights_mat.resize(n_hidden_layers + 1);
-    weights_mat[0].resize(hiddenLayers[0]->GetNNeurons());
+    weights_mat = new mlpdouble**[n_hidden_layers + 1];
+    weights_mat[0] = new mlpdouble*[hiddenLayers[0]->GetNNeurons()];
     for (auto iNeuron = 0u; iNeuron < hiddenLayers[0]->GetNNeurons(); iNeuron++)
-      weights_mat[0][iNeuron].resize(inputLayer->GetNNeurons());
+      weights_mat[0][iNeuron] = new mlpdouble[inputLayer->GetNNeurons()];
 
     for (auto iLayer = 1u; iLayer < n_hidden_layers; iLayer++) {
-      weights_mat[iLayer].resize(hiddenLayers[iLayer]->GetNNeurons());
+      weights_mat[iLayer] = new mlpdouble*[hiddenLayers[iLayer]->GetNNeurons()];
       for (auto iNeuron = 0u; iNeuron < hiddenLayers[iLayer]->GetNNeurons();
            iNeuron++) {
-        weights_mat[iLayer][iNeuron].resize(
-            hiddenLayers[iLayer - 1]->GetNNeurons());
+        weights_mat[iLayer][iNeuron] = new mlpdouble[hiddenLayers[iLayer - 1]->GetNNeurons()];
       }
     }
-    weights_mat[n_hidden_layers].resize(outputLayer->GetNNeurons());
+    weights_mat[n_hidden_layers] = new mlpdouble*[outputLayer->GetNNeurons()];
     for (auto iNeuron = 0u; iNeuron < outputLayer->GetNNeurons(); iNeuron++) {
-      weights_mat[n_hidden_layers][iNeuron].resize(
-          hiddenLayers[n_hidden_layers - 1]->GetNNeurons());
+      weights_mat[n_hidden_layers][iNeuron] = new mlpdouble[hiddenLayers[n_hidden_layers - 1]->GetNNeurons()];
     }
 
     ANN_outputs = new mlpdouble[outputLayer->GetNNeurons()];
