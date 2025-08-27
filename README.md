@@ -2,8 +2,6 @@
 title: Multi-Layer Perceptron regression in C++ code
 ---
 
-This branch is being worked on to implement the changes in the [GSoC-2025 SU2 proposal](https://summerofcode.withgoogle.com/programs/2025/projects/iFt1m8Wx). 
-
 # Multi-Layer Perceptrons in C++
 <img src="logo.png" alt="isolated" width="200"/>
 
