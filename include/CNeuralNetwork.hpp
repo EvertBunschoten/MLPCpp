@@ -840,96 +840,62 @@ public:
    * \param[in] iNeuron - Layer neuron index.
    * \returns Neuron activation function input.
    */
- mlpdouble ComputeX(std::size_t iLayer, std::size_t iNeuron) const noexcept {
-   const auto& w = weights_mat[iLayer - 1][iNeuron];
-   const auto  n = total_layers[iLayer - 1]->GetNNeurons();
- 
-   mlpdouble acc = total_layers[iLayer]->GetBias(iNeuron); // start from bias
-   for (std::size_t j = 0; j < n; ++j) {
-     // If GetOutput(j) is cheap (non-virtual, inlined), this is fine.
-     acc = std::fma(w[j], total_layers[iLayer - 1]->GetOutput(j), acc);
+   mlpdouble ComputeX(std::size_t iLayer, std::size_t iNeuron) const noexcept {
+     const auto& w = weights_mat[iLayer - 1][iNeuron];
+     const auto  n = total_layers[iLayer - 1]->GetNNeurons();
+   
+     mlpdouble x = total_layers[iLayer]->GetBias(iNeuron); // start from bias
+     for (std::size_t j = 0; j < n; ++j) {
+       // If GetOutput(j) is cheap (non-virtual, inlined), this is fine.
+       x = std::fma(w[j], total_layers[iLayer - 1]->GetOutput(j), x);
+     }
+     return x;
    }
-   return acc;
- }
- // mlpdouble ComputeX(std::size_t iLayer, std::size_t iNeuron) const {
- //   mlpdouble x;
- //   x = total_layers[iLayer]->GetBias(iNeuron);
- //   std::size_t nNeurons_previous = total_layers[iLayer - 1]->GetNNeurons();
- //   for (std::size_t jNeuron = 0; jNeuron < nNeurons_previous; jNeuron++) {
- //     x += weights_mat[iLayer - 1][iNeuron][jNeuron] *
- //          total_layers[iLayer - 1]->GetOutput(jNeuron);
- //   }
- //   return x;
- // }
-
-  /*!
-   * \brief Compute the weighted sum of the neuron output derivatives of the
-   * previous layer. \param[in] iLayer - Current network layer index. \param[in]
-   * iNeuron - Layer neuron index. \param[in] jInput - Input variable index used
-   * for derivative. \returns Weighted sum of prefious layer derivatives w.r.t.
-   * input variable.
-   */
-
-mlpdouble ComputePsi(std::size_t iLayer, std::size_t iNeuron,
-                     std::size_t jInput) const
-{
-    const auto* prev = total_layers[iLayer - 1];                // cache pointer
-    const std::size_t n = prev->GetNNeurons();                  // cache bound
-    const auto& wrow = weights_mat[iLayer - 1][iNeuron];        // one row of weights
-
-    mlpdouble psi = 0;
-    for (std::size_t j = 0; j < n; ++j) {
-        // psi += wrow[j] * prev->GetdYdX(j, jInput);
-        psi = std::fma(wrow[j], prev->GetdYdX(j, jInput), psi);
+  
+   /*!
+    * \brief Compute the weighted sum of the neuron output derivatives of the
+    * previous layer. \param[in] iLayer - Current network layer index. \param[in]
+    * iNeuron - Layer neuron index. \param[in] jInput - Input variable index used
+    * for derivative. \returns Weighted sum of prefious layer derivatives w.r.t.
+    * input variable.
+    */
+    mlpdouble ComputePsi(std::size_t iLayer, std::size_t iNeuron,
+                         std::size_t jInput) const
+    {
+        const auto* prev = total_layers[iLayer - 1];                // cache pointer
+        const std::size_t n = prev->GetNNeurons();                  // cache bound
+        const auto& wrow = weights_mat[iLayer - 1][iNeuron];        // one row of weights
+    
+        mlpdouble psi = 0;
+        for (std::size_t j = 0; j < n; ++j) {
+            // psi += wrow[j] * prev->GetdYdX(j, jInput);
+            psi = std::fma(wrow[j], prev->GetdYdX(j, jInput), psi);
+        }
+        return psi;
     }
-    return psi;
-}
-
-//  mlpdouble ComputePsi(std::size_t iLayer, std::size_t iNeuron,
-//                       std::size_t jInput) const {
-//    mlpdouble psi = 0;
-//    for (auto jNeuron = 0u; jNeuron < total_layers[iLayer - 1]->GetNNeurons();
-//         jNeuron++) {
-//      psi += weights_mat[iLayer - 1][iNeuron][jNeuron] *
-//             total_layers[iLayer - 1]->GetdYdX(jNeuron, jInput);
-//    }
-//    return psi;
-//  }
-
-  /*!
-   * \brief Compute the weighted sum of the neuron output second derivatives of
-   * the previous layer. \param[in] iLayer - Current network layer index.
-   * \param[in] iNeuron - Layer neuron index.
-   * \param[in] jInput - First input variable index used for derivative.
-   * \param[in] kInput - Second input variable index used for derivative.
-   * \returns Weighted sum of previous layer second derivatives w.r.t. input
-   * variables.
-   */
-//  mlpdouble ComputeChi(std::size_t iLayer, std::size_t iNeuron,
-//                       std::size_t jInput, std::size_t kInput) const {
-//    mlpdouble chi = 0;
-//    for (auto jNeuron = 0u; jNeuron < total_layers[iLayer - 1]->GetNNeurons();
-//         jNeuron++) {
-//      chi += weights_mat[iLayer - 1][iNeuron][jNeuron] *
-//             total_layers[iLayer - 1]->Getd2YdX2(jNeuron, jInput, kInput);
-//    }
-//    return chi;
-//  }
-#include <cmath> // std::fma
-
-mlpdouble ComputeChi(std::size_t iLayer, std::size_t iNeuron,
-                     std::size_t jInput, std::size_t kInput) const {
-  mlpdouble chi = 0;
-  for (std::size_t jNeuron = 0;
-       jNeuron < total_layers[iLayer - 1]->GetNNeurons();
-       ++jNeuron) {
-    chi = std::fma(
-        weights_mat[iLayer - 1][iNeuron][jNeuron],
-        total_layers[iLayer - 1]->Getd2YdX2(jNeuron, jInput, kInput),
-        chi);
-  }
-  return chi;
-}
+  
+   /*!
+    * \brief Compute the weighted sum of the neuron output second derivatives of
+    * the previous layer. \param[in] iLayer - Current network layer index.
+    * \param[in] iNeuron - Layer neuron index.
+    * \param[in] jInput - First input variable index used for derivative.
+    * \param[in] kInput - Second input variable index used for derivative.
+    * \returns Weighted sum of previous layer second derivatives w.r.t. input
+    * variables.
+    */
+    mlpdouble ComputeChi(std::size_t iLayer, std::size_t iNeuron,
+                         std::size_t jInput, std::size_t kInput) const {
+      mlpdouble chi = 0;
+      for (std::size_t jNeuron = 0;
+           jNeuron < total_layers[iLayer - 1]->GetNNeurons();
+           ++jNeuron) {
+        chi = std::fma(
+            weights_mat[iLayer - 1][iNeuron][jNeuron],
+            total_layers[iLayer - 1]->Getd2YdX2(jNeuron, jInput, kInput),
+            chi);
+      }
+      return chi;
+    }
 
   /*!
    * \brief Compute the weighted sum of the weighted output derivatives of the previous layer.
@@ -938,16 +904,28 @@ mlpdouble ComputeChi(std::size_t iLayer, std::size_t iNeuron,
    * \param[in] iInput - Input index for which to compute derivative.
    * \returns Weighted sum of previous layer output derivatives.
    */
+
   mlpdouble ComputedOutputdInput(std::size_t iLayer, std::size_t iNeuron,
                                  std::size_t iInput) const {
+    const auto& w = weights_mat[iLayer - 1][iNeuron];
+    const auto  n = total_layers[iLayer - 1]->GetNNeurons();
+    
     mlpdouble doutput_dinput = 0;
-    for (auto jNeuron = 0u; jNeuron < total_layers[iLayer - 1]->GetNNeurons();
-         jNeuron++) {
-      doutput_dinput += weights_mat[iLayer - 1][iNeuron][jNeuron] *
-                        total_layers[iLayer - 1]->GetdYdX(jNeuron, iInput);
+    for (std::size_t j = 0; j < n; ++j) {
+      doutput_dinput = std::fma(w[j], total_layers[iLayer - 1]->GetdYdX(j, iInput), doutput_dinput);
     }
     return doutput_dinput;
   }
+//   mlpdouble ComputedOutputdInput(std::size_t iLayer, std::size_t iNeuron,
+//                                  std::size_t iInput) const {
+//     mlpdouble doutput_dinput = 0;
+//     for (auto jNeuron = 0u; jNeuron < total_layers[iLayer - 1]->GetNNeurons();
+//          jNeuron++) {
+//       doutput_dinput += weights_mat[iLayer - 1][iNeuron][jNeuron] *
+//                         total_layers[iLayer - 1]->GetdYdX(jNeuron, iInput);
+//     }
+//     return doutput_dinput;
+//   }
 
   /*!
    * \brief Normalize the network input.
