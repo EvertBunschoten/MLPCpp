@@ -66,7 +66,7 @@ private:
 
   // std::vector<su2activematrix> weights_mat; /*!< Weights of synapses
   // connecting layers */
-  std::vector<std::vector<std::vector<mlpdouble>>> weights_mat;
+  mlpdouble*** weights_mat;
 
   std::vector<std::pair<mlpdouble, mlpdouble>>
       input_norm,  /*!< Normalization factors for network inputs */
@@ -123,14 +123,43 @@ private:
   ENUM_SCALING_FUNCTIONS input_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX},
                          output_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX};
 public:
-  ~CNeuralNetwork() {
+~CNeuralNetwork() {
+    delete[] ANN_outputs;
+    
+    if (weights_mat != nullptr) {
+        // Clean up first layer (input to first hidden)
+        if (n_hidden_layers > 0) {
+            for (auto iNeuron = 0u; iNeuron < hiddenLayers[0]->GetNNeurons(); iNeuron++) {
+                delete[] weights_mat[0][iNeuron];
+            }
+            delete[] weights_mat[0];
+        }
+        
+        // Clean up hidden layers
+        for (auto iLayer = 1u; iLayer < n_hidden_layers; iLayer++) {
+            for (auto iNeuron = 0u; iNeuron < hiddenLayers[iLayer]->GetNNeurons(); iNeuron++) {
+                delete[] weights_mat[iLayer][iNeuron];
+            }
+            delete[] weights_mat[iLayer];
+        }
+        
+        // Clean up last layer (last hidden to output)
+        if (outputLayer != nullptr) {
+            for (auto iNeuron = 0u; iNeuron < outputLayer->GetNNeurons(); iNeuron++) {
+                delete[] weights_mat[n_hidden_layers][iNeuron];
+            }
+            delete[] weights_mat[n_hidden_layers];
+        }
+        
+        delete[] weights_mat;
+    }
+    
     delete inputLayer;
     delete outputLayer;
     for (std::size_t i = 1; i < total_layers.size() - 1; i++) {
-      delete total_layers[i];
+        delete total_layers[i];
     }
-    delete[] ANN_outputs;
-  };
+};
   /*!
    * \brief Set the input layer of the network.
    * \param[in] n_neurons - Number of inputs
@@ -374,23 +403,21 @@ public:
     }
     total_layers[total_layers.size() - 1] = outputLayer;
 
-    weights_mat.resize(n_hidden_layers + 1);
-    weights_mat[0].resize(hiddenLayers[0]->GetNNeurons());
+    weights_mat = new mlpdouble**[n_hidden_layers + 1];
+    weights_mat[0] = new mlpdouble*[hiddenLayers[0]->GetNNeurons()];
     for (auto iNeuron = 0u; iNeuron < hiddenLayers[0]->GetNNeurons(); iNeuron++)
-      weights_mat[0][iNeuron].resize(inputLayer->GetNNeurons());
+      weights_mat[0][iNeuron] = new mlpdouble[inputLayer->GetNNeurons()];
 
     for (auto iLayer = 1u; iLayer < n_hidden_layers; iLayer++) {
-      weights_mat[iLayer].resize(hiddenLayers[iLayer]->GetNNeurons());
+      weights_mat[iLayer] = new mlpdouble*[hiddenLayers[iLayer]->GetNNeurons()];
       for (auto iNeuron = 0u; iNeuron < hiddenLayers[iLayer]->GetNNeurons();
            iNeuron++) {
-        weights_mat[iLayer][iNeuron].resize(
-            hiddenLayers[iLayer - 1]->GetNNeurons());
+        weights_mat[iLayer][iNeuron] = new mlpdouble[hiddenLayers[iLayer - 1]->GetNNeurons()];
       }
     }
-    weights_mat[n_hidden_layers].resize(outputLayer->GetNNeurons());
+    weights_mat[n_hidden_layers] = new mlpdouble*[outputLayer->GetNNeurons()];
     for (auto iNeuron = 0u; iNeuron < outputLayer->GetNNeurons(); iNeuron++) {
-      weights_mat[n_hidden_layers][iNeuron].resize(
-          hiddenLayers[n_hidden_layers - 1]->GetNNeurons());
+      weights_mat[n_hidden_layers][iNeuron] = new mlpdouble[hiddenLayers[n_hidden_layers - 1]->GetNNeurons()];
     }
 
     ANN_outputs = new mlpdouble[outputLayer->GetNNeurons()];
@@ -806,7 +833,6 @@ public:
     activation_function_types.resize(n_layers);
     activation_function_names.resize(n_layers);
   }
-
   /*!
    * \brief Compute neuron activation function input.
    * \param[in] iLayer - Network layer index.
@@ -823,7 +849,6 @@ public:
     }
     return x;
   }
-
   /*!
    * \brief Compute the weighted sum of the neuron output derivatives of the
    * previous layer. \param[in] iLayer - Current network layer index. \param[in]
@@ -834,14 +859,13 @@ public:
   mlpdouble ComputePsi(std::size_t iLayer, std::size_t iNeuron,
                        std::size_t jInput) const {
     mlpdouble psi = 0;
-    for (auto jNeuron = 0u; jNeuron < total_layers[iLayer - 1]->GetNNeurons();
-         jNeuron++) {
+    std::size_t nNeurons_previous = total_layers[iLayer - 1]->GetNNeurons();
+    for (auto jNeuron = 0u; jNeuron < nNeurons_previous; jNeuron++) {
       psi += weights_mat[iLayer - 1][iNeuron][jNeuron] *
              total_layers[iLayer - 1]->GetdYdX(jNeuron, jInput);
     }
     return psi;
   }
-
   /*!
    * \brief Compute the weighted sum of the neuron output second derivatives of
    * the previous layer. \param[in] iLayer - Current network layer index.
@@ -854,14 +878,13 @@ public:
   mlpdouble ComputeChi(std::size_t iLayer, std::size_t iNeuron,
                        std::size_t jInput, std::size_t kInput) const {
     mlpdouble chi = 0;
-    for (auto jNeuron = 0u; jNeuron < total_layers[iLayer - 1]->GetNNeurons();
-         jNeuron++) {
+    std::size_t nNeurons_previous = total_layers[iLayer - 1]->GetNNeurons();
+    for (auto jNeuron = 0u; jNeuron < nNeurons_previous; jNeuron++) {
       chi += weights_mat[iLayer - 1][iNeuron][jNeuron] *
              total_layers[iLayer - 1]->Getd2YdX2(jNeuron, jInput, kInput);
     }
     return chi;
   }
-
   /*!
    * \brief Compute the weighted sum of the weighted output derivatives of the previous layer.
    * \param[in] iLayer - Current network layer index.
@@ -872,8 +895,8 @@ public:
   mlpdouble ComputedOutputdInput(std::size_t iLayer, std::size_t iNeuron,
                                  std::size_t iInput) const {
     mlpdouble doutput_dinput = 0;
-    for (auto jNeuron = 0u; jNeuron < total_layers[iLayer - 1]->GetNNeurons();
-         jNeuron++) {
+    std::size_t nNeurons_previous = total_layers[iLayer - 1]->GetNNeurons();
+    for (auto jNeuron = 0u; jNeuron < nNeurons_previous; jNeuron++) {
       doutput_dinput += weights_mat[iLayer - 1][iNeuron][jNeuron] *
                         total_layers[iLayer - 1]->GetdYdX(jNeuron, iInput);
     }

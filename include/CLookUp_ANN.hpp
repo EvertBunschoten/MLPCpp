@@ -40,6 +40,7 @@
 #include "CNeuralNetwork.hpp"
 #include "CReadNeuralNetwork.hpp"
 #include "variable_def.hpp"
+#include <unordered_map>
 
 namespace MLPToolbox {
 
@@ -434,9 +435,8 @@ public:
     }
     return inputs_are_present;
   }
-
   /*!
-   * \brief Map variable names to ANN inputs or outputs
+   * \brief Map variable names to ANN inputs or outputs using hashmap optimization
    * \param[in] i_ANN - loaded ANN index
    * \param[in] variable_names - variable names to map to ANN inputs or outputs
    * \param[in] input - map to inputs (true) or outputs (false)
@@ -445,23 +445,30 @@ public:
   FindVariableIndices(std::size_t i_ANN,
                       std::vector<std::string> variable_names,
                       bool input) const {
-    /*--- Find loaded MLPs that have the same input variable names as the
-     * variables listed in variable_names ---*/
-
-    std::vector<std::pair<size_t, size_t>> variable_indices;
+    /*--- Create hashmap of ANN variable names to their indices ---*/
+    std::unordered_map<std::string, std::size_t> ann_var_map;
+    
     auto nVar = input ? NeuralNetworks[i_ANN].GetnInputs()
                       : NeuralNetworks[i_ANN].GetnOutputs();
-
+    
+    // Build hashmap: ANN variable name -> ANN variable index
     for (auto iVar = 0u; iVar < nVar; iVar++) {
-      for (auto jVar = 0u; jVar < variable_names.size(); jVar++) {
-        std::string ANN_varname =
-            input ? NeuralNetworks[i_ANN].GetInputName(iVar)
-                  : NeuralNetworks[i_ANN].GetOutputName(iVar);
-        if (variable_names[jVar].compare(ANN_varname) == 0) {
-          variable_indices.push_back(std::make_pair(jVar, iVar));
-        }
+      std::string ann_varname = input ? NeuralNetworks[i_ANN].GetInputName(iVar)
+                                      : NeuralNetworks[i_ANN].GetOutputName(iVar);
+      ann_var_map[ann_varname] = iVar;
+    }
+    
+    /*--- Find matches using hashmap lookup ---*/
+    std::vector<std::pair<std::size_t, std::size_t>> variable_indices;
+    
+    for (auto jVar = 0u; jVar < variable_names.size(); jVar++) {
+      auto it = ann_var_map.find(variable_names[jVar]);
+      if (it != ann_var_map.end()) {
+        // Found match: (variable_names index, ANN variable index)
+        variable_indices.push_back(std::make_pair(jVar, it->second));
       }
     }
+    
     return variable_indices;
   }
 
