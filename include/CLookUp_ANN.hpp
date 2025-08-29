@@ -40,6 +40,7 @@
 #include "CNeuralNetwork.hpp"
 #include "CReadNeuralNetwork.hpp"
 #include "variable_def.hpp"
+#include <unordered_map>
 
 namespace MLPToolbox {
 
