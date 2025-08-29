@@ -40,7 +40,6 @@
 #include "CNeuralNetwork.hpp"
 #include "CReadNeuralNetwork.hpp"
 #include "variable_def.hpp"
-#include <unordered_map>
 
 namespace MLPToolbox {
 
@@ -435,41 +434,73 @@ public:
     }
     return inputs_are_present;
   }
-
-  /*!
-   * \brief Map variable names to ANN inputs or outputs
-   * \param[in] i_ANN - loaded ANN index
-   * \param[in] variable_names - variable names to map to ANN inputs or outputs
-   * \param[in] input - map to inputs (true) or outputs (false)
-   */
-  std::vector<std::pair<size_t, size_t>> FindVariableIndices(
-    std::size_t i_ANN,
-    std::vector<std::string> variable_names,
-    bool input) const {
-    std::vector<std::pair<size_t, size_t>> variable_indices;
-    auto nVar = input ? NeuralNetworks[i_ANN].GetnInputs()
-                      : NeuralNetworks[i_ANN].GetnOutputs();
-
-    // Create a hash map from variable names to their indices
-    std::unordered_map<std::string, size_t> name_to_index;
-    for (size_t jVar = 0; jVar < variable_names.size(); ++jVar) {
-        name_to_index[variable_names[jVar]] = jVar;
+/*!
+ * \brief Map variable names to ANN inputs or outputs using hashmap optimization
+ * \param[in] i_ANN - loaded ANN index
+ * \param[in] variable_names - variable names to map to ANN inputs or outputs
+ * \param[in] input - map to inputs (true) or outputs (false)
+ */
+std::vector<std::pair<std::size_t, std::size_t>>
+FindVariableIndices(std::size_t i_ANN,
+                    std::vector<std::string> variable_names,
+                    bool input) const {
+  /*--- Create hashmap of ANN variable names to their indices ---*/
+  std::unordered_map<std::string, std::size_t> ann_var_map;
+  
+  auto nVar = input ? NeuralNetworks[i_ANN].GetnInputs()
+                    : NeuralNetworks[i_ANN].GetnOutputs();
+  
+  // Build hashmap: ANN variable name -> ANN variable index
+  for (auto iVar = 0u; iVar < nVar; iVar++) {
+    std::string ann_varname = input ? NeuralNetworks[i_ANN].GetInputName(iVar)
+                                    : NeuralNetworks[i_ANN].GetOutputName(iVar);
+    ann_var_map[ann_varname] = iVar;
+  }
+  
+  /*--- Find matches using hashmap lookup ---*/
+  std::vector<std::pair<std::size_t, std::size_t>> variable_indices;
+  
+  for (auto jVar = 0u; jVar < variable_names.size(); jVar++) {
+    auto it = ann_var_map.find(variable_names[jVar]);
+    if (it != ann_var_map.end()) {
+      // Found match: (variable_names index, ANN variable index)
+      variable_indices.push_back(std::make_pair(jVar, it->second));
     }
-
-    // Iterate over neural network variables
-    for (size_t iVar = 0; iVar < nVar; ++iVar) {
-        std::string ANN_varname = input ? NeuralNetworks[i_ANN].GetInputName(iVar)
-                                       : NeuralNetworks[i_ANN].GetOutputName(iVar);
-        // Look up the variable name in the hash map
-        auto it = name_to_index.find(ANN_varname);
-        if (it != name_to_index.end()) {
-            variable_indices.push_back(std::make_pair(it->second, iVar));
-        }
-    }
-
-    return variable_indices;
+  }
+  
+  return variable_indices;
 }
 
+// /*!
+//   * \brief Map variable names to ANN inputs or outputs
+//   * \param[in] i_ANN - loaded ANN index
+//   * \param[in] variable_names - variable names to map to ANN inputs or outputs
+//   * \param[in] input - map to inputs (true) or outputs (false)
+//   */
+//  std::vector<std::pair<std::size_t, std::size_t>>
+//  FindVariableIndices(std::size_t i_ANN,
+//                      std::vector<std::string> variable_names,
+//                      bool input) const {
+//    /*--- Find loaded MLPs that have the same input variable names as the
+//     * variables listed in variable_names ---*/
+//
+//    std::vector<std::pair<size_t, size_t>> variable_indices;
+//    auto nVar = input ? NeuralNetworks[i_ANN].GetnInputs()
+//                      : NeuralNetworks[i_ANN].GetnOutputs();
+//
+//    for (auto iVar = 0u; iVar < nVar; iVar++) {
+//      for (auto jVar = 0u; jVar < variable_names.size(); jVar++) {
+//        std::string ANN_varname =
+//            input ? NeuralNetworks[i_ANN].GetInputName(iVar)
+//                  : NeuralNetworks[i_ANN].GetOutputName(iVar);
+//        if (variable_names[jVar].compare(ANN_varname) == 0) {
+//          variable_indices.push_back(std::make_pair(jVar, iVar));
+//        }
+//      }
+//    }
+//    return variable_indices;
+//  }
+//
   /*!
    * \brief Display architectural information on the loaded MLPs
    */
@@ -487,7 +518,6 @@ public:
     std::cout << "+------------------------------------------------------------"
                  "------+"
               << std::endl;
-
 
     /* For every loaded MLP, display the inputs, outputs, activation functions,
      * and architecture. */
