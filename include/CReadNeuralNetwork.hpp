@@ -324,6 +324,9 @@ public:
     return n_neurons[iLayer];
   }
 
+  std::vector<size_t> GetNneurons() const {
+    return n_neurons;
+  }
   /*!
    * \brief Get synapse weight between two neurons in subsequent layers.
    * \param[in] iLayer - Total layer index.

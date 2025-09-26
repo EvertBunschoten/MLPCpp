@@ -56,8 +56,8 @@ class CLookUp_ANN {
    */
 
 private:
-  std::vector<CNeuralNetwork> NeuralNetworks; /*!< std::std::vector containing
-                                                 all loaded neural networks. */
+  std::vector<IteratorNetwork*> NeuralNetworks; /*!< std::std::vector containing
+  //                                                all loaded neural networks. */
 
   unsigned short number_of_variables; /*!< Number of loaded ANNs. */
 
@@ -66,7 +66,7 @@ private:
    * \param[in] ANN - pointer to target NeuralNetwork class
    * \param[in] filename - filename containing ANN architecture information
    */
-  void GenerateANN(CNeuralNetwork &ANN, std::string filename) {
+  void GenerateANN(std::string filename) {
     /*--- Generate MLP architecture based on information in MLP input file ---*/
 
     /* Read MLP input file */
@@ -75,60 +75,46 @@ private:
     /* Read MLP input file */
     Reader.ReadMLPFile();
 
-    /* Set input and output regularization methods */
-    ANN.SetInputRegularization(Reader.GetInputRegularization());
-    ANN.SetOutputRegularization(Reader.GetOutputRegularization());
+    IteratorNetwork * MLP = new IteratorNetwork(Reader.GetNneurons());
 
-    /* Generate basic layer architectures */
-    ANN.DefineInputLayer(Reader.GetNInputs());
-    for (auto iInput = 0u; iInput < Reader.GetNInputs(); iInput++) {
-      ANN.SetInputName(iInput, Reader.GetInputName(iInput));
-    }
-    for (auto iLayer = 1u; iLayer < Reader.GetNlayers() - 1; iLayer++) {
-      ANN.PushHiddenLayer(Reader.GetNneurons(iLayer));
-    }
-    ANN.DefineOutputLayer(Reader.GetNOutputs());
-    for (auto iOutput = 0u; iOutput < Reader.GetNOutputs(); iOutput++) {
-      ANN.SetOutputName(iOutput, Reader.GetOutputName(iOutput));
-    }
-
-    /* Size weights of each layer */
-    ANN.SizeWeights();
-
-    /* Define weights and activation functions */
-    ANN.SizeActivationFunctions(ANN.GetNWeightLayers() + 1);
-    for (auto i_layer = 0u; i_layer < ANN.GetNWeightLayers(); i_layer++) {
-      ANN.SetActivationFunction(i_layer, Reader.GetActivationFunction(i_layer));
-      for (auto i_neuron = 0u; i_neuron < ANN.GetNNeurons(i_layer);
-           i_neuron++) {
-        for (auto j_neuron = 0u; j_neuron < ANN.GetNNeurons(i_layer + 1);
-             j_neuron++) {
-          ANN.SetWeight(i_layer, i_neuron, j_neuron,
-                        Reader.GetWeight(i_layer, i_neuron, j_neuron));
+    MLP->SetInputRegularization(Reader.GetInputRegularization());
+    MLP->SetOutputRegularization(Reader.GetOutputRegularization());
+    for (auto iInput=0u; iInput<Reader.GetNInputs(); iInput++)
+      MLP->SetInputName(iInput, Reader.GetInputName(iInput));
+    for (auto iOutput=0u; iOutput<Reader.GetNOutputs(); iOutput++)
+      MLP->SetOutputName(iOutput, Reader.GetOutputName(iOutput));
+    
+    
+    for (auto iLayer=0u; iLayer<Reader.GetNlayers(); iLayer++) {
+      for (auto iNode = 0u; iNode < Reader.GetNneurons()[iLayer];
+           iNode++) {
+        if (iLayer < (Reader.GetNlayers()-1)) {
+          for (auto jNode = 0u; jNode < Reader.GetNneurons()[iLayer+1];
+             jNode++) {
+          MLP
+          ->SetWeight(iLayer, iNode, jNode,Reader.GetWeight(iLayer, iNode, jNode));
         }
+        }
+        
+        MLP->SetBias(iLayer, iNode, Reader.GetBias(iLayer, iNode));
       }
     }
-    ANN.SetActivationFunction(
-        ANN.GetNWeightLayers(),
-        Reader.GetActivationFunction(ANN.GetNWeightLayers()));
-
-    /* Set neuron biases */
-    for (auto i_layer = 0u; i_layer < ANN.GetNWeightLayers() + 1; i_layer++) {
-      for (auto i_neuron = 0u; i_neuron < ANN.GetNNeurons(i_layer);
-           i_neuron++) {
-        ANN.SetBias(i_layer, i_neuron, Reader.GetBias(i_layer, i_neuron));
-      }
-    }
-
     /* Define input and output layer normalization values */
+    MLP->SetInputRegularization(Reader.GetInputRegularization());
+    MLP->SetOutputRegularization(Reader.GetOutputRegularization());
+    
     for (auto iInput = 0u; iInput < Reader.GetNInputs(); iInput++) {
-      ANN.SetInputNorm(iInput, Reader.GetInputNorm(iInput).first,
+      MLP->SetInputNorm(iInput, Reader.GetInputNorm(iInput).first,
                        Reader.GetInputNorm(iInput).second);
     }
     for (auto iOutput = 0u; iOutput < Reader.GetNOutputs(); iOutput++) {
-      ANN.SetOutputNorm(iOutput, Reader.GetOutputNorm(iOutput).first,
+      MLP->SetOutputNorm(iOutput, Reader.GetOutputNorm(iOutput).first,
                         Reader.GetOutputNorm(iOutput).second);
     }
+    for (size_t iLayer=0; iLayer < Reader.GetNlayers(); iLayer++)
+      MLP->SetActivationFunction(iLayer, Reader.GetActivationFunction(iLayer));
+    
+    NeuralNetworks.push_back(MLP);
   }
 
 public:
@@ -142,11 +128,12 @@ public:
     /*--- Define collection of MLPs for regression purposes ---*/
     number_of_variables = n_inputs;
 
-    NeuralNetworks.resize(n_inputs);
+    //NeuralNetworks.resize(n_inputs);
 
     /*--- Generate an MLP for every filename provided ---*/
     for (auto i_MLP = 0u; i_MLP < n_inputs; i_MLP++) {
-      GenerateANN(NeuralNetworks[i_MLP], input_filenames[i_MLP]);
+      GenerateANN(input_filenames[i_MLP]);
+      //GenerateANN(NeuralNetworks[i_MLP], input_filenames[i_MLP]);
     }
   }
 
@@ -167,7 +154,7 @@ public:
       auto i_ANN = input_output_map->GetMLPIndex(i_map);
       auto i_input = input_output_map->GetInputIndex(i_map, input_index);
       std::pair<mlpdouble, mlpdouble> ANN_input_limits =
-          NeuralNetworks[i_ANN].GetInputNorm(i_input);
+          NeuralNetworks[i_ANN]->GetInputNorm(i_input);
       CV_min += ANN_input_limits.first;
       CV_max += ANN_input_limits.second;
     }
@@ -193,7 +180,7 @@ public:
     for (auto i_map = 0u; i_map < input_output_map->GetNMLPs(); i_map++) {
       auto i_ANN = input_output_map->GetMLPIndex(i_map);
       auto i_input = input_output_map->GetInputIndex(i_map, input_index);
-      mlpdouble center = NeuralNetworks[i_ANN].GetRegularizationOffset(i_input, true);
+      mlpdouble center = NeuralNetworks[i_ANN]->GetRegularizationOffset(i_input, true);
       CV_center += center;
     }
 
@@ -235,47 +222,43 @@ public:
     for (auto i_map = 0u; i_map < input_output_map->GetNMLPs(); i_map++) {
       within_range = true;
       auto i_ANN = input_output_map->GetMLPIndex(i_map);
-      NeuralNetworks[i_ANN].ComputeFirstOrderGradient(
-          compute_firstorder_gradient);
-      NeuralNetworks[i_ANN].ComputeSecondOrderGradient(
-          compute_secondorder_gradient);
       auto ANN_inputs = input_output_map->GetMLPInputs(i_map, inputs);
 
       mlpdouble distance_to_query_i = 0;
       for (auto i_input = 0u; i_input < ANN_inputs.size(); i_input++) {
-        within_range = NeuralNetworks[i_ANN].CheckInputInclusion(ANN_inputs[i_input], i_input);
+        within_range = NeuralNetworks[i_ANN]->CheckInputInclusion(ANN_inputs[i_input], i_input);
         
 
         /* Calculate distance between MLP training range center point and query
          */
-        mlpdouble middle = NeuralNetworks[i_ANN].GetRegularizationOffset(i_input);
+        mlpdouble middle = NeuralNetworks[i_ANN]->GetRegularizationOffset(i_input);
         distance_to_query_i +=
-            pow(NeuralNetworks[i_ANN].NormalizeInput(ANN_inputs[i_input] - middle, i_input), 2);
+            pow(NeuralNetworks[i_ANN]->NormalizeInput(ANN_inputs[i_input] - middle, i_input), 2);
       }
 
       /* Evaluate MLP when query inputs lie within training data range */
       if (within_range) {
-        NeuralNetworks[i_ANN].Predict(ANN_inputs);
+        NeuralNetworks[i_ANN]->Predict(ANN_inputs, compute_firstorder_gradient, compute_secondorder_gradient);
+        //NeuralNetworks[i_ANN].Predict(ANN_inputs);
         MLP_was_evaluated = true;
         for (auto i = 0u; i < input_output_map->GetNMappedOutputs(i_map); i++) {
           *outputs[input_output_map->GetOutputIndex(i_map, i)] =
-              NeuralNetworks[i_ANN].GetANNOutput(
+              NeuralNetworks[i_ANN]->GetOutput(
                   input_output_map->GetMLPOutputIndex(i_map, i));
           if (compute_firstorder_gradient) {
             for (auto iInput = 0u; iInput < inputs.size(); iInput++) {
               *(doutputs_dinputs->at(input_output_map->GetOutputIndex(i_map, i))
                     .at(iInput)) =
-                  NeuralNetworks[i_ANN].GetdOutputdInput(
+                  NeuralNetworks[i_ANN]->GetJacobian(
                       input_output_map->GetMLPOutputIndex(i_map, i),
                       input_output_map->GetInputIndex(i_map, iInput));
-
               if (compute_secondorder_gradient) {
                 for (auto jInput = 0u; jInput < inputs.size(); jInput++) {
                   *(d2outputs_dinputs2
                         ->at(input_output_map->GetOutputIndex(i_map, i))
                         .at(iInput)
                         .at(jInput)) =
-                      NeuralNetworks[i_ANN].Getd2OutputdInput2(
+                      NeuralNetworks[i_ANN]->GetHessian(
                           input_output_map->GetMLPOutputIndex(i_map, i),
                           input_output_map->GetInputIndex(i_map, iInput),
                           input_output_map->GetInputIndex(i_map, jInput));
@@ -297,11 +280,11 @@ public:
     /* Evaluate nearest MLP in case no query data within range is found */
     if (!MLP_was_evaluated) {
       auto ANN_inputs = input_output_map->GetMLPInputs(i_map_nearest, inputs);
-      NeuralNetworks[i_ANN_nearest].Predict(ANN_inputs);
+      NeuralNetworks[i_ANN_nearest]->Predict(ANN_inputs, compute_firstorder_gradient, compute_secondorder_gradient);
       for (auto i = 0u; i < input_output_map->GetNMappedOutputs(i_map_nearest);
            i++) {
         *outputs[input_output_map->GetOutputIndex(i_map_nearest, i)] =
-            NeuralNetworks[i_ANN_nearest].GetANNOutput(
+            NeuralNetworks[i_ANN_nearest]->GetOutput(
                 input_output_map->GetMLPOutputIndex(i_map_nearest, i));
       }
     }
@@ -449,14 +432,20 @@ public:
      * variables listed in variable_names ---*/
 
     std::vector<std::pair<size_t, size_t>> variable_indices;
-    auto nVar = input ? NeuralNetworks[i_ANN].GetnInputs()
-                      : NeuralNetworks[i_ANN].GetnOutputs();
+    auto nVar = input ? NeuralNetworks[i_ANN]->GetnInputs()
+                      : NeuralNetworks[i_ANN]->GetnOutputs();
+
+    // auto nVar = input ? NeuralNetworks[i_ANN].GetnInputs()
+    //                   : NeuralNetworks[i_ANN].GetnOutputs();
 
     for (auto iVar = 0u; iVar < nVar; iVar++) {
       for (auto jVar = 0u; jVar < variable_names.size(); jVar++) {
         std::string ANN_varname =
-            input ? NeuralNetworks[i_ANN].GetInputName(iVar)
-                  : NeuralNetworks[i_ANN].GetOutputName(iVar);
+            input ? NeuralNetworks[i_ANN]->GetInputName(iVar)
+                  : NeuralNetworks[i_ANN]->GetOutputName(iVar);
+        // std::string ANN_varname =
+        //     input ? NeuralNetworks[i_ANN].GetInputName(iVar)
+        //           : NeuralNetworks[i_ANN].GetOutputName(iVar);
         if (variable_names[jVar].compare(ANN_varname) == 0) {
           variable_indices.push_back(std::make_pair(jVar, iVar));
         }
@@ -486,7 +475,8 @@ public:
     /* For every loaded MLP, display the inputs, outputs, activation functions,
      * and architecture. */
     for (auto i_MLP = 0u; i_MLP < NeuralNetworks.size(); i_MLP++) {
-      NeuralNetworks[i_MLP].DisplayNetwork();
+      NeuralNetworks[i_MLP]->DisplayNetwork();
+      // NeuralNetworks[i_MLP].DisplayNetwork();
     }
   }
 };
