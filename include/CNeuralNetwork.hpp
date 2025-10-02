@@ -35,13 +35,28 @@
 #include <iostream>
 #include <limits>
 #include <map>
+#include "variable_def.hpp"
 
 #include "ActivationFunctions.hpp"
-#include "variable_def.hpp"
 #include "option_maps.hpp"
 
 namespace MLPToolbox {
   class IteratorNetwork {
+     /*!
+    * \brief Available activation function map.
+    */
+    std::map<std::string, ENUM_ACTIVATION_FUNCTION> activation_function_map{
+        {"none", ENUM_ACTIVATION_FUNCTION::NONE},
+        {"linear", ENUM_ACTIVATION_FUNCTION::LINEAR},
+        {"elu", ENUM_ACTIVATION_FUNCTION::ELU},
+        {"relu", ENUM_ACTIVATION_FUNCTION::RELU},
+        {"gelu", ENUM_ACTIVATION_FUNCTION::GELU},
+        {"selu", ENUM_ACTIVATION_FUNCTION::SELU},
+        {"sigmoid", ENUM_ACTIVATION_FUNCTION::SIGMOID},
+        {"swish", ENUM_ACTIVATION_FUNCTION::SWISH},
+        {"tanh", ENUM_ACTIVATION_FUNCTION::TANH},
+        {"exponential", ENUM_ACTIVATION_FUNCTION::EXPONENTIAL}};
+
     size_t n_layers =0;
     size_t last_layer;
     mlpdouble *** weights_mat {nullptr};
@@ -410,27 +425,42 @@ namespace MLPToolbox {
         }
 
         void SetActivationFunction(size_t iLayer, std::string name_activation_function) {
-            ENUM_ACTIVATION_FUNCTION ix_phi = activation_function_map[name_activation_function];
-            switch (ix_phi)
+            ENUM_ACTIVATION_FUNCTION i_phi = activation_function_map[name_activation_function];
+            ActivationFunctionBase * function_out;
+            switch (i_phi)
             {
             case ENUM_ACTIVATION_FUNCTION::LINEAR:
-                activation_functions[iLayer] = new Linear();
+                function_out = new Lin();
                 break;
             case ENUM_ACTIVATION_FUNCTION::ELU:
-                activation_functions[iLayer] = new Elu();
-                break;
-            case ENUM_ACTIVATION_FUNCTION::SIGMOID:
-                activation_functions[iLayer] = new Sigmoid();
+                function_out = new Elu();
                 break;
             case ENUM_ACTIVATION_FUNCTION::EXPONENTIAL:
-                activation_functions[iLayer] = new Exponential();
+                function_out = new Exponential();
+                break;
+            case ENUM_ACTIVATION_FUNCTION::RELU:
+                function_out = new Relu();
+                break;
+            case ENUM_ACTIVATION_FUNCTION::SWISH:
+                function_out = new Swish();
+                break;
+            case ENUM_ACTIVATION_FUNCTION::TANH:
+                function_out = new Tanh();
+                break;
+            case ENUM_ACTIVATION_FUNCTION::SIGMOID:
+                function_out = new Sigmoid();
+                break;
+            case ENUM_ACTIVATION_FUNCTION::SELU:
+                function_out = new SeLu();
+                break;
+            case ENUM_ACTIVATION_FUNCTION::GELU:
+                function_out = new GeLu();
                 break;
             default:
-                activation_functions[iLayer] = new Linear();
+                function_out = new Lin();
                 break;
             }
-           
-            return;
+            activation_functions[iLayer] = function_out;
         }
 
         void SetActivationFunction(std::string name_activation_function) {

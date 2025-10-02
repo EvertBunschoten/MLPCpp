@@ -1,3 +1,5 @@
+
+#pragma once
 #include <vector>
 #include <iostream>
 #include <numeric>
@@ -8,36 +10,8 @@
 #include <cstdlib>
 #include <string>
 #include <map>
-
-enum class ENUM_ACTIVATION_FUNCTION {
-    NONE = 0,
-    LINEAR = 1,
-    RELU = 2,
-    ELU = 3,
-    GELU = 4,
-    SELU = 5,
-    SIGMOID = 6,
-    SWISH = 7,
-    TANH = 8,
-    EXPONENTIAL = 9
-  };
-
- 
- /*!
-* \brief Available activation function map.
-*/
-std::map<std::string, ENUM_ACTIVATION_FUNCTION> activation_function_map{
-    {"none", ENUM_ACTIVATION_FUNCTION::NONE},
-    {"linear", ENUM_ACTIVATION_FUNCTION::LINEAR},
-    {"elu", ENUM_ACTIVATION_FUNCTION::ELU},
-    {"relu", ENUM_ACTIVATION_FUNCTION::RELU},
-    {"gelu", ENUM_ACTIVATION_FUNCTION::GELU},
-    {"selu", ENUM_ACTIVATION_FUNCTION::SELU},
-    {"sigmoid", ENUM_ACTIVATION_FUNCTION::SIGMOID},
-    {"swish", ENUM_ACTIVATION_FUNCTION::SWISH},
-    {"tanh", ENUM_ACTIVATION_FUNCTION::TANH},
-    {"exponential", ENUM_ACTIVATION_FUNCTION::EXPONENTIAL}};
-
+#include "variable_def.hpp"
+#include "option_maps.hpp"
 
 class ActivationFunctionBase{
     
@@ -61,9 +35,9 @@ class ActivationFunctionBase{
     
 };
 
-class Linear final: public ActivationFunctionBase {
+class Lin final: public ActivationFunctionBase {
     public:
-        Linear() {name="Linear";}
+        Lin() {name="Linear";}
         mlpdouble call (mlpdouble x, bool calc_Jacobian=false, bool calc_Hessian=false) override {
             output = x;
             if (calc_Jacobian)
@@ -226,41 +200,3 @@ class GeLu final: public ActivationFunctionBase {
     }
 };
 
-ActivationFunctionBase* DefineActivationFunction (std::string name_activation_function) {
-    ENUM_ACTIVATION_FUNCTION i_phi = activation_function_map[name_activation_function];
-    ActivationFunctionBase * function_out;
-    switch (i_phi)
-    {
-    case ENUM_ACTIVATION_FUNCTION::LINEAR:
-        function_out = new Linear();
-        break;
-    case ENUM_ACTIVATION_FUNCTION::ELU:
-        function_out = new Elu();
-        break;
-    case ENUM_ACTIVATION_FUNCTION::EXPONENTIAL:
-        function_out = new Exponential();
-        break;
-    case ENUM_ACTIVATION_FUNCTION::RELU:
-        function_out = new Relu();
-        break;
-    case ENUM_ACTIVATION_FUNCTION::SWISH:
-        function_out = new Swish();
-        break;
-    case ENUM_ACTIVATION_FUNCTION::TANH:
-        function_out = new Tanh();
-        break;
-    case ENUM_ACTIVATION_FUNCTION::SIGMOID:
-        function_out = new Sigmoid();
-        break;
-    case ENUM_ACTIVATION_FUNCTION::SELU:
-        function_out = new SeLu();
-        break;
-    case ENUM_ACTIVATION_FUNCTION::GELU:
-        function_out = new GeLu();
-        break;
-    default:
-        function_out = new Linear();
-        break;
-    }
-    return function_out;
-}

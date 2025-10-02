@@ -39,8 +39,6 @@
 #include "CIOMap.hpp"
 #include "CNeuralNetwork.hpp"
 #include "CReadNeuralNetwork.hpp"
-#include "variable_def.hpp"
-
 namespace MLPToolbox {
 
 class CLookUp_ANN {

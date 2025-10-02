@@ -28,13 +28,16 @@
 */
 #pragma once
 
-#include "variable_def.hpp"
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <limits>
 #include <vector>
+
+#include "variable_def.hpp"
+#include "option_maps.hpp"
+
 
 namespace MLPToolbox {
 
@@ -62,9 +65,9 @@ private:
       input_norm,  /*!< Input variable normalization values (min, max). */
       output_norm; /*!< Output variable normalization values (min, max). */
   
-  /*!
-  * \brief Available activation function map.
-  */
+  // /*!
+  // * \brief Available activation function map.
+  // */
   std::map<std::string, ENUM_SCALING_FUNCTIONS> scaling_map{
       {"minmax", ENUM_SCALING_FUNCTIONS::MINMAX},
       {"standard", ENUM_SCALING_FUNCTIONS::STANDARD},
