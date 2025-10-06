@@ -224,7 +224,8 @@ public:
 
       mlpdouble distance_to_query_i = 0;
       for (auto i_input = 0u; i_input < ANN_inputs.size(); i_input++) {
-        within_range = NeuralNetworks[i_ANN]->CheckInputInclusion(ANN_inputs[i_input], i_input);
+        if (!NeuralNetworks[i_ANN]->CheckInputInclusion(ANN_inputs[i_input], i_input))
+          within_range = false;
         
 
         /* Calculate distance between MLP training range center point and query
