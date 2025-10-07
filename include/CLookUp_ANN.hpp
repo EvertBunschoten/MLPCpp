@@ -75,8 +75,6 @@ private:
 
     IteratorNetwork * MLP = new IteratorNetwork(Reader.GetNneurons());
 
-    MLP->SetInputRegularization(Reader.GetInputRegularization());
-    MLP->SetOutputRegularization(Reader.GetOutputRegularization());
     for (auto iInput=0u; iInput<Reader.GetNInputs(); iInput++)
       MLP->SetInputName(iInput, Reader.GetInputName(iInput));
     for (auto iOutput=0u; iOutput<Reader.GetNOutputs(); iOutput++)
@@ -241,11 +239,13 @@ public:
         //NeuralNetworks[i_ANN].Predict(ANN_inputs);
         MLP_was_evaluated = true;
         for (auto i = 0u; i < input_output_map->GetNMappedOutputs(i_map); i++) {
+
           *outputs[input_output_map->GetOutputIndex(i_map, i)] =
               NeuralNetworks[i_ANN]->GetOutput(
                   input_output_map->GetMLPOutputIndex(i_map, i));
           if (compute_firstorder_gradient) {
             for (auto iInput = 0u; iInput < inputs.size(); iInput++) {
+              
               *(doutputs_dinputs->at(input_output_map->GetOutputIndex(i_map, i))
                     .at(iInput)) =
                   NeuralNetworks[i_ANN]->GetJacobian(
@@ -333,6 +333,14 @@ public:
 
     CheckUseOfInputs(ioMap);
     CheckUseOfOutputs(ioMap);
+  }
+
+  void PairVariableswithMLPs(MLPToolbox::CQuery &query) {
+    query.FindNetworksForQuery(NeuralNetworks);
+  }
+
+  void Predict(MLPToolbox::CQuery &query) {
+    query();
   }
 
   /*!

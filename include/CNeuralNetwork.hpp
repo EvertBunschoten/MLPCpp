@@ -59,14 +59,22 @@ namespace MLPToolbox {
 
     size_t n_layers =0;
     size_t last_layer;
+
     mlpdouble *** weights_mat {nullptr};
     mlpdouble ** biases_mat {nullptr};
     mlpdouble ** layer_outputs {nullptr};
     mlpdouble *** layer_Jacobian {nullptr};
     mlpdouble **** layer_Hessian {nullptr};
     mlpdouble * input_layer {nullptr};
+
+    mlpdouble ** input_refs{nullptr};
     mlpdouble * output_layer {nullptr};
+    mlpdouble dummy_output;
+    mlpdouble **output_refs{nullptr};
     mlpdouble ** output_Jacobian {nullptr};
+    mlpdouble *** Jacobian_refs {nullptr};
+    mlpdouble **** Hessian_refs {nullptr};
+
     mlpdouble *** output_Hessian {nullptr};
     mlpdouble * input_norm_offset {nullptr};
     mlpdouble * input_norm_scale {nullptr};
@@ -86,6 +94,9 @@ namespace MLPToolbox {
 
     std::vector<std::string> input_names;
     std::vector<std::string> output_names;
+
+    bool calc_Jacobian {false};
+    bool calc_Hessian {false};
     
     public:
         IteratorNetwork(std::vector<size_t> NN_input) {
@@ -253,6 +264,27 @@ namespace MLPToolbox {
                 }
             }
             
+            input_refs = new mlpdouble*[n_inputs];
+            for (auto iInput=0u; iInput<n_inputs;iInput++)
+                input_refs[iInput] = nullptr;
+            output_refs = new mlpdouble*[n_outputs];
+            for (auto iOutput=0u; iOutput<n_outputs; iOutput++)
+                output_refs[iOutput] = &dummy_output;
+
+            Jacobian_refs = new mlpdouble **[n_outputs];
+            Hessian_refs = new mlpdouble ***[n_outputs];
+            for (auto iOutput=0u; iOutput<n_outputs; iOutput++){
+                output_refs[iOutput] = &dummy_output;
+                Jacobian_refs[iOutput] = new mlpdouble*[n_inputs];
+                Hessian_refs[iOutput] = new mlpdouble**[n_inputs];
+                for (auto iInput=0u; iInput < n_inputs; iInput++) {
+                    Jacobian_refs[iOutput][iInput] = &dummy_output;
+                    Hessian_refs[iOutput][iInput] = new mlpdouble*[n_inputs];
+                    for (auto jInput=0u; jInput<n_inputs; jInput++) {
+                        Hessian_refs[iOutput][iInput][jInput] = &dummy_output;
+                    }
+                }
+            }
             input_norm_offset = new mlpdouble [n_inputs];
             input_norm_scale = new mlpdouble [n_inputs];
             output_norm_offset = new mlpdouble [NN[last_layer]];
@@ -300,21 +332,31 @@ namespace MLPToolbox {
             delete [] input_norm_scale;
             delete [] output_norm_offset;
             delete [] output_norm_scale;
+            delete [] input_refs;
+            delete [] output_refs;
+            for (auto iOutput=0u; iOutput < n_outputs; iOutput++) {
+                delete [] Jacobian_refs[iOutput];
+                for (auto iInput=0u; iInput<n_inputs; iInput++)
+                    delete [] Hessian_refs[iOutput][iInput];
+                delete [] Hessian_refs[iOutput];
+            }
+            delete [] Jacobian_refs;
+            delete [] Hessian_refs;
             return;
         }
 
-        void CalcLayerOutputs(int iLayer, bool calc_Jacobian=false, bool calc_Hessian=false) {
+        void CalcLayerOutputs(int iLayer) {
             
             if (iLayer==0){
                 return;
             }else {
                 size_t prev_layer = iLayer-1;
-                CalcLayerOutputs(prev_layer, calc_Jacobian, calc_Hessian);
+                CalcLayerOutputs(prev_layer);
                 
                 for (size_t iNeuron=0; iNeuron < NN[iLayer]; ++iNeuron){
                     mlpdouble node_input = WeightsMultiplication(prev_layer, iNeuron, layer_outputs[prev_layer], biases_mat[iLayer][iNeuron]);
                     layer_outputs[iLayer][iNeuron] = activation_functions[iLayer]->call(node_input, calc_Jacobian, calc_Hessian);
-                    
+                   // std::cout << layer_outputs[iLayer][iNeuron] << ", ";
                     if (calc_Jacobian) {
                         for (size_t iInput=0; iInput < n_inputs; iInput++){
                             mlpdouble psi = WeightsMultiplication(prev_layer, iNeuron, layer_Jacobian[prev_layer][iInput]);
@@ -330,6 +372,7 @@ namespace MLPToolbox {
                             }
                         }
                     }
+                    //std::cout << std::endl;
                 }       
                 return;
             }
@@ -348,6 +391,14 @@ namespace MLPToolbox {
             biases_mat[iLayer][iNode] = val_bias;
         }
 
+        void CalcJacobian(bool enable_Jacobian=false) {
+            calc_Jacobian = enable_Jacobian;
+        }
+        
+        void CalcHessian(bool enable_Hessian=false) {
+            calc_Hessian = enable_Hessian;
+        }
+
         void SetInput(size_t iInput, const mlpdouble val_input) {
             input_layer[iInput] = val_input;
             return;
@@ -358,8 +409,24 @@ namespace MLPToolbox {
             return;
         }
 
+        void SetInputRef(size_t iInput, mlpdouble * input_ref) {
+            input_refs[iInput] = input_ref;
+        }
+
         mlpdouble GetOutput(size_t iOutput) {
             return output_layer[iOutput];
+        }
+
+        void SetOutputRef(size_t iOutput, mlpdouble * output_ref) {
+            output_refs[iOutput] = output_ref;
+        }
+        
+        void SetJacobianRef(size_t iOutput, size_t iInput, mlpdouble * ref) {
+            Jacobian_refs[iOutput][iInput] = ref;
+        }
+
+        void SetHessianRef(size_t iOutput, size_t iInput, size_t jInput, mlpdouble * ref) {
+            Hessian_refs[iOutput][iInput][jInput] = ref;
         }
 
         mlpdouble GetJacobian(size_t iOutput, size_t iInput) {
@@ -368,34 +435,11 @@ namespace MLPToolbox {
         mlpdouble GetHessian(size_t iOutput, size_t iInput, size_t jInput) {
             return output_Hessian[iInput][jInput][iOutput];
         }
-        // /*!
-        // * \brief Set the normalization factors for the input layer
-        // * \param[in] iInput - Input index.
-        // * \param[in] input_min - Minimum input value.
-        // * \param[in] input_max - Maximum input value.
-        // */
-        // void SetInputNorm(size_t iInput, mlpdouble input_offset,
-        //                   mlpdouble input_scale) {
-        //   input_norm_offset[iInput] = input_offset;
-        //   input_norm_scale[iInput] = input_scale;
-        // }
 
-        // /*!
-        // * \brief Set the normalization factors for the output layer
-        // * \param[in] iOutput - Input index.
-        // * \param[in] input_min - Minimum output value.
-        // * \param[in] input_max - Maximum output value.
-        // */
-        // void SetOutputNorm(size_t iOutput, mlpdouble output_offset,
-        //                   mlpdouble output_scale) {
-        //   output_norm_offset[iOutput] = output_offset;
-        //   output_norm_scale[iOutput] = output_scale;
-        // }
-
-        
-        void Predict(std::vector<mlpdouble> &X_in, bool calc_Jacobian=false, bool calc_Hessian=false) {
+        void InputLayer(std::vector<mlpdouble> &X_in) {
             for (auto iInput=0u; iInput < n_inputs; iInput++) {
                 input_layer[iInput] = NormalizeInput(X_in[iInput], iInput);//(X_in[iInput] - input_norm_offset[iInput])/input_norm_scale[iInput];
+                
                 if (calc_Jacobian) {
                     for (auto jInput=0u; jInput < n_inputs; jInput++) {
                         layer_Jacobian[0][iInput][jInput] = 0.0;
@@ -407,21 +451,55 @@ namespace MLPToolbox {
                     layer_Jacobian[0][iInput][iInput] = 1.0 / GetRegularizationScale(iInput, true);
                 }
             }
-            CalcLayerOutputs(int(last_layer), calc_Jacobian, calc_Hessian);
-            
-
+        }
+        void InputLayer(){
+            for (auto iInput=0u; iInput < n_inputs; iInput++) {
+                input_layer[iInput] = NormalizeInput(*input_refs[iInput], iInput);//(X_in[iInput] - input_norm_offset[iInput])/input_norm_scale[iInput];
+                
+                if (calc_Jacobian) {
+                    for (auto jInput=0u; jInput < n_inputs; jInput++) {
+                        layer_Jacobian[0][iInput][jInput] = 0.0;
+                        if (calc_Hessian) {
+                            for (auto kInput=0u; kInput < n_inputs; kInput++)
+                                layer_Hessian[0][iInput][jInput][kInput] = 0.0;
+                        }
+                    }   
+                    layer_Jacobian[0][iInput][iInput] = 1.0 / GetRegularizationScale(iInput, true);
+                }
+            }
+        }
+        void OutputLayer() {
             for (auto iOutput=0u; iOutput < n_outputs; iOutput++) {
                 output_layer[iOutput] = DimensionalizeOutput(output_layer[iOutput], iOutput);// [iOutput] + output_norm_scale[iOutput]*output_layer[iOutput];
+                *output_refs[iOutput] = output_layer[iOutput];
                 if (calc_Jacobian) {
                     for (auto iInput=0u; iInput < n_inputs; iInput++) {
                         output_Jacobian[iInput][iOutput] *= GetRegularizationScale(iOutput, false);
-                        for (auto jInput=0u; jInput < n_inputs; jInput++) {
-                            output_Hessian[iInput][jInput][iOutput] *= GetRegularizationScale(iOutput, false);
+                        *Jacobian_refs[iOutput][iInput] = output_Jacobian[iInput][iOutput];
+                        if (calc_Hessian) {
+                            for (auto jInput=0u; jInput < n_inputs; jInput++) {
+                                output_Hessian[iInput][jInput][iOutput] *= GetRegularizationScale(iOutput, false);
+                                *Hessian_refs[iOutput][iInput][jInput] = output_Hessian[iInput][jInput][iOutput];
+                            }
                         }
-                    }
-                        
+                    }  
                 }
             }
+        }
+        void Predict(std::vector<mlpdouble> &X_in, bool evaluate_Jacobian=false, bool evaluate_Hessian=false) {
+            calc_Jacobian=evaluate_Jacobian;
+            calc_Hessian=evaluate_Hessian;
+            InputLayer(X_in);
+            
+            CalcLayerOutputs(int(last_layer));
+            
+            OutputLayer();
+        }
+        
+        void Predict() {
+            InputLayer();
+            CalcLayerOutputs(int(last_layer));
+            OutputLayer();
         }
 
         void SetActivationFunction(size_t iLayer, std::string name_activation_function) {
@@ -638,6 +716,10 @@ namespace MLPToolbox {
   std::string GetInputName(std::size_t iInput) const {
     return input_names[iInput];
   }
+
+  std::vector<std::string> GetInputVars() const { return input_names; }
+  std::vector<std::string> GetOutputVars() const { return output_names; }
+  
 
   /*!
    * \brief Get network output variable name.
