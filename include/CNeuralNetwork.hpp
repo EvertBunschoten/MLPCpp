@@ -66,11 +66,9 @@ namespace MLPToolbox {
     mlpdouble *** layer_Jacobian {nullptr};
     mlpdouble **** layer_Hessian {nullptr};
     mlpdouble * input_layer {nullptr};
+    mlpdouble * network_inputs{nullptr};
 
-    mlpdouble ** input_refs{nullptr};
     mlpdouble * output_layer {nullptr};
-    mlpdouble dummy_output;
-    mlpdouble **output_refs{nullptr};
     mlpdouble ** output_Jacobian {nullptr};
     mlpdouble *** Jacobian_refs {nullptr};
     mlpdouble **** Hessian_refs {nullptr};
@@ -264,27 +262,6 @@ namespace MLPToolbox {
                 }
             }
             
-            input_refs = new mlpdouble*[n_inputs];
-            for (auto iInput=0u; iInput<n_inputs;iInput++)
-                input_refs[iInput] = nullptr;
-            output_refs = new mlpdouble*[n_outputs];
-            for (auto iOutput=0u; iOutput<n_outputs; iOutput++)
-                output_refs[iOutput] = &dummy_output;
-
-            Jacobian_refs = new mlpdouble **[n_outputs];
-            Hessian_refs = new mlpdouble ***[n_outputs];
-            for (auto iOutput=0u; iOutput<n_outputs; iOutput++){
-                output_refs[iOutput] = &dummy_output;
-                Jacobian_refs[iOutput] = new mlpdouble*[n_inputs];
-                Hessian_refs[iOutput] = new mlpdouble**[n_inputs];
-                for (auto iInput=0u; iInput < n_inputs; iInput++) {
-                    Jacobian_refs[iOutput][iInput] = &dummy_output;
-                    Hessian_refs[iOutput][iInput] = new mlpdouble*[n_inputs];
-                    for (auto jInput=0u; jInput<n_inputs; jInput++) {
-                        Hessian_refs[iOutput][iInput][jInput] = &dummy_output;
-                    }
-                }
-            }
             input_norm_offset = new mlpdouble [n_inputs];
             input_norm_scale = new mlpdouble [n_inputs];
             output_norm_offset = new mlpdouble [NN[last_layer]];
@@ -292,7 +269,7 @@ namespace MLPToolbox {
 
             input_norm.resize(n_inputs);
             output_norm.resize(n_outputs);
-
+            network_inputs = new mlpdouble[n_inputs];
             output_Jacobian = layer_Jacobian[last_layer];
             output_Hessian = layer_Hessian[last_layer];
             input_names.resize(n_inputs);
@@ -332,16 +309,7 @@ namespace MLPToolbox {
             delete [] input_norm_scale;
             delete [] output_norm_offset;
             delete [] output_norm_scale;
-            delete [] input_refs;
-            delete [] output_refs;
-            for (auto iOutput=0u; iOutput < n_outputs; iOutput++) {
-                delete [] Jacobian_refs[iOutput];
-                for (auto iInput=0u; iInput<n_inputs; iInput++)
-                    delete [] Hessian_refs[iOutput][iInput];
-                delete [] Hessian_refs[iOutput];
-            }
-            delete [] Jacobian_refs;
-            delete [] Hessian_refs;
+            delete [] network_inputs;
             return;
         }
 
@@ -400,34 +368,40 @@ namespace MLPToolbox {
         }
 
         void SetInput(size_t iInput, const mlpdouble val_input) {
-            input_layer[iInput] = val_input;
+            network_inputs[iInput] = val_input;
             return;
         }
+        mlpdouble * InputLayer(size_t iInput) const { return &network_inputs[iInput];}
+
+        mlpdouble * OutputLayer(size_t iOutput) const {return &output_layer[iOutput];}
+
+        mlpdouble * Jacobian(size_t iOutput, size_t iInput) const {return &output_Jacobian[iInput][iOutput];}
+        mlpdouble * Hessian(size_t iOutput, size_t iInput, size_t jInput) const {return &output_Hessian[iInput][jInput][iOutput];}
 
         void SetInput(const mlpdouble* const input_vals) {
             std::copy(input_vals, input_vals + n_inputs, input_layer);
             return;
         }
 
-        void SetInputRef(size_t iInput, mlpdouble * input_ref) {
-            input_refs[iInput] = input_ref;
-        }
+        // void SetInputRef(size_t iInput, mlpdouble * input_ref) {
+        //     input_refs[iInput] = input_ref;
+        // }
 
         mlpdouble GetOutput(size_t iOutput) {
             return output_layer[iOutput];
         }
 
-        void SetOutputRef(size_t iOutput, mlpdouble * output_ref) {
-            output_refs[iOutput] = output_ref;
-        }
+        // void SetOutputRef(size_t iOutput, mlpdouble * output_ref) {
+        //     output_refs[iOutput] = output_ref;
+        // }
         
-        void SetJacobianRef(size_t iOutput, size_t iInput, mlpdouble * ref) {
-            Jacobian_refs[iOutput][iInput] = ref;
-        }
+        // void SetJacobianRef(size_t iOutput, size_t iInput, mlpdouble * ref) {
+        //     Jacobian_refs[iOutput][iInput] = ref;
+        // }
 
-        void SetHessianRef(size_t iOutput, size_t iInput, size_t jInput, mlpdouble * ref) {
-            Hessian_refs[iOutput][iInput][jInput] = ref;
-        }
+        // void SetHessianRef(size_t iOutput, size_t iInput, size_t jInput, mlpdouble * ref) {
+        //     Hessian_refs[iOutput][iInput][jInput] = ref;
+        // }
 
         mlpdouble GetJacobian(size_t iOutput, size_t iInput) {
             return output_Jacobian[iInput][iOutput];
@@ -454,8 +428,7 @@ namespace MLPToolbox {
         }
         void InputLayer(){
             for (auto iInput=0u; iInput < n_inputs; iInput++) {
-                input_layer[iInput] = NormalizeInput(*input_refs[iInput], iInput);//(X_in[iInput] - input_norm_offset[iInput])/input_norm_scale[iInput];
-                
+                input_layer[iInput] = NormalizeInput(network_inputs[iInput], iInput);
                 if (calc_Jacobian) {
                     for (auto jInput=0u; jInput < n_inputs; jInput++) {
                         layer_Jacobian[0][iInput][jInput] = 0.0;
@@ -470,16 +443,13 @@ namespace MLPToolbox {
         }
         void OutputLayer() {
             for (auto iOutput=0u; iOutput < n_outputs; iOutput++) {
-                output_layer[iOutput] = DimensionalizeOutput(output_layer[iOutput], iOutput);// [iOutput] + output_norm_scale[iOutput]*output_layer[iOutput];
-                *output_refs[iOutput] = output_layer[iOutput];
+                output_layer[iOutput] = DimensionalizeOutput(output_layer[iOutput], iOutput);
                 if (calc_Jacobian) {
                     for (auto iInput=0u; iInput < n_inputs; iInput++) {
                         output_Jacobian[iInput][iOutput] *= GetRegularizationScale(iOutput, false);
-                        *Jacobian_refs[iOutput][iInput] = output_Jacobian[iInput][iOutput];
                         if (calc_Hessian) {
                             for (auto jInput=0u; jInput < n_inputs; jInput++) {
                                 output_Hessian[iInput][jInput][iOutput] *= GetRegularizationScale(iOutput, false);
-                                *Hessian_refs[iOutput][iInput][jInput] = output_Hessian[iInput][jInput][iOutput];
                             }
                         }
                     }  
