@@ -52,70 +52,29 @@ int main() {
   MLPToolbox::CLookUp_ANN ANN_test =
       MLPToolbox::CLookUp_ANN(nMLPs, input_filenames);
 
-  /* Step 2: Input-Output mapping (preprocessing) */
-  /* Define an input-output map for each look-up operation to be performed. */
-  vector<string>
-      input_names, /*!< Controlling variable names for the look-up operation. */
-      output_names; /*!< Output variable names for the look-up operation */
-
-  /*--- Size the controlling variable vector and fill in the variable names
-   * (should correspond to the controlling variable names in any of the loaded
-   * MLPs, but the order is irrelevant) ---*/
-  input_names.resize(2);
-  input_names[0] = "u";
-  input_names[1] = "v";;
-
-  /*--- Size the output variable vector and set the variable names ---*/
-  output_names.resize(1);
-  output_names[0] = "y";
-
+  double val_u, val_v, val_y, val_dydu, val_dydv, val_d2ydu2, val_d2ydudv, val_d2ydv2;
   /*--- Generate the input-output map and pair the loaded MLP's with the input
    * and output variables of the lookup operation ---*/
-  MLPToolbox::CIOMap iomap = MLPToolbox::CIOMap(input_names, output_names);
-  ANN_test.PairVariableswithMLPs(iomap);
+  MLPToolbox::CQuery iomap = MLPToolbox::CQuery();
 
+  iomap.AddQueryInput("u", &val_u);
+  iomap.AddQueryInput("v", &val_v);
+  iomap.AddQueryOutput("y", &val_y);
+  iomap.AddQueryJacobian("y", "u", &val_dydu);
+  iomap.AddQueryJacobian("y", "v", &val_dydv);
+  iomap.AddQueryHessian("y", "u", "u", &val_d2ydu2);
+  iomap.AddQueryHessian("y", "u", "v", &val_d2ydudv);
+  iomap.AddQueryHessian("y", "v", "v", &val_d2ydv2);
+  
+  MLPToolbox::CQuery iomap_output_only = MLPToolbox::CQuery();
+  iomap_output_only.AddQueryInput("u", &val_u);
+  iomap_output_only.AddQueryInput("v", &val_v);
+  iomap_output_only.AddQueryOutput("y", &val_y);
+
+  ANN_test.PairVariableswithMLPs(iomap);
+  ANN_test.PairVariableswithMLPs(iomap_output_only);
   /*--- Optional: display network architecture information in the terminal ---*/
   ANN_test.DisplayNetworkInfo();
-
-  /*--- Pepare input and output vectors for look-up operation ---*/
-  vector<double> MLP_inputs;
-  vector<double *> MLP_outputs;
-
-  MLP_inputs.resize(input_names.size());
-  MLP_outputs.resize(output_names.size());
-
-  /*--- If the first order and second derivatives of the network output w.r.t.
-   * the network inputs are desired, provide a 2D vector for the first order and
-   * a 3D vector for the second order derivatives.---*/
-  vector<vector<double>> dOutputs_dInputs(output_names.size());
-  vector<vector<double *>> dOutputs_dInputs_refs(output_names.size());
-  vector<vector<vector<double>>> d2Outputs_dInputs2(output_names.size());
-  vector<vector<vector<double *>>> d2Outputs_dInputs2_refs(output_names.size());
-  /*--- For the first-order derivative, the first dimension of the output
-   * derivative vector corresponds to the iomap output variable index, while the
-   * second dimension corresponds to the iomap input variable index. ---*/
-  for (auto iOutput = 0u; iOutput < output_names.size(); iOutput++) {
-    dOutputs_dInputs[iOutput].resize(input_names.size());
-    d2Outputs_dInputs2[iOutput].resize(input_names.size());
-    dOutputs_dInputs_refs[iOutput].resize(input_names.size());
-    d2Outputs_dInputs2_refs[iOutput].resize(input_names.size());
-    /*--- The second-order derivative vector has an additional dimension which
-     * corresponds to the second input variable index of which the derivative is
-     * evaluated. ---*/
-    for (auto iInput = 0u; iInput < input_names.size(); iInput++) {
-      dOutputs_dInputs_refs[iOutput][iInput] =
-          &dOutputs_dInputs[iOutput][iInput];
-      d2Outputs_dInputs2[iOutput][iInput].resize(input_names.size());
-      d2Outputs_dInputs2_refs[iOutput][iInput].resize(input_names.size());
-      for (auto jInput = 0u; jInput < input_names.size(); jInput++) {
-        d2Outputs_dInputs2_refs[iOutput][iInput][jInput] =
-            &d2Outputs_dInputs2[iOutput][iInput][jInput];
-      }
-    }
-  }
-  /*--- Set pointer to output variables ---*/
-  double val_output;
-  MLP_outputs[0] = &val_output;
 
   /* PREPROCESSING END */
 
@@ -133,30 +92,29 @@ int main() {
   
   while (getline(input_data_file, line)) {
     stringstream line_stream(line);
-    line_stream >> word;
-    MLP_inputs[0] = stod(word);
-    line_stream >> word;
-    MLP_inputs[1] = stod(word);
+    line_stream >> val_u;
+    line_stream >> val_v;
 
-    ANN_test.PredictANN(&iomap, MLP_inputs, MLP_outputs, &dOutputs_dInputs_refs, &d2Outputs_dInputs2_refs);
+    ANN_test.Predict(iomap);
 
-    output_data_file << scientific << MLP_inputs[0] << "\t"
-                     << scientific << MLP_inputs[1] << "\t"
-                     << scientific << val_output << endl;
+    output_data_file << scientific << val_u << "\t"
+                     << scientific << val_v << "\t"
+                     << scientific << val_y << endl;
 
     /* Validate gradient computation */
     double delta_CV = 1e-5;
-    double val_output_c = val_output;
+    double val_output_c = val_y;
     double val_output_p, val_output_m;
-    MLP_inputs[0] += delta_CV;
-    ANN_test.PredictANN(&iomap, MLP_inputs, MLP_outputs);
-    val_output_p = val_output;
-    MLP_inputs[0] -= 2*delta_CV;
-    ANN_test.PredictANN(&iomap, MLP_inputs, MLP_outputs);
-    val_output_m = val_output;
+    val_u += delta_CV;
+    ANN_test.Predict(iomap_output_only);
+
+    val_output_p = val_y;
+    val_u -= 2*delta_CV;
+    ANN_test.Predict(iomap_output_only);
+    val_output_m = val_y;
     double dy_du_fd = (val_output_p - val_output_m) / (2*delta_CV);
     double d2y_du2_fd = (val_output_p - 2 * val_output_c + val_output_m) / (delta_CV*delta_CV);
-    cout << scientific << dOutputs_dInputs[0][0] << "\t" << scientific << dy_du_fd << endl;
+    cout << scientific << val_dydu << "\t" << scientific << dy_du_fd << endl;
     //cout << scientific << d2Outputs_dInputs2[0][0][0] << "\t" << scientific << d2y_du2_fd << endl;
   }
   input_data_file.close();
