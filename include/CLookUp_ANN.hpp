@@ -202,6 +202,41 @@ public:
   }
 
   /*!
+   * \brief Update the weights of a specific network from a flat vector.
+   * \param[in] network_idx Index of the network to update.
+   * \param[in] flat_weights Vector containing all weights and biases flattened.
+   */
+  void SetWeights(unsigned long network_idx, const std::vector<mlpdouble>& flat_weights) {
+    if (network_idx >= NeuralNetworks.size()) {
+      throw std::runtime_error("CLookUp_ANN::SetWeights: Network index out of bounds.");
+    }
+
+    CNeuralNetwork* net = &NeuralNetworks[network_idx];
+    unsigned long k = 0;
+
+    for (unsigned long i_layer = 1; i_layer < net->GetNLayers(); i_layer++) {
+
+      unsigned long n_inputs = net->GetNNeurons(i_layer - 1);
+      unsigned long n_neurons = net->GetNNeurons(i_layer);
+
+      for (unsigned long i_node = 0; i_node < n_neurons; i_node++) {
+
+        for (unsigned long i_input = 0; i_input < n_inputs; i_input++) {
+          if (k >= flat_weights.size()) {
+             throw std::runtime_error("SetWeights: Vector too small for network topology.");
+          }
+          net->SetWeight(i_layer, i_node, i_input, flat_weights[k++]);
+        }
+
+        if (k >= flat_weights.size()) {
+           throw std::runtime_error("SetWeights: Vector too small for network topology (bias).");
+        }
+        net->SetBias(i_layer, i_node, flat_weights[k++]);
+      }
+    }
+  }
+
+  /*!
    * \brief Evaluate loaded ANNs for given inputs and outputs
    * \param[in] input_output_map - input-output map coupling desired inputs and
    * outputs to loaded ANNs.
@@ -246,7 +281,6 @@ public:
         if (!NeuralNetworks[i_ANN].CheckInputInclusion(ANN_inputs[i_input], i_input))
           within_range = false;
         
-
         /* Calculate distance between MLP training range center point and query
          */
         mlpdouble middle = NeuralNetworks[i_ANN].GetRegularizationOffset(i_input);
