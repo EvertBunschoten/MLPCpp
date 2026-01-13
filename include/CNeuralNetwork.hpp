@@ -180,6 +180,18 @@ public:
   };
 
   /*!
+   * \brief Get the weight connecting a neuron in the previous layer to a neuron in the current layer.
+   * \param[in] i_layer Index of the current layer.
+   * \param[in] i_neuron Index of the neuron in the current layer.
+   * \param[in] j_neuron Index of the neuron in the previous layer (input).
+   * \return Weight value.
+   */
+  mlpdouble GetWeight(unsigned long i_layer, unsigned long i_neuron,
+                      unsigned long j_neuron) const {
+    return weights_mat[i_layer][j_neuron][i_neuron];
+  }
+
+  /*!
    * \brief Set bias value at a specific neuron.
    * \param[in] i_layer - Layer index.
    * \param[in] i_neuron - Neuron index of current layer.

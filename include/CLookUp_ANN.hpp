@@ -202,38 +202,68 @@ public:
   }
 
   /*!
-   * \brief Update the weights of a specific network from a flat vector.
+   * \brief Update the weights and biases of a specific network from a flat vector.
    * \param[in] network_idx Index of the network to update.
    * \param[in] flat_weights Vector containing all weights and biases flattened.
    */
-  void SetWeights(unsigned long network_idx, const std::vector<mlpdouble>& flat_weights) {
+  void SetWeightsBiases(size_t network_idx, const std::vector<mlpdouble>& flat_weights) {
     if (network_idx >= NeuralNetworks.size()) {
-      throw std::runtime_error("CLookUp_ANN::SetWeights: Network index out of bounds.");
+      throw std::runtime_error("CLookUp_ANN::SetWeightsBiases: Network index out of bounds.");
     }
 
     CNeuralNetwork* net = &NeuralNetworks[network_idx];
-    unsigned long k = 0;
+    size_t k = 0;
 
-    for (unsigned long i_layer = 1; i_layer < net->GetNLayers(); i_layer++) {
+    for (size_t i_layer = 1; i_layer < net->GetNLayers(); i_layer++) {
+      
+      size_t n_inputs = net->GetNNeurons(i_layer - 1);
+      size_t n_neurons = net->GetNNeurons(i_layer);
 
-      unsigned long n_inputs = net->GetNNeurons(i_layer - 1);
-      unsigned long n_neurons = net->GetNNeurons(i_layer);
+      for (size_t i_node = 0; i_node < n_neurons; i_node++) {
 
-      for (unsigned long i_node = 0; i_node < n_neurons; i_node++) {
-
-        for (unsigned long i_input = 0; i_input < n_inputs; i_input++) {
+        for (size_t i_input = 0; i_input < n_inputs; i_input++) {
           if (k >= flat_weights.size()) {
-             throw std::runtime_error("SetWeights: Vector too small for network topology.");
+             throw std::runtime_error("SetWeightsBiases: Vector size mismatch (too small).");
           }
           net->SetWeight(i_layer, i_node, i_input, flat_weights[k++]);
         }
 
         if (k >= flat_weights.size()) {
-           throw std::runtime_error("SetWeights: Vector too small for network topology (bias).");
+           throw std::runtime_error("SetWeightsBiases: Vector size mismatch (bias).");
         }
         net->SetBias(i_layer, i_node, flat_weights[k++]);
       }
     }
+  }
+
+  /*!
+   * \brief Get the flattened weights and biases of a specific network.
+   * \param[in] network_idx Index of the network.
+   * \return std::vector<mlpdouble> Vector containing all weights and biases.
+   */
+  std::vector<mlpdouble> GetWeightsBiases(size_t network_idx) const {
+    if (network_idx >= NeuralNetworks.size()) {
+      throw std::runtime_error("CLookUp_ANN::GetWeightsBiases: Network index out of bounds.");
+    }
+
+    const CNeuralNetwork* net = &NeuralNetworks[network_idx];
+    std::vector<mlpdouble> flat_weights;
+
+    for (size_t i_layer = 1; i_layer < net->GetNLayers(); i_layer++) {
+      
+      size_t n_inputs = net->GetNNeurons(i_layer - 1);
+      size_t n_neurons = net->GetNNeurons(i_layer);
+
+      for (size_t i_node = 0; i_node < n_neurons; i_node++) {
+
+        for (size_t i_input = 0; i_input < n_inputs; i_input++) {
+           flat_weights.push_back(net->GetWeight(i_layer, i_node, i_input));
+        }
+
+        flat_weights.push_back(net->GetBias(i_layer, i_node));
+      }
+    }
+    return flat_weights;
   }
 
   /*!
