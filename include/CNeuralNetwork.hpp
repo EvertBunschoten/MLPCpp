@@ -186,8 +186,7 @@ public:
    * \param[in] j_neuron Index of the neuron in the previous layer (input).
    * \return Weight value.
    */
-  mlpdouble GetWeight(unsigned long i_layer, unsigned long i_neuron,
-                      unsigned long j_neuron) const {
+  mlpdouble GetWeight(size_t i_layer, size_t i_neuron, size_t j_neuron) const {
     return weights_mat[i_layer][j_neuron][i_neuron];
   }
 
