@@ -30,15 +30,15 @@ class ActivationFunctionBase{
     mlpdouble GetHessian() const {return Hessian;}
     std::string GetName() const {return name;}
     ActivationFunctionBase(){}
-    virtual mlpdouble call (mlpdouble x,bool calc_Jacobian=false, bool calc_Hessian=false)=0;
+    virtual mlpdouble call (const mlpdouble x,const bool calc_Jacobian=false, const bool calc_Hessian=false)=0;
     
-    
+    ~ActivationFunctionBase() = default;
 };
 
 class Lin final: public ActivationFunctionBase {
     public:
         Lin() {name="Linear";}
-        mlpdouble call (mlpdouble x, bool calc_Jacobian=false, bool calc_Hessian=false) override {
+        mlpdouble call (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) override {
             output = x;
             if (calc_Jacobian)
                 Jacobian = 1.0;
@@ -51,7 +51,7 @@ class Lin final: public ActivationFunctionBase {
 class Elu final: public ActivationFunctionBase {
     public:
         Elu() {name="Elu";}
-        mlpdouble call (mlpdouble x,bool calc_Jacobian=false, bool calc_Hessian=false) override {
+        mlpdouble call (const mlpdouble x,const bool calc_Jacobian=false, const bool calc_Hessian=false) override {
             if (x > 0) {
                 if (calc_Jacobian)
                     Jacobian = 1.0;
@@ -73,13 +73,12 @@ class Elu final: public ActivationFunctionBase {
 class Sigmoid final: public ActivationFunctionBase {
     public:
         Sigmoid() {name="Sigmoid";}
-        virtual mlpdouble call (mlpdouble x,bool calc_Jacobian=false, bool calc_Hessian=false) {
-            mlpdouble exp_x = exp(-x);
-            output = 1.0 / (1 + exp_x);
+        virtual mlpdouble call (const mlpdouble x,const bool calc_Jacobian=false, const bool calc_Hessian=false) {
+            const mlpdouble exp_x = exp(x);
+            output = exp_x / (1 + exp_x);
             if (calc_Jacobian) {
-                Jacobian = exp_x / pow(exp_x + 1, 2);
+                Jacobian = exp_x / pow(1 + exp_x, 2);
                 if (calc_Hessian) {
-                    exp_x = exp(x);
                     Hessian = -(exp_x * (exp_x - 1)) / pow(exp_x + 1, 3);
                 }
             }
@@ -91,7 +90,7 @@ class Sigmoid final: public ActivationFunctionBase {
 class Exponential final: public ActivationFunctionBase {
     public:
     Exponential() {name="Exponential";}
-    virtual mlpdouble call (mlpdouble x, bool calc_Jacobian=false, bool calc_Hessian=false) {
+    virtual mlpdouble call (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
         output = exp(x);
         if (calc_Jacobian) Jacobian = output;
         if (calc_Hessian) Hessian = output;
@@ -102,7 +101,7 @@ class Exponential final: public ActivationFunctionBase {
 class Relu final: public ActivationFunctionBase {
     public:
     Relu() {name="ReLu";}
-    virtual mlpdouble call (mlpdouble x, bool calc_Jacobian=false, bool calc_Hessian=false) {
+    virtual mlpdouble call (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
         if (x > 0) {
             output = x;
             if (calc_Jacobian) 
@@ -121,14 +120,13 @@ class Relu final: public ActivationFunctionBase {
 class Swish final: public ActivationFunctionBase {
     public:
     Swish() {name="Swish";}
-    virtual mlpdouble call (mlpdouble x, bool calc_Jacobian=false, bool calc_Hessian=false) {
-        output = x / (1 + exp(-x));
+    virtual mlpdouble call (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
+        const mlpdouble exp_x = exp(x);
+        output = x * exp_x/ (1 + exp_x);
         if (calc_Jacobian) {
-            mlpdouble exp_x = exp(x);
             Jacobian = exp_x * (x + exp_x + 1) / pow(exp_x + 1, 2);
-            if (calc_Hessian){
-                Hessian = exp_x*(-exp_x * (x - 2) + x + 2) / pow(exp_x + 1,3);
-            }
+            if (calc_Hessian)
+                Hessian = exp_x * (-exp_x * (x - 2) + x + 2) / pow(exp_x + 1, 3);
         }
         return output;
     }
@@ -137,8 +135,8 @@ class Swish final: public ActivationFunctionBase {
 class Tanh final: public ActivationFunctionBase {
     public:
     Tanh() {name="Tanh";}
-    virtual mlpdouble call (mlpdouble x, bool calc_Jacobian=false, bool calc_Hessian=false) {
-        mlpdouble tnh = tanh(x);
+    virtual mlpdouble call (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
+        const mlpdouble tnh = tanh(x);
         output = tnh;
         if (calc_Jacobian){
             Jacobian = pow(cosh(x), -2);
@@ -158,7 +156,7 @@ class SeLu final: public ActivationFunctionBase {
         const mlpdouble alpha {1.67326324};
     public:
     SeLu() {name="SeLu";}
-    virtual mlpdouble call (mlpdouble x, bool calc_Jacobian=false, bool calc_Hessian=false) {
+    virtual mlpdouble call (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
         if (x > 0) {
             output = lambda * x;
             if (calc_Jacobian){
@@ -168,7 +166,7 @@ class SeLu final: public ActivationFunctionBase {
                 }
             }
         } else {
-            mlpdouble exp_x = exp(x);
+            const mlpdouble exp_x = exp(x);
             output = lambda * alpha * (exp_x - 1);
             if (calc_Jacobian){
                 Jacobian = output + lambda * alpha;
@@ -186,15 +184,12 @@ class GeLu final: public ActivationFunctionBase {
     const mlpdouble gelu_c{0.5*sqrt(2)};
     public:
     GeLu() {name="GeLu";}
-    virtual mlpdouble call (mlpdouble x, bool calc_Jacobian=false, bool calc_Hessian=false) {
-        output = 0.5*x*(1 + erf(x / sqrt(2)));
+    virtual mlpdouble call (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
+        output = 0.5 * x * (1 + erf(x / sqrt(2)));
         if (calc_Jacobian) {
-            mlpdouble exp_x = exp(-gelu_c * x);
-            Jacobian = exp_x * (gelu_c * x + exp_x + 1) / pow(exp_x + 1, 2);
+            Jacobian = 0.5 + 0.5*sqrt(2/M_PI) * exp(-0.5*pow(x,2)) * x + 0.5 * erf(x/sqrt(2));
             if (calc_Hessian)
-            Hessian = x * ((5.79361 * pow(exp_x, 2) / pow(exp_x + 1, 3)) -
-                                    (2.8968 * exp_x / pow(exp_x + 1, 2))) +
-                        3.404 * exp_x / pow(exp_x + 1, 2);
+                Hessian = exp(-0.5*pow(x,2))*(sqrt(2/M_PI) - 0.5*sqrt(2/M_PI)*pow(x,2));
         }
         return output;
     }

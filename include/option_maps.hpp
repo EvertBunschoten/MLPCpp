@@ -31,3 +31,20 @@ enum class ENUM_ACTIVATION_FUNCTION {
 
  
 
+std::map<std::string, ENUM_ACTIVATION_FUNCTION> activation_function_map{
+        {"none", ENUM_ACTIVATION_FUNCTION::NONE},
+        {"linear", ENUM_ACTIVATION_FUNCTION::LINEAR},
+        {"elu", ENUM_ACTIVATION_FUNCTION::ELU},
+        {"relu", ENUM_ACTIVATION_FUNCTION::RELU},
+        {"gelu", ENUM_ACTIVATION_FUNCTION::GELU},
+        {"selu", ENUM_ACTIVATION_FUNCTION::SELU},
+        {"sigmoid", ENUM_ACTIVATION_FUNCTION::SIGMOID},
+        {"swish", ENUM_ACTIVATION_FUNCTION::SWISH},
+        {"tanh", ENUM_ACTIVATION_FUNCTION::TANH},
+        {"exponential", ENUM_ACTIVATION_FUNCTION::EXPONENTIAL}};
+
+std::map<std::string, ENUM_SCALING_FUNCTIONS> scaling_map{
+      {"minmax", ENUM_SCALING_FUNCTIONS::MINMAX},
+      {"standard", ENUM_SCALING_FUNCTIONS::STANDARD},
+      {"robust", ENUM_SCALING_FUNCTIONS::ROBUST},
+  };

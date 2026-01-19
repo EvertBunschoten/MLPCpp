@@ -31,6 +31,7 @@ operations.
 #include "variable_def.hpp"
 #include <string>
 #include <vector>
+#include <set>
 #include "CNeuralNetwork.hpp"
 namespace MLPToolbox {
 
@@ -47,6 +48,28 @@ namespace MLPToolbox {
             return "Not all queries are present in the network outputs";
       }
   };
+
+  class DuplicateInputs: public std::exception 
+  {
+    std::vector<std::string> input_names;
+  public:
+      DuplicateInputs(const std::vector<std::string> &problematic_inputs)
+      {
+        input_names.resize(problematic_inputs.size());
+        std::copy(problematic_inputs.begin(), problematic_inputs.end(), input_names.begin());
+      };
+      virtual const char *what() const noexcept {
+
+        std::string message = "Network has duplicate inputs: ";
+        for (const auto var : input_names) message += (var + ", ");
+
+        char *cstr = new char[message.size() + 1];
+        std::strcpy(cstr, message.c_str());
+        return cstr;
+      }
+  };
+
+  
 struct IOMap_Network {
   IteratorNetwork* MLP;
   std::vector<std::pair<mlpdouble*, mlpdouble*>> input_map;
@@ -70,6 +93,7 @@ class CQuery {
     std::vector<std::pair<std::pair<std::string, std::string>, mlpdouble*>> query_Jacobian;
     std::vector<std::pair<std::pair<std::string, std::pair<std::string, std::string>>, mlpdouble*>> query_Hessian;
 
+    std::vector<mlpdouble> query_output_vals;
     
     public:
 
@@ -77,11 +101,26 @@ class CQuery {
     // const std::pair<mlpdouble, mlpdouble> GetMeanInputBounds() const {return std::make_pair(mean_input_bounds_min,mean_input_bounds_max);}
     // const mlpdouble GetMeanInputOffset() const {return std::make_pair(mean_input_bounds_min,mean_input_bounds_max);}
     
-    void AddQueryInput(const std::string varname, mlpdouble* ref_input) {
+    void SetQueryInput(const std::vector<std::string> &varnames) {
+      query_input.clear();
+      for (auto var : varnames)
+        query_input.push_back(std::make_pair(var, nullptr));
+    }
+
+    void SetQueryOutput(const std::vector<std::string> &varnames) {
+      query_output.clear();
+      query_output_vals.resize(varnames.size());
+      for (auto iOutput=0u; iOutput<varnames.size(); iOutput++)
+        query_output.push_back(std::make_pair(varnames[iOutput], &query_output_vals[iOutput]));
+    }
+    
+    std::vector<mlpdouble> GetQueryOutput() const {return query_output_vals;}
+
+    void AddQueryInput(const std::string varname, mlpdouble* ref_input=nullptr) {
       query_input.push_back(std::make_pair(varname, ref_input));
     }
     
-    void AddQueryOutput(const std::string varname, mlpdouble* ref_output) {
+    void AddQueryOutput(const std::string varname, mlpdouble* ref_output=nullptr) {
       query_output.push_back(std::make_pair(varname, ref_output));
     }
 
@@ -93,7 +132,7 @@ class CQuery {
       query_Hessian.push_back(std::make_pair(std::make_pair(varname_output, std::make_pair(varname_input_1, varname_input_2)),ref_output));
     }
 
-    bool CheckNetworkVariables(IteratorNetwork * network_to_check) {
+    bool CheckNetworkVariables(const IteratorNetwork  *network_to_check) {
         const std::vector<std::string> network_inputs = network_to_check->GetInputVars();
         const std::vector<std::string> network_outputs = network_to_check->GetOutputVars();
         bool network_compatible{true};
@@ -117,8 +156,18 @@ class CQuery {
         return network_compatible;
     }
 
+    bool CheckUniqueInputs(const IteratorNetwork  *network_to_check) const {
+      auto network_inputs = network_to_check->GetInputVars();
+      std::sort(network_inputs.begin(),network_inputs.end());
+      return std::unique(network_inputs.begin(),network_inputs.end()) == network_inputs.end();
+    }
+
     void FindNetworksForQuery(const std::vector<IteratorNetwork*> &networks_to_check) {
         for (auto network_to_check : networks_to_check) {
+            if (!CheckUniqueInputs(network_to_check)) {
+              throw DuplicateInputs(network_to_check->GetInputVars());
+              return;
+            }
             if (CheckNetworkVariables(network_to_check)){
                 IOMap_Network mapped_network;
                 mapped_network.MLP = network_to_check;
@@ -142,13 +191,41 @@ class CQuery {
     {
       for (const auto &mapped_network : query_network_maps) {
         SetNetworkInputs(mapped_network);
-        mapped_network.MLP->CalcJacobian(mapped_network.evaluate_Jacobian);
-        mapped_network.MLP->CalcHessian(mapped_network.evaluate_Hessian);
-        mapped_network.MLP->Predict();
-        RetrieveNetworkOutput(mapped_network);
-        mapped_network.MLP->CalcJacobian(false);
-        mapped_network.MLP->CalcHessian(false);
+        if (mapped_network.MLP->CheckInputInclusion()){
+          mapped_network.MLP->CalcJacobian(mapped_network.evaluate_Jacobian);
+          mapped_network.MLP->CalcHessian(mapped_network.evaluate_Hessian);
+          mapped_network.MLP->Predict();
+          RetrieveNetworkOutput(mapped_network);
+          mapped_network.MLP->CalcJacobian(false);
+          mapped_network.MLP->CalcHessian(false);
+        }
       }
+    };
+
+    void operator()(const std::vector<mlpdouble> &vals_input,const std::vector<mlpdouble*> &refs_output) 
+    {
+      if (refs_output.size() != query_output_vals.size()){
+        throw std::exception();
+      }
+      // std::vector<mlpdouble> dist_vals;
+      // for (const auto &mapped_network : query_network_maps) {
+      //   SetNetworkInputs(mapped_network, vals_input);
+      //   const auto val_dist = mapped_network.MLP->QueryDistance();
+      //   dist_vals.push_back(val_dist);
+      // }
+      for (const auto &mapped_network : query_network_maps) {
+        SetNetworkInputs(mapped_network, vals_input);
+        if (mapped_network.MLP->CheckInputInclusion()){
+          mapped_network.MLP->CalcJacobian(mapped_network.evaluate_Jacobian);
+          mapped_network.MLP->CalcHessian(mapped_network.evaluate_Hessian);
+          mapped_network.MLP->Predict();
+          RetrieveNetworkOutput(mapped_network);
+          mapped_network.MLP->CalcJacobian(false);
+          mapped_network.MLP->CalcHessian(false);
+        }
+      }
+      for (auto iOutput=0u; iOutput<query_output_vals.size(); iOutput++)
+        *refs_output[iOutput] = query_output_vals[iOutput];
     };
 
     void SetNetworkInputs(const IOMap_Network &mapped_network) const {
@@ -157,13 +234,25 @@ class CQuery {
       }
     } 
 
+    void SetNetworkInputs(const IOMap_Network &mapped_network, const std::vector<mlpdouble> &vals_input) const {
+      for (auto iInput=0u; iInput < mapped_network.input_map.size(); iInput++) {
+        *mapped_network.input_map[iInput].second = vals_input[iInput];
+      }
+    }
+
     void RetrieveNetworkOutput(const IOMap_Network &mapped_network) const {
       for (const auto &q_out : mapped_network.output_map) {
         *q_out.first = *q_out.second;
       }
     }
 
-    
+    // void RetrieveNetworkOutput(const IOMap_Network &mapped_network, const std::vector<mlpdouble*> &vals_output) const {
+
+    //   for (auto iOutput=0u; iOutput < mapped_network.output_map.size(); iOutput++) {
+    //     *vals_output[iOutput] = *mapped_network.output_map[iOutput].second;
+    //   }
+    // }
+
     bool CheckUseOfOutputs() const {
         bool found_all_query_vars {true};
         for (auto &q : query_output) {
@@ -190,6 +279,7 @@ class CQuery {
         
     }
 
+    
     void MapInputs(){
         // mean_query_inputs_max.resize(query_input.size());
         // mean_query_inputs_min.resize(query_input.size());
@@ -201,7 +291,7 @@ class CQuery {
         //   mean_query_inputs_offset[iInput]=0;
         // }
         for (auto &mapped_network : query_network_maps) {
-          auto network_input_vars = mapped_network.MLP->GetInputVars();
+          const auto network_input_vars = mapped_network.MLP->GetInputVars();
           for (const auto &q : query_input) {
 
             auto loc=std::find(network_input_vars.begin(), network_input_vars.end(), q.first);

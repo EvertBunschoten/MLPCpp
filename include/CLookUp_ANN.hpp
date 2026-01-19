@@ -64,54 +64,7 @@ private:
    * \param[in] ANN - pointer to target NeuralNetwork class
    * \param[in] filename - filename containing ANN architecture information
    */
-  void GenerateANN(std::string filename) {
-    /*--- Generate MLP architecture based on information in MLP input file ---*/
-
-    /* Read MLP input file */
-    CReadNeuralNetwork Reader = CReadNeuralNetwork(filename);
-
-    /* Read MLP input file */
-    Reader.ReadMLPFile();
-
-    IteratorNetwork * MLP = new IteratorNetwork(Reader.GetNneurons());
-
-    for (auto iInput=0u; iInput<Reader.GetNInputs(); iInput++)
-      MLP->SetInputName(iInput, Reader.GetInputName(iInput));
-    for (auto iOutput=0u; iOutput<Reader.GetNOutputs(); iOutput++)
-      MLP->SetOutputName(iOutput, Reader.GetOutputName(iOutput));
-    
-    
-    for (auto iLayer=0u; iLayer<Reader.GetNlayers(); iLayer++) {
-      for (auto iNode = 0u; iNode < Reader.GetNneurons()[iLayer];
-           iNode++) {
-        if (iLayer < (Reader.GetNlayers()-1)) {
-          for (auto jNode = 0u; jNode < Reader.GetNneurons()[iLayer+1];
-             jNode++) {
-          MLP
-          ->SetWeight(iLayer, iNode, jNode,Reader.GetWeight(iLayer, iNode, jNode));
-        }
-        }
-        
-        MLP->SetBias(iLayer, iNode, Reader.GetBias(iLayer, iNode));
-      }
-    }
-    /* Define input and output layer normalization values */
-    MLP->SetInputRegularization(Reader.GetInputRegularization());
-    MLP->SetOutputRegularization(Reader.GetOutputRegularization());
-    
-    for (auto iInput = 0u; iInput < Reader.GetNInputs(); iInput++) {
-      MLP->SetInputNorm(iInput, Reader.GetInputNorm(iInput).first,
-                       Reader.GetInputNorm(iInput).second);
-    }
-    for (auto iOutput = 0u; iOutput < Reader.GetNOutputs(); iOutput++) {
-      MLP->SetOutputNorm(iOutput, Reader.GetOutputNorm(iOutput).first,
-                        Reader.GetOutputNorm(iOutput).second);
-    }
-    for (size_t iLayer=0; iLayer < Reader.GetNlayers(); iLayer++)
-      MLP->SetActivationFunction(iLayer, Reader.GetActivationFunction(iLayer));
-    
-    NeuralNetworks.push_back(MLP);
-  }
+  
 
 public:
   /*!
@@ -124,24 +77,26 @@ public:
     /*--- Define collection of MLPs for regression purposes ---*/
     number_of_variables = n_inputs;
 
-    //NeuralNetworks.resize(n_inputs);
-
     /*--- Generate an MLP for every filename provided ---*/
     for (auto i_MLP = 0u; i_MLP < n_inputs; i_MLP++) {
-      GenerateANN(input_filenames[i_MLP]);
-      //GenerateANN(NeuralNetworks[i_MLP], input_filenames[i_MLP]);
+      MLPToolbox::IteratorNetwork * mlp = new MLPToolbox::IteratorNetwork(input_filenames[i_MLP]);
+      NeuralNetworks.push_back(mlp);
     }
   }
 
+  CLookUp_ANN(const std::vector<MLPToolbox::IteratorNetwork*> &mlps) {
+    for (auto mlp : mlps)
+      NeuralNetworks.push_back(mlp);
+  }
 
   std::pair<mlpdouble, mlpdouble>
   GetInputNorm(MLPToolbox::CQuery *input_output_map,
                std::string varname) const {
     mlpdouble CV_min{0.0}, CV_max{0.0};
     for (const auto &q : input_output_map->GetNetworksInQuery()) {
-      auto loc = std::find(q.MLP->GetInputVars().begin(), q.MLP->GetInputVars().end(), varname);
-      size_t iInput = std::distance(q.MLP->GetInputVars().begin(), loc);
-
+      const std::vector<std::string> network_inputs = q.MLP->GetInputVars();
+      auto loc = std::find(network_inputs.begin(), network_inputs.end(), varname);
+      size_t iInput = std::distance(network_inputs.begin(), loc);
       CV_min += q.MLP->GetInputNorm(iInput).first;
       CV_max += q.MLP->GetInputNorm(iInput).second;
     }
@@ -165,8 +120,9 @@ public:
                std::string varname) const {
     mlpdouble CV_offset{0};
     for (const auto &q : input_output_map->GetNetworksInQuery()) {
-      auto loc = std::find(q.MLP->GetInputVars().begin(), q.MLP->GetInputVars().end(), varname);
-      size_t iInput = std::distance(q.MLP->GetInputVars().begin(), loc);
+      const std::vector<std::string> network_inputs = q.MLP->GetInputVars();
+      auto loc = std::find(network_inputs.begin(), network_inputs.end(), varname);
+      size_t iInput = std::distance(network_inputs.begin(), loc);
       CV_offset += q.MLP->GetRegularizationOffset(iInput);
     }
     int n_networks = input_output_map->GetNetworksInQuery().size();
@@ -177,8 +133,12 @@ public:
     query.FindNetworksForQuery(NeuralNetworks);
   }
 
-  void Predict(MLPToolbox::CQuery &query) {
+  void Predict(MLPToolbox::CQuery &query) const {
     query();
+  }
+
+  void Predict(MLPToolbox::CQuery &query, const std::vector<mlpdouble> &vals_input, const std::vector<mlpdouble*> &refs_output) const {
+    query(vals_input, refs_output);
   }
 
   /*!

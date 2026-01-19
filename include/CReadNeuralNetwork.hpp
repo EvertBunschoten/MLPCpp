@@ -68,11 +68,11 @@ private:
   // /*!
   // * \brief Available activation function map.
   // */
-  std::map<std::string, ENUM_SCALING_FUNCTIONS> scaling_map{
-      {"minmax", ENUM_SCALING_FUNCTIONS::MINMAX},
-      {"standard", ENUM_SCALING_FUNCTIONS::STANDARD},
-      {"robust", ENUM_SCALING_FUNCTIONS::ROBUST},
-  };
+  // std::map<std::string, ENUM_SCALING_FUNCTIONS> scaling_map{
+  //     {"minmax", ENUM_SCALING_FUNCTIONS::MINMAX},
+  //     {"standard", ENUM_SCALING_FUNCTIONS::STANDARD},
+  //     {"robust", ENUM_SCALING_FUNCTIONS::ROBUST},
+  // };
 
   ENUM_SCALING_FUNCTIONS input_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX},
                          output_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX};
