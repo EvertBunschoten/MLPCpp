@@ -201,6 +201,16 @@ public:
   }
 
   /*!
+   * \brief Get the bias value applying to a neuron in a specific layer.
+   * \param[in] i_layer Index of the current layer.
+   * \param[in] i_neuron Index of the neuron in the current layer.
+   * \return Bias value.
+   */
+  mlpdouble GetBias(size_t i_layer, size_t i_neuron) const {
+    return total_layers[i_layer]->GetBias(i_neuron);
+  }
+
+  /*!
    * \brief Set layer activation function.
    * \param[in] i_layer - Layer index.
    * \param[in] input - Activation function name.
