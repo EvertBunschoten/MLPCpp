@@ -37,7 +37,70 @@
 
 #include "variable_def.hpp"
 #include "option_maps.hpp"
+#include "CNeuralNetwork.hpp"
 
+
+
+void WriteNeuralNetwork(const MLPToolbox::IteratorNetwork*mlp_in, std::string file_out) {
+    std::ofstream file_stream;
+    file_stream.open(file_out.c_str(), std::ofstream::out);
+    file_stream << "<header>\n\n";
+    file_stream << "[number of layers]\n";
+    file_stream << mlp_in->GetnLayers() << std::endl;
+    file_stream << "\n[neurons per layer]\n";
+    for (auto iLayer=0u; iLayer<mlp_in->GetnLayers(); iLayer++)
+      file_stream << mlp_in->GetnNodes(iLayer) << std::endl;
+    
+    file_stream << "\n[activation function]\n";
+    for (auto iLayer=0u; iLayer<mlp_in->GetnLayers(); iLayer++)
+      file_stream << mlp_in->GetActivationFunction(iLayer) << std::endl;
+    
+    file_stream << "\n[input names]\n";
+    for (auto iInput=0u; iInput < mlp_in->GetnInputs(); iInput++)
+      file_stream<< mlp_in->GetInputName(iInput) << std::endl;
+    file_stream << "\n[input regularization method]\n";
+    file_stream << mlp_in->GetInputRegularization() << std::endl;
+    file_stream << "\n[input normalization]\n";
+    for (auto iInput=0u; iInput <  mlp_in->GetnInputs(); iInput++) {
+      file_stream << std::showpos<<std::scientific << std::setprecision(16) << mlp_in->GetInputNorm(iInput).first << "\t" << std::showpos<<std::scientific << std::setprecision(16) << mlp_in->GetInputNorm(iInput).second << std::endl;
+    }
+    file_stream << "\n[output names]\n";
+    for (auto iOutput=0u; iOutput < mlp_in->GetnOutputs(); iOutput++)
+      file_stream<< mlp_in->GetOutputName(iOutput) << std::endl;
+    file_stream << "\n[output regularization method]\n";
+    file_stream << mlp_in->GetOutputRegularization() << std::endl;
+    file_stream << "\n[output normalization]\n";
+    for (auto iOutput=0u; iOutput <  mlp_in->GetnOutputs(); iOutput++) {
+      file_stream << std::showpos<<std::scientific << std::setprecision(16) << mlp_in->GetOutputNorm(iOutput).first << "\t" << std::showpos<<std::scientific << std::setprecision(16) << mlp_in->GetOutputNorm(iOutput).second << std::endl;
+    }
+
+    file_stream<<"\n</header>\n";
+
+    file_stream<<"\n[weights per layer]\n";
+    for (auto iLayer = 0u; iLayer < mlp_in->GetnLayers() - 1; iLayer++) {
+    file_stream << "<layer>\n";
+    for (auto iNeuron = 0u; iNeuron < mlp_in->GetnNodes(iLayer); iNeuron++) {
+      for (auto jNeuron = 0u; jNeuron < mlp_in->GetnNodes(iLayer + 1); jNeuron++) {
+        file_stream <<std::showpos<< std::scientific << std::setprecision(16) << mlp_in->GetWeight(iLayer, iNeuron, jNeuron) << " ";
+      }
+      file_stream << std::endl;
+    }
+    file_stream << "</layer>\n";
+  }
+
+  /* Read biases for each neuron */
+    file_stream << "\n[biases per layer]\n";
+    for (auto iLayer = 0u; iLayer < mlp_in->GetnLayers(); iLayer++) {
+      for (auto iNeuron = 0u; iNeuron < mlp_in->GetnNodes(iLayer); iNeuron++) {
+        file_stream << std::showpos<< std::scientific << std::setprecision(16) << mlp_in->GetBias(iLayer, iNeuron) << " ";
+      }
+      file_stream << std::endl;
+    }
+    file_stream.close();
+
+
+    return;
+};
 
 namespace MLPToolbox {
 
@@ -65,14 +128,6 @@ private:
       input_norm,  /*!< Input variable normalization values (min, max). */
       output_norm; /*!< Output variable normalization values (min, max). */
   
-  // /*!
-  // * \brief Available activation function map.
-  // */
-  // std::map<std::string, ENUM_SCALING_FUNCTIONS> scaling_map{
-  //     {"minmax", ENUM_SCALING_FUNCTIONS::MINMAX},
-  //     {"standard", ENUM_SCALING_FUNCTIONS::STANDARD},
-  //     {"robust", ENUM_SCALING_FUNCTIONS::ROBUST},
-  // };
 
   ENUM_SCALING_FUNCTIONS input_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX},
                          output_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX};
@@ -82,7 +137,7 @@ public:
    * \param[in] filename_in - .mlp input file name containing network
    * information.
    */
-  CReadNeuralNetwork(std::string filename_in) { filename = filename_in; }
+  CReadNeuralNetwork(const std::string filename_in) { filename = filename_in; }
 
   /*!
    * \brief Read input file and store necessary information
@@ -323,7 +378,7 @@ public:
    * \param[in] iLayer - Total layer index.
    * \returns Number of neurons in the layer.
    */
-  unsigned long GetNneurons(std::size_t iLayer) const {
+  unsigned long GetNneurons(const std::size_t iLayer) const {
     return n_neurons[iLayer];
   }
 
@@ -337,8 +392,8 @@ public:
    * \param[in] jNeuron - Neuron index in subsequent layer.
    * \returns Weight value
    */
-  mlpdouble GetWeight(std::size_t iLayer, std::size_t iNeuron,
-                      std::size_t jNeuron) const {
+  mlpdouble GetWeight(const std::size_t iLayer, const std::size_t iNeuron,
+                      const std::size_t jNeuron) const {
     return weights_mat[iLayer][iNeuron][jNeuron];
   }
 
@@ -348,7 +403,7 @@ public:
    * \param[in] iNeuron - Neuron index.
    * \returns Bias value
    */
-  mlpdouble GetBias(std::size_t iLayer, std::size_t iNeuron) const {
+  mlpdouble GetBias(const std::size_t iLayer, const std::size_t iNeuron) const {
     return biases_mat[iLayer][iNeuron];
   }
 
@@ -357,7 +412,7 @@ public:
    * \param[in] iInput - Input variable index.
    * \returns Input normalization values (min first, max second)
    */
-  std::pair<mlpdouble, mlpdouble> GetInputNorm(std::size_t iInput) const {
+  std::pair<mlpdouble, mlpdouble> GetInputNorm(const std::size_t iInput) const {
     return input_norm[iInput];
   }
 
@@ -366,7 +421,7 @@ public:
    * \param[in] iOutput - Input variable index.
    * \returns Output normalization values (min first, max second)
    */
-  std::pair<mlpdouble, mlpdouble> GetOutputNorm(std::size_t iOutput) const {
+  std::pair<mlpdouble, mlpdouble> GetOutputNorm(const std::size_t iOutput) const {
     return output_norm[iOutput];
   }
 
@@ -375,7 +430,7 @@ public:
    * \param[in] iLayer - Total layer index.
    * \returns Layer activation function type.
    */
-  std::string GetActivationFunction(std::size_t iLayer) const {
+  std::string GetActivationFunction(const std::size_t iLayer) const {
     return activation_functions[iLayer];
   }
 
@@ -384,7 +439,7 @@ public:
    * \param[in] iInput - Input variable index.
    * \returns Input variable name.
    */
-  std::string GetInputName(std::size_t iInput) const {
+  std::string GetInputName(const std::size_t iInput) const {
     return input_names[iInput];
   }
 
@@ -397,7 +452,7 @@ public:
    * \param[in] iOutput - Output variable index.
    * \returns Output variable name.
    */
-  std::string GetOutputName(std::size_t iOutput) const {
+  std::string GetOutputName(const std::size_t iOutput) const {
     return output_names[iOutput];
   }
 
@@ -405,4 +460,8 @@ public:
     return output_reg_method;
   }
 };
+
+
+
 } // namespace MLPToolbox
+

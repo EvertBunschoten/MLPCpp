@@ -15,8 +15,10 @@
 
 namespace MLPToolbox {
 class ScalerFunction {
+    protected:
     size_t n_scalars{0};
     std::vector<mlpdouble> norm_scalars;
+    std::string tag;
     public:
     ScalerFunction(const size_t n_in) : n_scalars {n_in} {norm_scalars.resize(n_scalars);};
     virtual mlpdouble Normalize(const mlpdouble scalar_dim, const size_t i_scalar) const =0;
@@ -27,6 +29,7 @@ class ScalerFunction {
     virtual mlpdouble GetScale(const size_t) const =0;
     virtual mlpdouble GetOffset(const size_t) const = 0;
     virtual void PrintInfo(const int display_width, const std::vector<std::string>&) const =0;
+    std::string GetTag() const {return tag;}
 };
 
 
@@ -36,6 +39,7 @@ class StandardScaler : public ScalerFunction {
     std::vector<mlpdouble> vals_mu;
     std::vector<mlpdouble> vals_std;
     StandardScaler(const size_t n_in) : ScalerFunction(n_in) {
+        tag = "standard";
         vals_mu.resize(n_in); 
         vals_std.resize(n_in);
         std::fill(vals_mu.begin(), vals_mu.end(), 0.0);
@@ -109,7 +113,7 @@ class StandardScaler : public ScalerFunction {
 
 class RobustScaler : public StandardScaler {
     public:
-    RobustScaler(const size_t n_in) : StandardScaler(n_in) {};
+    RobustScaler(const size_t n_in) : StandardScaler(n_in) {tag = "robust";};
     virtual void PrintInfo(const int display_width, const std::vector<std::string> &input_names) const {
         const int column_width = int(display_width / 3.0) - 1;
         std::cout << "|" << std::setfill(' ') << std::left << std::setw(display_width - 1)
@@ -143,6 +147,7 @@ class MinMaxScaler :  public ScalerFunction {
     
     public:
     MinMaxScaler(const size_t n_in) : ScalerFunction(n_in) {
+        tag="minmax";
         vals_min.resize(n_in); 
         vals_max.resize(n_in);
         std::fill(vals_min.begin(), vals_min.end(), 0.0);

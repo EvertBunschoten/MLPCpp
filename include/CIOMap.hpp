@@ -71,17 +71,19 @@ namespace MLPToolbox {
 
   
 struct IOMap_Network {
-  IteratorNetwork* MLP;
-  std::vector<std::pair<mlpdouble*, mlpdouble*>> input_map;
-  std::vector<std::pair<mlpdouble*,mlpdouble*>> output_map;
-  std::vector<std::pair<const mlpdouble*, const mlpdouble*>> Jacobian_map;
-  std::vector<std::pair<const mlpdouble*, const mlpdouble*>> Hessian_map;
-  bool evaluate_Jacobian {false};
-  bool evaluate_Hessian {false};
+  /*! \brief struct with query information. */
+
+  IteratorNetwork* MLP; /*! \brief Pointer to network selected for query. */
+  std::vector<std::pair<mlpdouble*, mlpdouble*>> input_map; /*! \brief Link between query input and network input nodes. */
+  std::vector<std::pair<mlpdouble*,mlpdouble*>> output_map; /*! \brief Link between network output nodes and query output. */
+  std::vector<std::pair<const mlpdouble*, const mlpdouble*>> Jacobian_map;  /*! \brief Link between network Jacobians and query Jacobians. */
+  std::vector<std::pair<const mlpdouble*, const mlpdouble*>> Hessian_map;   /*! \brief Link between network Hessians and query Hessians. */
+  bool evaluate_Jacobian {false}; /*! \brief Evaluate Jacobians while evaluating the network output. */
+  bool evaluate_Hessian {false};  /*! \brief Evaluate Hessians while evaluating the network output. */
 };
 
 class CQuery {
-
+    private: 
     std::vector<std::pair<std::string, mlpdouble*>> query_input;
     std::vector<std::pair<std::string, mlpdouble*>> query_output;
     std::vector<mlpdouble> mean_query_inputs_min,
@@ -96,11 +98,10 @@ class CQuery {
     std::vector<mlpdouble> query_output_vals;
     
     public:
+    CQuery()=default;
 
     const std::vector<IOMap_Network> GetNetworksInQuery() const {return query_network_maps;}
-    // const std::pair<mlpdouble, mlpdouble> GetMeanInputBounds() const {return std::make_pair(mean_input_bounds_min,mean_input_bounds_max);}
-    // const mlpdouble GetMeanInputOffset() const {return std::make_pair(mean_input_bounds_min,mean_input_bounds_max);}
-    
+
     void SetQueryInput(const std::vector<std::string> &varnames) {
       query_input.clear();
       for (auto var : varnames)
@@ -187,7 +188,7 @@ class CQuery {
         MapHessians();
     }
 
-    void operator()() 
+    void operator()() const 
     {
       for (const auto &mapped_network : query_network_maps) {
         SetNetworkInputs(mapped_network);
@@ -202,17 +203,11 @@ class CQuery {
       }
     };
 
-    void operator()(const std::vector<mlpdouble> &vals_input,const std::vector<mlpdouble*> &refs_output) 
+    void operator()(const std::vector<mlpdouble> &vals_input,const std::vector<mlpdouble*> &refs_output) const 
     {
       if (refs_output.size() != query_output_vals.size()){
         throw std::exception();
       }
-      // std::vector<mlpdouble> dist_vals;
-      // for (const auto &mapped_network : query_network_maps) {
-      //   SetNetworkInputs(mapped_network, vals_input);
-      //   const auto val_dist = mapped_network.MLP->QueryDistance();
-      //   dist_vals.push_back(val_dist);
-      // }
       for (const auto &mapped_network : query_network_maps) {
         SetNetworkInputs(mapped_network, vals_input);
         if (mapped_network.MLP->CheckInputInclusion()){
@@ -246,13 +241,10 @@ class CQuery {
       }
     }
 
-    // void RetrieveNetworkOutput(const IOMap_Network &mapped_network, const std::vector<mlpdouble*> &vals_output) const {
-
-    //   for (auto iOutput=0u; iOutput < mapped_network.output_map.size(); iOutput++) {
-    //     *vals_output[iOutput] = *mapped_network.output_map[iOutput].second;
-    //   }
-    // }
-
+    /*!
+    * \brief Check whether all query outputs are present in the loaded network outputs.
+    * \returns whether all query outputs are included
+    */
     bool CheckUseOfOutputs() const {
         bool found_all_query_vars {true};
         for (auto &q : query_output) {
@@ -271,71 +263,56 @@ class CQuery {
         return found_all_query_vars;
     }
 
+    /*!
+    * \brief Display information about the mapped networks in the terminal.
+    */
     void DisplayQueryNetworks() const {
-        for (const auto &mapped_network : query_network_maps) {
-            mapped_network.MLP->DisplayNetwork();
-            std::cout << std::endl;
-        }
-        
+      for (const auto &mapped_network : query_network_maps) {
+          mapped_network.MLP->DisplayNetwork();
+          std::cout << std::endl;
+      }
     }
 
-    
+    /*!
+    * \brief Link the query input terms to the mapped network inputs
+    */
     void MapInputs(){
-        // mean_query_inputs_max.resize(query_input.size());
-        // mean_query_inputs_min.resize(query_input.size());
-        // mean_query_inputs_offset.resize(query_input.size());
-
-        // for (auto iInput=0u; iInput<query_input.size(); iInput++) {
-        //   mean_query_inputs_max[iInput]=0;
-        //   mean_query_inputs_min[iInput]=0;
-        //   mean_query_inputs_offset[iInput]=0;
-        // }
         for (auto &mapped_network : query_network_maps) {
           const auto network_input_vars = mapped_network.MLP->GetInputVars();
           for (const auto &q : query_input) {
 
             auto loc=std::find(network_input_vars.begin(), network_input_vars.end(), q.first);
             if (loc != network_input_vars.end()) {
-              auto ref_query_input = q.second;
-              auto iInput_network = distance(network_input_vars.begin(), loc);
+              const auto ref_query_input = q.second;
+              const auto iInput_network = distance(network_input_vars.begin(), loc);
               auto ref_network_input = mapped_network.MLP->InputLayer(iInput_network);
-              const auto input_norm = mapped_network.MLP->GetInputNorm(iInput_network);
-              const mlpdouble input_offset = mapped_network.MLP->GetRegularizationOffset(iInput_network);
-              const mlpdouble input_min = input_norm.first;
-              const mlpdouble input_max = input_norm.second;
-              mean_query_inputs_min.push_back(input_min / query_network_maps.size());
-
-              // avg_input_min += input_min;
-              // avg_input_max += input_max;
-              // avg_input_offset += input_offset;
               mapped_network.input_map.push_back(std::make_pair(ref_query_input, ref_network_input));
             }
           }
         }
-        // avg_input_min /= query_network_maps.size();
-        // avg_input_max /= query_network_maps.size();
-        // avg_input_offset /= query_network_maps.size();
-
-        // mean_input_bounds_min = avg_input_min;
-        // mean_input_bounds_max = avg_input_max;
-        // mean_input_offset = avg_input_offset;
     }
 
-    void MapOutputs(){
+    /*!
+    * \brief Link the query ouput terms to the mapped network outputs
+    */
+    void MapOutputs() {
       for (auto &mapped_network : query_network_maps) {
-        auto network_output_vars = mapped_network.MLP->GetOutputVars();
+        const auto network_output_vars = mapped_network.MLP->GetOutputVars();
         for (const auto &q : query_output) {
           auto loc = std::find(network_output_vars.begin(), network_output_vars.end(), q.first);
           if (loc != network_output_vars.end()) {
-            auto iOutput = distance(network_output_vars.begin(), loc);
-            auto ref_query_output = q.second;
-            auto ref_network_output = mapped_network.MLP->OutputLayer(iOutput);
+            const auto iOutput = distance(network_output_vars.begin(), loc);
+            const auto ref_query_output = q.second;
+            const auto ref_network_output = mapped_network.MLP->OutputLayer(iOutput);
             mapped_network.output_map.push_back(std::make_pair(ref_query_output, ref_network_output));          
           }
         }
       }
     }
 
+    /*!
+    * \brief Map the query Jacobian terms to the Jaobians of the mapped networks
+    */
     void MapJacobians() {
       for (auto &mapped_network : query_network_maps) {
         const auto network_output_vars = mapped_network.MLP->GetOutputVars();
@@ -358,25 +335,28 @@ class CQuery {
       }
     }
 
+    /*!
+    * \brief Map the query Hessian terms to the Hessians of the mapped networks
+    */
     void MapHessians() {
       for (auto &mapped_network : query_network_maps) {
-        const auto network_output_vars = mapped_network.MLP->GetOutputVars();
-        const auto network_input_vars = mapped_network.MLP->GetInputVars();
+        const auto network_output_vars = mapped_network.MLP->GetOutputVars(), 
+                   network_input_vars = mapped_network.MLP->GetInputVars();
         for (const auto &q : query_Hessian) {
-          const std::string varname_enumerator = q.first.first;
-          const std::string varname_demominator_1 = q.first.second.first;
-          const std::string varname_demominator_2 = q.first.second.second;
+          const std::string varname_enumerator = q.first.first,
+                            varname_demominator_1 = q.first.second.first, 
+                            varname_demominator_2 = q.first.second.second;
           const auto ref_output_Hessian = q.second;
 
           auto loc_enumerator = std::find(network_output_vars.begin(), network_output_vars.end(), varname_enumerator);
           if (loc_enumerator != network_output_vars.end()) {
-            const auto iOutput = distance(network_output_vars.begin(), loc_enumerator);
+            const auto iOutput = std::distance(network_output_vars.begin(), loc_enumerator);
             auto loc_demoninator_1 = std::find(network_input_vars.begin(), network_input_vars.end(), varname_demominator_1);
             if (loc_demoninator_1 != network_input_vars.end()) {
-              const auto iInput = distance(network_input_vars.begin(), loc_demoninator_1);
+              const auto iInput = std::distance(network_input_vars.begin(), loc_demoninator_1);
               auto loc_denominator_2 = std::find(network_input_vars.begin(), network_input_vars.end(), varname_demominator_2);
               if (loc_denominator_2 != network_input_vars.end()) {
-                const auto jInput = distance(network_input_vars.begin(), loc_denominator_2);
+                const auto jInput = std::distance(network_input_vars.begin(), loc_denominator_2);
                 const auto ref_network_Hessian = mapped_network.MLP->Hessian(iOutput, iInput, jInput);
                 mapped_network.output_map.push_back(std::make_pair(ref_output_Hessian, ref_network_Hessian));
                 mapped_network.evaluate_Hessian=true;

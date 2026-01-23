@@ -11,11 +11,6 @@ STANDARD = 1,
 ROBUST = 2,
 };
 
-// std::map<std::string, ENUM_SCALING_FUNCTIONS> scaling_map{
-//     {"minmax", ENUM_SCALING_FUNCTIONS::MINMAX},
-//     {"standard", ENUM_SCALING_FUNCTIONS::STANDARD},
-//     {"robust", ENUM_SCALING_FUNCTIONS::ROBUST},
-// };
 enum class ENUM_ACTIVATION_FUNCTION {
     NONE = 0,
     LINEAR = 1,
@@ -31,7 +26,7 @@ enum class ENUM_ACTIVATION_FUNCTION {
 
  
 
-std::map<std::string, ENUM_ACTIVATION_FUNCTION> activation_function_map{
+static const std::map<std::string, ENUM_ACTIVATION_FUNCTION> activation_function_map{
         {"none", ENUM_ACTIVATION_FUNCTION::NONE},
         {"linear", ENUM_ACTIVATION_FUNCTION::LINEAR},
         {"elu", ENUM_ACTIVATION_FUNCTION::ELU},
@@ -43,7 +38,7 @@ std::map<std::string, ENUM_ACTIVATION_FUNCTION> activation_function_map{
         {"tanh", ENUM_ACTIVATION_FUNCTION::TANH},
         {"exponential", ENUM_ACTIVATION_FUNCTION::EXPONENTIAL}};
 
-std::map<std::string, ENUM_SCALING_FUNCTIONS> scaling_map{
+static const std::map<std::string, ENUM_SCALING_FUNCTIONS> scaling_map{
       {"minmax", ENUM_SCALING_FUNCTIONS::MINMAX},
       {"standard", ENUM_SCALING_FUNCTIONS::STANDARD},
       {"robust", ENUM_SCALING_FUNCTIONS::ROBUST},

@@ -1,4 +1,31 @@
+/*!
+* \file ActivationFunctions.hpp
+* \brief Activation functions supported by MLPCpp
+* \author E.C.Bunschoten
+* \version 1.2.0
+*
+* MLPCpp Project Website: https://github.com/EvertBunschoten/MLPCpp
+*
+* Copyright (c) 2023 Evert Bunschoten
 
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
+
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* SOFTWARE.
+*/
 #pragma once
 #include <vector>
 #include <iostream>
@@ -16,7 +43,7 @@
 class ActivationFunctionBase{
     
     protected:
-        std::string name;
+        std::string name, tag;
         mlpdouble input;
         mlpdouble output;
         mlpdouble Jacobian{0};
@@ -29,16 +56,17 @@ class ActivationFunctionBase{
     mlpdouble GetJacobian() const {return Jacobian;}
     mlpdouble GetHessian() const {return Hessian;}
     std::string GetName() const {return name;}
-    ActivationFunctionBase(){}
-    virtual mlpdouble call (const mlpdouble x,const bool calc_Jacobian=false, const bool calc_Hessian=false)=0;
+    std::string GetTag() const {return tag;}
+    ActivationFunctionBase() = default;
+    virtual mlpdouble operator() (const mlpdouble x,const bool calc_Jacobian=false, const bool calc_Hessian=false)=0;
     
     ~ActivationFunctionBase() = default;
 };
 
 class Lin final: public ActivationFunctionBase {
     public:
-        Lin() {name="Linear";}
-        mlpdouble call (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) override {
+        Lin() {name="Linear", tag="linear";}
+        mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) override {
             output = x;
             if (calc_Jacobian)
                 Jacobian = 1.0;
@@ -50,8 +78,8 @@ class Lin final: public ActivationFunctionBase {
 
 class Elu final: public ActivationFunctionBase {
     public:
-        Elu() {name="Elu";}
-        mlpdouble call (const mlpdouble x,const bool calc_Jacobian=false, const bool calc_Hessian=false) override {
+        Elu() {name="Elu", tag="elu";}
+        mlpdouble operator() (const mlpdouble x,const bool calc_Jacobian=false, const bool calc_Hessian=false) override {
             if (x > 0) {
                 if (calc_Jacobian)
                     Jacobian = 1.0;
@@ -72,8 +100,8 @@ class Elu final: public ActivationFunctionBase {
 
 class Sigmoid final: public ActivationFunctionBase {
     public:
-        Sigmoid() {name="Sigmoid";}
-        virtual mlpdouble call (const mlpdouble x,const bool calc_Jacobian=false, const bool calc_Hessian=false) {
+        Sigmoid() {name="Sigmoid", tag="sigmoid";}
+        virtual mlpdouble operator() (const mlpdouble x,const bool calc_Jacobian=false, const bool calc_Hessian=false) {
             const mlpdouble exp_x = exp(x);
             output = exp_x / (1 + exp_x);
             if (calc_Jacobian) {
@@ -89,8 +117,8 @@ class Sigmoid final: public ActivationFunctionBase {
 
 class Exponential final: public ActivationFunctionBase {
     public:
-    Exponential() {name="Exponential";}
-    virtual mlpdouble call (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
+    Exponential() {name="Exponential", tag="exponential";}
+    virtual mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
         output = exp(x);
         if (calc_Jacobian) Jacobian = output;
         if (calc_Hessian) Hessian = output;
@@ -100,8 +128,8 @@ class Exponential final: public ActivationFunctionBase {
 
 class Relu final: public ActivationFunctionBase {
     public:
-    Relu() {name="ReLu";}
-    virtual mlpdouble call (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
+    Relu() {name="ReLu", tag="relu";}
+    virtual mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
         if (x > 0) {
             output = x;
             if (calc_Jacobian) 
@@ -119,8 +147,8 @@ class Relu final: public ActivationFunctionBase {
 
 class Swish final: public ActivationFunctionBase {
     public:
-    Swish() {name="Swish";}
-    virtual mlpdouble call (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
+    Swish() {name="Swish", tag="swish"; }
+    virtual mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
         const mlpdouble exp_x = exp(x);
         output = x * exp_x/ (1 + exp_x);
         if (calc_Jacobian) {
@@ -134,8 +162,8 @@ class Swish final: public ActivationFunctionBase {
 
 class Tanh final: public ActivationFunctionBase {
     public:
-    Tanh() {name="Tanh";}
-    virtual mlpdouble call (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
+    Tanh() {name="Tanh", tag="tanh";}
+    virtual mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
         const mlpdouble tnh = tanh(x);
         output = tnh;
         if (calc_Jacobian){
@@ -155,8 +183,8 @@ class SeLu final: public ActivationFunctionBase {
         const mlpdouble lambda {1.05070098};
         const mlpdouble alpha {1.67326324};
     public:
-    SeLu() {name="SeLu";}
-    virtual mlpdouble call (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
+    SeLu() {name="SeLu", tag="selu";}
+    virtual mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
         if (x > 0) {
             output = lambda * x;
             if (calc_Jacobian){
@@ -183,8 +211,8 @@ class GeLu final: public ActivationFunctionBase {
     private:
     const mlpdouble gelu_c{0.5*sqrt(2)};
     public:
-    GeLu() {name="GeLu";}
-    virtual mlpdouble call (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
+    GeLu() {name="GeLu", tag="gelu";}
+    virtual mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
         output = 0.5 * x * (1 + erf(x / sqrt(2)));
         if (calc_Jacobian) {
             Jacobian = 0.5 + 0.5*sqrt(2/M_PI) * exp(-0.5*pow(x,2)) * x + 0.5 * erf(x/sqrt(2));
@@ -194,4 +222,3 @@ class GeLu final: public ActivationFunctionBase {
         return output;
     }
 };
-

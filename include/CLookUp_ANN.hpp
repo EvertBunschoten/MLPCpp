@@ -59,13 +59,6 @@ private:
 
   unsigned short number_of_variables; /*!< Number of loaded ANNs. */
 
-  /*!
-   * \brief Load ANN architecture
-   * \param[in] ANN - pointer to target NeuralNetwork class
-   * \param[in] filename - filename containing ANN architecture information
-   */
-  
-
 public:
   /*!
    * \brief ANN collection class constructor
@@ -89,55 +82,26 @@ public:
       NeuralNetworks.push_back(mlp);
   }
 
-  std::pair<mlpdouble, mlpdouble>
-  GetInputNorm(MLPToolbox::CQuery *input_output_map,
-               std::string varname) const {
-    mlpdouble CV_min{0.0}, CV_max{0.0};
-    for (const auto &q : input_output_map->GetNetworksInQuery()) {
-      const std::vector<std::string> network_inputs = q.MLP->GetInputVars();
-      auto loc = std::find(network_inputs.begin(), network_inputs.end(), varname);
-      size_t iInput = std::distance(network_inputs.begin(), loc);
-      CV_min += q.MLP->GetInputNorm(iInput).first;
-      CV_max += q.MLP->GetInputNorm(iInput).second;
-    }
-    int n_networks = input_output_map->GetNetworksInQuery().size();
-    CV_min /= n_networks;
-    CV_max /= n_networks;
-    return std::make_pair(CV_min, CV_max);
-  } ///TODO: make compatible with CQuery
+  CLookUp_ANN(const CLookUp_ANN &copy_class) {
+    NeuralNetworks.reserve(copy_class.GetNANNs());
+    for (auto i_MLP=0u; i_MLP<NeuralNetworks.size(); i_MLP++)
+      NeuralNetworks[i_MLP] = new MLPToolbox::IteratorNetwork(*copy_class.NeuralNetworks[i_MLP]);
+  }
 
-  
-  
-  /*!
-   * \brief Get the median input regularization value for a specific look-up operation.
-   * \param[in] input_output_map - Pointer to input-output
-   * map for look-up operation. 
-   * \param[in] input_index - Input variable index
-   * for which to get the input median.
-   * \returns Input median value.
-   */
-  mlpdouble GetInputOffset(MLPToolbox::CQuery *input_output_map,
-               std::string varname) const {
-    mlpdouble CV_offset{0};
-    for (const auto &q : input_output_map->GetNetworksInQuery()) {
-      const std::vector<std::string> network_inputs = q.MLP->GetInputVars();
-      auto loc = std::find(network_inputs.begin(), network_inputs.end(), varname);
-      size_t iInput = std::distance(network_inputs.begin(), loc);
-      CV_offset += q.MLP->GetRegularizationOffset(iInput);
-    }
-    int n_networks = input_output_map->GetNetworksInQuery().size();
-    return CV_offset / n_networks;
+  ~CLookUp_ANN() {
+    for (auto MLP : NeuralNetworks)
+      delete MLP;
   }
 
   void PairVariableswithMLPs(MLPToolbox::CQuery &query) {
     query.FindNetworksForQuery(NeuralNetworks);
   }
 
-  void Predict(MLPToolbox::CQuery &query) const {
+  void Predict(const MLPToolbox::CQuery &query) const {
     query();
   }
 
-  void Predict(MLPToolbox::CQuery &query, const std::vector<mlpdouble> &vals_input, const std::vector<mlpdouble*> &refs_output) const {
+  void Predict(const MLPToolbox::CQuery &query, const std::vector<mlpdouble> &vals_input, const std::vector<mlpdouble*> &refs_output) const {
     query(vals_input, refs_output);
   }
 
@@ -146,42 +110,6 @@ public:
    * \return number of loaded ANNs
    */
   std::size_t GetNANNs() const { return NeuralNetworks.size(); }
-
-  // /*!
-  //  * \brief Map variable names to ANN inputs or outputs
-  //  * \param[in] i_ANN - loaded ANN index
-  //  * \param[in] variable_names - variable names to map to ANN inputs or outputs
-  //  * \param[in] input - map to inputs (true) or outputs (false)
-  //  */
-  // std::vector<std::pair<std::size_t, std::size_t>>
-  // FindVariableIndices(std::size_t i_ANN,
-  //                     std::vector<std::string> variable_names,
-  //                     bool input) const {
-  //   /*--- Find loaded MLPs that have the same input variable names as the
-  //    * variables listed in variable_names ---*/
-
-  //   std::vector<std::pair<size_t, size_t>> variable_indices;
-  //   auto nVar = input ? NeuralNetworks[i_ANN]->GetnInputs()
-  //                     : NeuralNetworks[i_ANN]->GetnOutputs();
-
-  //   // auto nVar = input ? NeuralNetworks[i_ANN].GetnInputs()
-  //   //                   : NeuralNetworks[i_ANN].GetnOutputs();
-
-  //   for (auto iVar = 0u; iVar < nVar; iVar++) {
-  //     for (auto jVar = 0u; jVar < variable_names.size(); jVar++) {
-  //       std::string ANN_varname =
-  //           input ? NeuralNetworks[i_ANN]->GetInputName(iVar)
-  //                 : NeuralNetworks[i_ANN]->GetOutputName(iVar);
-  //       // std::string ANN_varname =
-  //       //     input ? NeuralNetworks[i_ANN].GetInputName(iVar)
-  //       //           : NeuralNetworks[i_ANN].GetOutputName(iVar);
-  //       if (variable_names[jVar].compare(ANN_varname) == 0) {
-  //         variable_indices.push_back(std::make_pair(jVar, iVar));
-  //       }
-  //     }
-  //   }
-  //   return variable_indices;
-  // }
 
   /*!
    * \brief Display architectural information on the loaded MLPs
@@ -205,7 +133,6 @@ public:
      * and architecture. */
     for (auto i_MLP = 0u; i_MLP < NeuralNetworks.size(); i_MLP++) {
       NeuralNetworks[i_MLP]->DisplayNetwork();
-      // NeuralNetworks[i_MLP].DisplayNetwork();
     }
   }
 };
