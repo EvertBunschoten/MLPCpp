@@ -61,7 +61,7 @@ namespace MLPToolbox {
       virtual const char *what() const noexcept {
 
         std::string message = "Network has duplicate inputs: ";
-        for (const auto var : input_names) message += (var + ", ");
+        for (const auto & var : input_names) message += (var + ", ");
 
         char *cstr = new char[message.size() + 1];
         std::strcpy(cstr, message.c_str());
