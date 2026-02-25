@@ -30,6 +30,7 @@ class ScalerFunction {
     virtual mlpdouble GetOffset(const size_t) const = 0;
     virtual void PrintInfo(const int display_width, const std::vector<std::string>&) const =0;
     std::string GetTag() const {return tag;}
+    virtual ~ScalerFunction() = default;
 };
 
 

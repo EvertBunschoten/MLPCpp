@@ -59,8 +59,7 @@ class ActivationFunctionBase{
     std::string GetTag() const {return tag;}
     ActivationFunctionBase() = default;
     virtual mlpdouble operator() (const mlpdouble x,const bool calc_Jacobian=false, const bool calc_Hessian=false)=0;
-    
-    ~ActivationFunctionBase() = default;
+    virtual ~ActivationFunctionBase() = default;
 };
 
 class Lin final: public ActivationFunctionBase {
