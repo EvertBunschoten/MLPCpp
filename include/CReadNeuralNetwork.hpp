@@ -41,69 +41,69 @@
 
 
 
-void WriteNeuralNetwork(const MLPToolbox::IteratorNetwork*mlp_in, std::string file_out) {
-    std::ofstream file_stream;
-    file_stream.open(file_out.c_str(), std::ofstream::out);
-    file_stream << "<header>\n\n";
-    file_stream << "[number of layers]\n";
-    file_stream << mlp_in->GetnLayers() << std::endl;
-    file_stream << "\n[neurons per layer]\n";
-    for (auto iLayer=0u; iLayer<mlp_in->GetnLayers(); iLayer++)
-      file_stream << mlp_in->GetnNodes(iLayer) << std::endl;
+
+// void WriteNeuralNetwork(const MLPToolbox::CNeuralNetwork &mlp_in, std::string file_out) {
+//     std::ofstream file_stream;
+//     file_stream.open(file_out.c_str(), std::ofstream::out);
+//     file_stream << "<header>\n\n";
+//     file_stream << "[number of layers]\n";
+//     file_stream << mlp_in.GetnLayers() << std::endl;
+//     file_stream << "\n[neurons per layer]\n";
+//     for (auto iLayer=0u; iLayer<mlp_in.GetnLayers(); iLayer++)
+//       file_stream << mlp_in.GetnNodes(iLayer) << std::endl;
     
-    file_stream << "\n[activation function]\n";
-    for (auto iLayer=0u; iLayer<mlp_in->GetnLayers(); iLayer++)
-      file_stream << mlp_in->GetActivationFunction(iLayer) << std::endl;
+//     file_stream << "\n[activation function]\n";
+//     for (auto iLayer=0u; iLayer<mlp_in.GetnLayers(); iLayer++)
+//       file_stream << mlp_in.GetActivationFunction(iLayer) << std::endl;
     
-    file_stream << "\n[input names]\n";
-    for (auto iInput=0u; iInput < mlp_in->GetnInputs(); iInput++)
-      file_stream<< mlp_in->GetInputName(iInput) << std::endl;
-    file_stream << "\n[input regularization method]\n";
-    file_stream << mlp_in->GetInputRegularization() << std::endl;
-    file_stream << "\n[input normalization]\n";
-    for (auto iInput=0u; iInput <  mlp_in->GetnInputs(); iInput++) {
-      file_stream << std::showpos<<std::scientific << std::setprecision(16) << mlp_in->GetInputNorm(iInput).first << "\t" << std::showpos<<std::scientific << std::setprecision(16) << mlp_in->GetInputNorm(iInput).second << std::endl;
-    }
-    file_stream << "\n[output names]\n";
-    for (auto iOutput=0u; iOutput < mlp_in->GetnOutputs(); iOutput++)
-      file_stream<< mlp_in->GetOutputName(iOutput) << std::endl;
-    file_stream << "\n[output regularization method]\n";
-    file_stream << mlp_in->GetOutputRegularization() << std::endl;
-    file_stream << "\n[output normalization]\n";
-    for (auto iOutput=0u; iOutput <  mlp_in->GetnOutputs(); iOutput++) {
-      file_stream << std::showpos<<std::scientific << std::setprecision(16) << mlp_in->GetOutputNorm(iOutput).first << "\t" << std::showpos<<std::scientific << std::setprecision(16) << mlp_in->GetOutputNorm(iOutput).second << std::endl;
-    }
+//     file_stream << "\n[input names]\n";
+//     for (auto iInput=0u; iInput < mlp_in.GetnInputs(); iInput++)
+//       file_stream<< mlp_in.GetInputName(iInput) << std::endl;
+//     file_stream << "\n[input regularization method]\n";
+//     file_stream << mlp_in.GetInputRegularization() << std::endl;
+//     file_stream << "\n[input normalization]\n";
+//     for (auto iInput=0u; iInput <  mlp_in.GetnInputs(); iInput++) {
+//       file_stream << std::showpos<<std::scientific << std::setprecision(16) << mlp_in.GetInputNorm(iInput).first << "\t" << std::showpos<<std::scientific << std::setprecision(16) << mlp_in.GetInputNorm(iInput).second << std::endl;
+//     }
+//     file_stream << "\n[output names]\n";
+//     for (auto iOutput=0u; iOutput < mlp_in.GetnOutputs(); iOutput++)
+//       file_stream<< mlp_in.GetOutputName(iOutput) << std::endl;
+//     file_stream << "\n[output regularization method]\n";
+//     file_stream << mlp_in.GetOutputRegularization() << std::endl;
+//     file_stream << "\n[output normalization]\n";
+//     for (auto iOutput=0u; iOutput <  mlp_in.GetnOutputs(); iOutput++) {
+//       file_stream << std::showpos<<std::scientific << std::setprecision(16) << mlp_in.GetOutputNorm(iOutput).first << "\t" << std::showpos<<std::scientific << std::setprecision(16) << mlp_in.GetOutputNorm(iOutput).second << std::endl;
+//     }
 
-    file_stream<<"\n</header>\n";
+//     file_stream<<"\n</header>\n";
 
-    file_stream<<"\n[weights per layer]\n";
-    for (auto iLayer = 0u; iLayer < mlp_in->GetnLayers() - 1; iLayer++) {
-    file_stream << "<layer>\n";
-    for (auto iNeuron = 0u; iNeuron < mlp_in->GetnNodes(iLayer); iNeuron++) {
-      for (auto jNeuron = 0u; jNeuron < mlp_in->GetnNodes(iLayer + 1); jNeuron++) {
-        file_stream <<std::showpos<< std::scientific << std::setprecision(16) << mlp_in->GetWeight(iLayer, iNeuron, jNeuron) << " ";
-      }
-      file_stream << std::endl;
-    }
-    file_stream << "</layer>\n";
-  }
+//     file_stream<<"\n[weights per layer]\n";
+//     for (auto iLayer = 0u; iLayer < mlp_in.GetnLayers() - 1; iLayer++) {
+//     file_stream << "<layer>\n";
+//     for (auto iNeuron = 0u; iNeuron < mlp_in.GetnNodes(iLayer); iNeuron++) {
+//       for (auto jNeuron = 0u; jNeuron < mlp_in.GetnNodes(iLayer + 1); jNeuron++) {
+//         file_stream <<std::showpos<< std::scientific << std::setprecision(16) << mlp_in.GetWeight(iLayer, iNeuron, jNeuron) << " ";
+//       }
+//       file_stream << std::endl;
+//     }
+//     file_stream << "</layer>\n";
+//   }
 
-  /* Read biases for each neuron */
-    file_stream << "\n[biases per layer]\n";
-    for (auto iLayer = 0u; iLayer < mlp_in->GetnLayers(); iLayer++) {
-      for (auto iNeuron = 0u; iNeuron < mlp_in->GetnNodes(iLayer); iNeuron++) {
-        file_stream << std::showpos<< std::scientific << std::setprecision(16) << mlp_in->GetBias(iLayer, iNeuron) << " ";
-      }
-      file_stream << std::endl;
-    }
-    file_stream.close();
+//   /* Read biases for each neuron */
+//     file_stream << "\n[biases per layer]\n";
+//     for (auto iLayer = 0u; iLayer < mlp_in.GetnLayers(); iLayer++) {
+//       for (auto iNeuron = 0u; iNeuron < mlp_in.GetnNodes(iLayer); iNeuron++) {
+//         file_stream << std::showpos<< std::scientific << std::setprecision(16) << mlp_in.GetBias(iLayer, iNeuron) << " ";
+//       }
+//       file_stream << std::endl;
+//     }
+//     file_stream.close();
 
 
-    return;
-};
+//     return;
+// };
 
 namespace MLPToolbox {
-
 class CReadNeuralNetwork {
 private:
   std::vector<std::string> input_names, /*!< Input variable names. */

@@ -54,12 +54,15 @@ class CLookUp_ANN {
    */
 
 private:
-  std::vector<IteratorNetwork*> NeuralNetworks; /*!< std::std::vector containing
+  std::vector<CNeuralNetwork*> NeuralNetworks; /*!< std::std::vector containing
   //                                                all loaded neural networks. */
 
   unsigned short number_of_variables; /*!< Number of loaded ANNs. */
 
 public:
+
+  CLookUp_ANN() = default;
+
   /*!
    * \brief ANN collection class constructor
    * \param[in] n_inputs - Number of MLP files to be loaded.
@@ -72,36 +75,38 @@ public:
 
     /*--- Generate an MLP for every filename provided ---*/
     for (auto i_MLP = 0u; i_MLP < n_inputs; i_MLP++) {
-      MLPToolbox::IteratorNetwork * mlp = new MLPToolbox::IteratorNetwork(input_filenames[i_MLP]);
+      MLPToolbox::CNeuralNetwork * mlp = new MLPToolbox::CNeuralNetwork(input_filenames[i_MLP]);
       NeuralNetworks.push_back(mlp);
     }
   }
 
-  CLookUp_ANN(const std::vector<MLPToolbox::IteratorNetwork*> &mlps) {
-    for (auto mlp : mlps)
-      NeuralNetworks.push_back(mlp);
+  CLookUp_ANN(const std::vector<MLPToolbox::CNeuralNetwork*> &mlps) {
+    for (auto mlp : mlps) AddNetwork(mlp);
+  }
+
+  void AddNetwork(MLPToolbox::CNeuralNetwork * mlp) {
+    NeuralNetworks.push_back(mlp);
   }
 
   CLookUp_ANN(const CLookUp_ANN &copy_class) {
     NeuralNetworks.reserve(copy_class.GetNANNs());
     for (auto i_MLP=0u; i_MLP<NeuralNetworks.size(); i_MLP++)
-      NeuralNetworks[i_MLP] = new MLPToolbox::IteratorNetwork(*copy_class.NeuralNetworks[i_MLP]);
+      NeuralNetworks[i_MLP] = new MLPToolbox::CNeuralNetwork(*copy_class.NeuralNetworks[i_MLP]);
   }
 
   ~CLookUp_ANN() {
-    for (auto MLP : NeuralNetworks)
-      delete MLP;
+    for (auto MLP : NeuralNetworks) delete MLP;
   }
 
-  void PairVariableswithMLPs(MLPToolbox::CQuery &query) {
+  void PairVariableswithMLPs(MLPToolbox::CIOMap &query) {
     query.FindNetworksForQuery(NeuralNetworks);
   }
 
-  void Predict(const MLPToolbox::CQuery &query) const {
+  void Predict(const MLPToolbox::CIOMap &query) const {
     query();
   }
 
-  void Predict(const MLPToolbox::CQuery &query, const std::vector<mlpdouble> &vals_input, const std::vector<mlpdouble*> &refs_output) const {
+  void Predict(const MLPToolbox::CIOMap &query, const std::vector<mlpdouble> &vals_input, const std::vector<mlpdouble*> &refs_output) const {
     query(vals_input, refs_output);
   }
 

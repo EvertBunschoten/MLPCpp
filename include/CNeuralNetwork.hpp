@@ -44,7 +44,7 @@
 #include "option_maps.hpp"
 
 namespace MLPToolbox {
-  class IteratorNetwork {
+  class CNeuralNetwork {
     private:
     size_t n_layers{0},         /*!< \brief Total number of layers in the network. */
            n_hidden_layers{0};  /*!< \brief Number of hidden layers. */
@@ -180,7 +180,7 @@ namespace MLPToolbox {
     * \param[in] copy_network - Pointer to reference network used in copy constructor.
     * \param[in] reader - Pointer to reader class.
     */
-    void SizeWeights(const IteratorNetwork * copy_network=nullptr, const CReadNeuralNetwork * reader=nullptr) {
+    void SizeWeights(const CNeuralNetwork * copy_network=nullptr, const CReadNeuralNetwork * reader=nullptr) {
         const bool from_reader = (reader != nullptr);       /* Retrieve weight information from reader. */
         const bool from_copy = (copy_network != nullptr);   /* Copy weight information from reference MLP. */
 
@@ -276,13 +276,13 @@ namespace MLPToolbox {
     }
     
     public:
-        IteratorNetwork() = default;
+        CNeuralNetwork() = default;
 
         /*!
         * \brief Constructor from ASCII file name
         * \param[in] MLP_filename - MLPCpp ASCII file name from which to read network information.
         */
-        IteratorNetwork(const std::string MLP_filename) {
+        CNeuralNetwork(const std::string MLP_filename) {
 
             /* Read content of MLP file. */
             CReadNeuralNetwork reader = CReadNeuralNetwork(MLP_filename);
@@ -316,7 +316,7 @@ namespace MLPToolbox {
         * \brief Copy constructor
         * \param[in] copy_network - network from which to copy information.
         */
-        IteratorNetwork(const IteratorNetwork & copy_network) {
+        CNeuralNetwork(const CNeuralNetwork & copy_network) {
             n_layers = copy_network.n_layers;
             if (n_layers > 1){
                 NN = new size_t[n_layers];
@@ -338,7 +338,7 @@ namespace MLPToolbox {
         * \brief Constructor from network architecture.
         * \param[in] NN_input - vector describing number of nodes per layer in the network.
         */
-        IteratorNetwork(const std::vector<size_t> &NN_input) {
+        CNeuralNetwork(const std::vector<size_t> &NN_input) {
             if (std::find(NN_input.begin(), NN_input.end(), 0) != NN_input.end()){
                 throw std::exception();
                 return;
@@ -494,7 +494,7 @@ namespace MLPToolbox {
         }
         
 
-        ~IteratorNetwork() {
+        ~CNeuralNetwork() {
             for (auto iLayer=0u; iLayer<n_layers; iLayer++) {
                 delete [] biases_mat[iLayer];
                 delete [] layer_outputs[iLayer];
@@ -589,7 +589,6 @@ namespace MLPToolbox {
         */
         void SetInput(const mlpdouble* const input_vals) const {
             std::copy(input_vals, input_vals + n_inputs, input_layer);
-            return;
         }
 
         /*!
@@ -597,8 +596,7 @@ namespace MLPToolbox {
         * \param[in] input_vals - vector of input values
         */
         void SetInput(const std::vector<mlpdouble> &input_vals) const {
-            std::copy(input_vals.begin(), input_vals.end(), input_layer);
-            return;
+            for (auto iInput=0u; iInput<n_inputs; iInput++) SetInput(iInput, input_vals[iInput]);
         }
 
         /*!
@@ -881,7 +879,7 @@ namespace MLPToolbox {
   bool CheckInputInclusion() const {
     const auto dist = QueryDistance();
     if ((dist > 0) && (input_reg_method==ENUM_SCALING_FUNCTIONS::MINMAX))
-        return false;
+        return false; 
     else return true;
   }
 };

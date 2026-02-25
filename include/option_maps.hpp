@@ -23,9 +23,7 @@ enum class ENUM_ACTIVATION_FUNCTION {
     TANH = 8,
     EXPONENTIAL = 9
   };
-
- 
-
+  
 static const std::map<std::string, ENUM_ACTIVATION_FUNCTION> activation_function_map{
         {"none", ENUM_ACTIVATION_FUNCTION::NONE},
         {"linear", ENUM_ACTIVATION_FUNCTION::LINEAR},
