@@ -467,6 +467,21 @@ class CIOMap {
           std::cout << std::endl;
       }
     }
+
+    std::pair<mlpdouble, mlpdouble> GetInputNorm(const std::string varname) {
+      mlpdouble val_limit_1{0},val_limit_2{0};
+      for (const auto &mapped_network : query_network_maps) {
+        auto network_input_names = mapped_network.MLP->GetInputVars();
+        auto loc = std::find(network_input_names.begin(), network_input_names.end(), varname);
+        size_t iInput = std::distance(network_input_names.begin(), loc);
+        auto input_norm = mapped_network.MLP->GetInputNorm(iInput);
+        val_limit_1 += input_norm.first;
+        val_limit_2 += input_norm.second;
+      }
+      val_limit_1 /= query_network_maps.size();
+      val_limit_2 /= query_network_maps.size();
+      return std::make_pair(val_limit_1, val_limit_2);
+    }
 };
 } // namespace MLPToolbox
 
