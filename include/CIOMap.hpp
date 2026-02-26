@@ -120,8 +120,9 @@ class CIOMap {
     * \brief Evaluate the output, Jacobian, and Hessian of network selected for query.
     * \param[in] mapped_network - query struct
     */
-    void NetworkInference(const IOMap_Network &mapped_network) const { 
-      if (mapped_network.MLP->CheckInputInclusion()){
+    bool NetworkInference(const IOMap_Network &mapped_network) const { 
+      bool inside = mapped_network.MLP->CheckInputInclusion();
+      if (inside){
         mapped_network.MLP->CalcJacobian(mapped_network.evaluate_Jacobian);
         mapped_network.MLP->CalcHessian(mapped_network.evaluate_Hessian);
         mapped_network.MLP->Predict();
@@ -129,7 +130,7 @@ class CIOMap {
         mapped_network.MLP->CalcJacobian(false);
         mapped_network.MLP->CalcHessian(false);
       }
-
+      return inside;
     }
 
     /*!
@@ -403,14 +404,15 @@ class CIOMap {
     /*!
     * \brief Set the input and evaluate the output of the mapped networks.
     */
-    void operator()() const 
+    bool operator()() const 
     {
+      bool within_bounds{false};
       for (const auto &mapped_network : query_network_maps) {
         SetNetworkInputs(mapped_network);
-        NetworkInference(mapped_network);
+        if (NetworkInference(mapped_network)) within_bounds=true;
       }
       SetNullOutputs();
-
+      return within_bounds;
     };
 
     /*!
@@ -418,19 +420,21 @@ class CIOMap {
     * \param[in] vals_input - query input values.
     * \param[in] refs_output - pointers to query output.
     */
-    void operator()(const std::vector<mlpdouble> &vals_input,const std::vector<mlpdouble*> &refs_output) const 
+    bool operator()(const std::vector<mlpdouble> &vals_input,const std::vector<mlpdouble*> &refs_output) const 
     {
       if (refs_output.size() != query_output_vals.size()){
         throw std::exception();
       }
+      bool within_bounds{false};
       for (const auto &mapped_network : query_network_maps) {
         SetNetworkInputs(mapped_network, vals_input);
-        NetworkInference(mapped_network);
+        if (NetworkInference(mapped_network)) within_bounds=true;
       }
       SetNullOutputs();
 
       for (auto iOutput=0u; iOutput<query_output_vals.size(); iOutput++)
         *refs_output[iOutput] = query_output_vals[iOutput];
+      return within_bounds;
     };
 
     /*!

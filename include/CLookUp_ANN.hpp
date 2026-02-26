@@ -102,12 +102,12 @@ public:
     query.FindNetworksForQuery(NeuralNetworks);
   }
 
-  void Predict(const MLPToolbox::CIOMap &query) const {
-    query();
+  bool Predict(const MLPToolbox::CIOMap &query) const {
+    return query();
   }
 
-  void Predict(const MLPToolbox::CIOMap &query, const std::vector<mlpdouble> &vals_input, const std::vector<mlpdouble*> &refs_output) const {
-    query(vals_input, refs_output);
+  bool Predict(const MLPToolbox::CIOMap &query, const std::vector<mlpdouble> &vals_input, const std::vector<mlpdouble*> &refs_output) const {
+    return query(vals_input, refs_output);
   }
 
   /*!
