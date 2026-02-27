@@ -44,21 +44,6 @@
 
 namespace MLPToolbox {
 
-     class ImproperScaleValues: public std::exception 
-    {
-    std::string outp_message;
-    public:
-        ImproperScaleValues(const std::string message)
-        {
-            outp_message = message;
-        };
-        virtual const char *what() const noexcept {
-            char *cstr = new char[outp_message.size() + 1];
-            std::strcpy(cstr, outp_message.c_str());
-            return cstr;
-        }
-    };
-
 class ScalerFunction {
     /*! \brief Base class for scaler functions. */
     protected:
@@ -146,7 +131,9 @@ class StandardScaler : public ScalerFunction {
     
     virtual void SetScaling(const size_t i_in, const mlpdouble val_mu=0.0, const mlpdouble val_std=1.0) 
     {
-        if (val_std < 0) throw ImproperScaleValues(std::string("Error: standard deviation should be positive"));
+        if (val_std < 0) {
+            ErrorMessage("Standard deviation value should be positive.", "StandardScaler:SetScaling");
+        }
         vals_mu[i_in] = val_mu;
         vals_std[i_in] = val_std;
     }
@@ -256,7 +243,9 @@ class MinMaxScaler :  public ScalerFunction {
     
     virtual void SetScaling(const size_t i_in, const mlpdouble min=0, const mlpdouble max=1)
     {
-        if (min >= max) throw ImproperScaleValues(std::string("Error: maximum scaling value should be higher than minimum scaling value"));
+        if (min >= max) 
+            ErrorMessage("Maximum scaling value should be higher than minimum scaling value", "MinMaxScaler:SetScaling");
+            
         vals_min[i_in] = min;
         vals_max[i_in] = max;
     };

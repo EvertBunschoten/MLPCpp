@@ -34,41 +34,6 @@ operations.
 #include <set>
 #include "CNeuralNetwork.hpp"
 namespace MLPToolbox {
-
-  class InsufficientOutputs: public std::exception 
-  {
-  public:
-      bool issue_with_inputs{false};
-      InsufficientOutputs(const bool is_input) {issue_with_inputs = is_input;};
-      ~InsufficientOutputs() = default;
-      virtual const char *what() const noexcept {
-          if (issue_with_inputs){
-            return "Not all queries are present in the network inputs";
-          } else
-            return "Not all queries are present in the network outputs";
-      }
-  };
-
-  class DuplicateInputs: public std::exception 
-  {
-    std::vector<std::string> input_names;
-  public:
-      DuplicateInputs(const std::vector<std::string> &problematic_inputs)
-      {
-        input_names.resize(problematic_inputs.size());
-        std::copy(problematic_inputs.begin(), problematic_inputs.end(), input_names.begin());
-      };
-      virtual const char *what() const noexcept {
-
-        std::string message = "Network has duplicate inputs: ";
-        for (const auto & var : input_names) message += (var + ", ");
-
-        char *cstr = new char[message.size() + 1];
-        std::strcpy(cstr, message.c_str());
-        return cstr;
-      }
-  };
-
   
 struct IOMap_Network {
   /*! \brief struct with query information. */
@@ -381,7 +346,9 @@ class CIOMap {
 
           /* Check if network inputs are unique. */
           if (!CheckUniqueInputs(network_to_check)) {
-            throw DuplicateInputs(network_to_check->GetInputVars());
+            std::string msg = "Network has duplicate inputs: ";
+            for (const auto & var : network_to_check->GetInputVars()) msg += (var + ", ");
+            ErrorMessage(msg, "CIOMap:FindNetworksForQuery");
             return;
           }
           /* Compare network input and output variables and query variables. */
@@ -393,10 +360,10 @@ class CIOMap {
         }
         /* Throw exception if no suitable networks could be found for query. */
         if (query_network_maps.empty()) {
-          throw InsufficientOutputs(true);
+          ErrorMessage("Not all queries are present in the network inputs", "CIOMap:FindNetworksForQuery");
         }
         if (!CheckUseOfOutputs()) {
-            throw InsufficientOutputs(false);
+          ErrorMessage("Not all queries are present in the network outputs", "CIOMap:FindNetworksForQuery");
         }
 
         /* Map network inputs and outputs to query inputs and outputs. */
@@ -428,7 +395,7 @@ class CIOMap {
     bool operator()(const std::vector<mlpdouble> &vals_input,const std::vector<mlpdouble*> &refs_output) const 
     {
       if (refs_output.size() != query_output_vals.size()){
-        throw std::exception();
+        ErrorMessage("Number of outputs in query differs from number of requested outputs.", "CIOMap:operator()");
       }
       bool within_bounds{false};
       for (const auto &mapped_network : query_network_maps) {

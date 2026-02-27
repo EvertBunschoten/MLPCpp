@@ -340,7 +340,7 @@ namespace MLPToolbox {
         */
         CNeuralNetwork(const std::vector<size_t> &NN_input) {
             if (std::find(NN_input.begin(), NN_input.end(), 0) != NN_input.end()){
-                throw std::exception();
+                ErrorMessage("Number of nodes should be positive", "CNeuralNetwork:CNeuralNetwork");
                 return;
             }
             n_layers = NN_input.size();
@@ -360,7 +360,7 @@ namespace MLPToolbox {
         void SetInputRegularization(const std::string reg_method_tag="minmax") {
             const auto it = scaling_map.find(reg_method_tag);
             if (it == scaling_map.end())
-                throw std::exception();
+                ErrorMessage("Scaler function not recognized (" + reg_method_tag + ")", "CNeuralNetwork:SetInputRegularization");
             else
                 input_reg_method = it->second;
             SetInputRegularization(input_reg_method);
@@ -375,7 +375,7 @@ namespace MLPToolbox {
         void SetOutputRegularization(const std::string reg_method_tag="minmax") {
             const auto it = scaling_map.find(reg_method_tag);
             if (it == scaling_map.end())
-                throw std::exception();
+                ErrorMessage("Scaler function not recognized (" + reg_method_tag + ")", "CNeuralNetwork:SetOutputRegularization");
             else
                 output_reg_method = it->second;
             SetOutputRegularization(output_reg_method);
@@ -692,8 +692,10 @@ namespace MLPToolbox {
         void SetActivationFunction(const size_t iLayer, const std::string name_activation_function="linear") {
             /* Check if activation function tag is valid */
             const auto it = activation_function_map.find(name_activation_function);
-            if (it == activation_function_map.end())
-                throw std::exception();
+            if (it == activation_function_map.end()) {
+                std::string msg = "Activation function not supported (" + name_activation_function + ")";
+                ErrorMessage(msg, "CNeuralNetwork:SetActivationFunction");
+            }
             
             const auto i_phi = it->second;
             ActivationFunctionBase * function_out;
