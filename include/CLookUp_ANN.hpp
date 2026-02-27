@@ -44,20 +44,11 @@ namespace MLPToolbox {
 class CLookUp_ANN {
   /*!
    *\class CLookUp_ANN
-   *\brief This class allows for the evaluation of one or more multi-layer
-   *perceptrons in for example thermodynamic state look-up operations. The
-   *multi-layer perceptrons are loaded in the order listed in the MLP collection
-   *file. Each multi-layer perceptron is generated based on the architecture
-   *described in its respective input file. When evaluating the MLP collection,
-   *an input-output map is used to find the correct MLP corresponding to the
-   *call function inputs and outputs.
+   *\brief This class allows for the inference of multiple multi-layer perceptrons for queries.
    */
 
 private:
-  std::vector<CNeuralNetwork*> NeuralNetworks; /*!< std::std::vector containing
-  //                                                all loaded neural networks. */
-
-  unsigned short number_of_variables; /*!< Number of loaded ANNs. */
+  std::vector<CNeuralNetwork*> NeuralNetworks; /*!< std::std::vector containing all loaded neural networks. */
 
 public:
 
@@ -70,9 +61,6 @@ public:
    */
   CLookUp_ANN(const unsigned short n_inputs,
               const std::string *input_filenames) {
-    /*--- Define collection of MLPs for regression purposes ---*/
-    number_of_variables = n_inputs;
-
     /*--- Generate an MLP for every filename provided ---*/
     for (auto i_MLP = 0u; i_MLP < n_inputs; i_MLP++) {
       MLPToolbox::CNeuralNetwork * mlp = new MLPToolbox::CNeuralNetwork(input_filenames[i_MLP]);
@@ -80,16 +68,38 @@ public:
     }
   }
 
+  /*!
+   * \brief ANN collection class constructor
+   * \param[in] input_filenames - String array containing MLP input file names.
+   */
+  CLookUp_ANN(const std::vector<std::string> &input_filenames) {
+    NeuralNetworks.resize(input_filenames.size());
+    for (auto i_MLP=0u; i_MLP<input_filenames.size(); i_MLP++)
+      NeuralNetworks[i_MLP] = new MLPToolbox::CNeuralNetwork(input_filenames[i_MLP]);
+  }
+
+  /*!
+   * \brief ANN collection class constructor
+   * \param[in] mlps - vector with pointers to network objects.
+   */
   CLookUp_ANN(const std::vector<MLPToolbox::CNeuralNetwork*> &mlps) {
+    NeuralNetworks.clear();
     for (auto mlp : mlps) AddNetwork(mlp);
   }
 
+  /*!
+  * \brief Add a network to the collection.
+  * \param[in] mlp - pointer to network object.
+  */
   void AddNetwork(MLPToolbox::CNeuralNetwork * mlp) {
     NeuralNetworks.push_back(mlp);
   }
 
+  /*!
+  * \brief Copy constructor
+  */
   CLookUp_ANN(const CLookUp_ANN &copy_class) {
-    NeuralNetworks.reserve(copy_class.GetNANNs());
+    NeuralNetworks.resize(copy_class.GetNANNs());
     for (auto i_MLP=0u; i_MLP<NeuralNetworks.size(); i_MLP++)
       NeuralNetworks[i_MLP] = new MLPToolbox::CNeuralNetwork(*copy_class.NeuralNetworks[i_MLP]);
   }
@@ -98,14 +108,28 @@ public:
     for (auto MLP : NeuralNetworks) delete MLP;
   }
 
+  /*!
+  * \brief Find the networks in the collection with the inputs and outputs needed for a query.
+  * \param[in] query - query class
+  */
   void PairVariableswithMLPs(MLPToolbox::CIOMap &query) {
     query.FindNetworksForQuery(NeuralNetworks);
   }
 
+  /*!
+  * \brief Evaluate the output of the networks selected for a query.
+  * \param[in] query - query class with input-output information
+  */
   bool Predict(const MLPToolbox::CIOMap &query) const {
     return query();
   }
 
+  /*!
+  * \brief Evaluate the output of the networks selected for a query with inputs and outputs.
+  * \param[in] query - query class with input-output information.
+  * \param[in] vals_input - network inputs.
+  * \param[in] refs_output - pointers to output variables.
+  */
   bool Predict(const MLPToolbox::CIOMap &query, const std::vector<mlpdouble> &vals_input, const std::vector<mlpdouble*> &refs_output) const {
     return query(vals_input, refs_output);
   }
@@ -136,9 +160,7 @@ public:
 
     /* For every loaded MLP, display the inputs, outputs, activation functions,
      * and architecture. */
-    for (auto i_MLP = 0u; i_MLP < NeuralNetworks.size(); i_MLP++) {
-      NeuralNetworks[i_MLP]->DisplayNetwork();
-    }
+    for (auto MLP : NeuralNetworks) MLP->DisplayNetwork();
   }
 };
 
