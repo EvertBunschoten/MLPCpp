@@ -41,41 +41,76 @@
 #include "option_maps.hpp"
 
 class ActivationFunctionBase{
-    
+    /*! \brief Base class for the hidden layer activation function. 
+    The activation function calculates the node output, Jacobian, and Hessian
+     based on the weighted output of the nodes in the previous layer of the network. */
     protected:
-        std::string name, tag;
-        mlpdouble input;
-        mlpdouble output;
-        mlpdouble Jacobian{0};
-        mlpdouble Hessian{0};
-        bool calc_gradient {false};
-        bool calc_gradient_2 {false};
+        std::string name, /* Activation function display name. */
+                    tag;  /* Tag used to identify the activation function. */
+        mlpdouble output; /* Activation function output. */
+        mlpdouble Jacobian{0}; /* Derivative of output w.r.t input. */
+        mlpdouble Hessian{0};  /* Second derivative of output w.r.t input. */
+        bool calc_gradient {false};   /* Enable derivative calculation. */
+        bool calc_gradient_2 {false}; /* Enable second derivative calculation. */
     public:
-    
-    mlpdouble GetOutput() const {return output;}
-    mlpdouble GetJacobian() const {return Jacobian;}
-    mlpdouble GetHessian() const {return Hessian;}
-    std::string GetName() const {return name;}
-    std::string GetTag() const {return tag;}
+
     ActivationFunctionBase() = default;
-    virtual mlpdouble operator() (const mlpdouble x,const bool calc_Jacobian=false, const bool calc_Hessian=false)=0;
     virtual ~ActivationFunctionBase() = default;
+
+    /*!
+    * \brief Retrieve activation function output.
+    * \returns - activation function output.
+    */
+    mlpdouble GetOutput() const {return output;}
+
+    /*!
+    * \brief Retrieve activation function derivative.
+    * \returns - activation function derivative.
+    */
+    mlpdouble GetJacobian() const {return Jacobian;}
+
+    /*!
+    * \brief Retrieve activation function second derivative.
+    * \returns - activation function second derivative.
+    */
+    mlpdouble GetHessian() const {return Hessian;}
+
+    /*!
+    * \brief Retrieve the activation function display name
+    * \returns - activation function display name.
+    */
+    std::string GetName() const {return name;}
+
+    /*!
+    * \brief Retrieve the activation function ID tag.
+    * \returns - activation function ID tag.
+    */
+    std::string GetTag() const {return tag;}
+
+    /*!
+    * \brief Call operator to evaluate function output and derivatives.
+    * \param[in] x - activation function input.
+    * \param[in] calc_Jacobian - calculate derivative value.
+    * \param[in] calc_Hessian - calculate second-order derivative.
+    * \returns - activation function output.
+    */
+    virtual mlpdouble operator() (const mlpdouble x,const bool calc_Jacobian=false, const bool calc_Hessian=false)=0;
 };
 
 class Lin final: public ActivationFunctionBase {
+    /*! \brief Linear activation function (output = input), used for input and output layer.*/
     public:
         Lin() {name="Linear", tag="linear";}
         mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) override {
             output = x;
-            if (calc_Jacobian)
-                Jacobian = 1.0;
-            if (calc_Hessian)
-                Hessian = 0.0;
+            if (calc_Jacobian) Jacobian = 1.0;
+            if (calc_Hessian) Hessian = 0.0;
             return output;
         }
 };
 
 class Elu final: public ActivationFunctionBase {
+    /*! \brief Exponential linear unit function. */
     public:
         Elu() {name="Elu", tag="elu";}
         mlpdouble operator() (const mlpdouble x,const bool calc_Jacobian=false, const bool calc_Hessian=false) override {
@@ -98,6 +133,7 @@ class Elu final: public ActivationFunctionBase {
 };
 
 class Sigmoid final: public ActivationFunctionBase {
+    /*! \brief Sigmoid activation function. */
     public:
         Sigmoid() {name="Sigmoid", tag="sigmoid";}
         virtual mlpdouble operator() (const mlpdouble x,const bool calc_Jacobian=false, const bool calc_Hessian=false) {
@@ -115,6 +151,7 @@ class Sigmoid final: public ActivationFunctionBase {
 };
 
 class Exponential final: public ActivationFunctionBase {
+    /*! \brief Exponential function. */
     public:
     Exponential() {name="Exponential", tag="exponential";}
     virtual mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
@@ -126,25 +163,24 @@ class Exponential final: public ActivationFunctionBase {
 };
 
 class Relu final: public ActivationFunctionBase {
+    /*! \brief Rectified linear unit activation function. */
     public:
     Relu() {name="ReLu", tag="relu";}
     virtual mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
         if (x > 0) {
             output = x;
-            if (calc_Jacobian) 
-                Jacobian = 1.0;
+            if (calc_Jacobian) Jacobian = 1.0;
         }else{
             output = 0.0;
-            if (calc_Jacobian)
-                Jacobian = 0.0;
+            if (calc_Jacobian) Jacobian = 0.0;
         }
-        if (calc_Hessian)
-            Hessian = 0.0;
+        if (calc_Hessian) Hessian = 0.0;
         return output;
     }
 };
 
 class Swish final: public ActivationFunctionBase {
+    /*! \brief Swish or sigmoid linear unit activation function. */
     public:
     Swish() {name="Swish", tag="swish"; }
     virtual mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
@@ -178,6 +214,7 @@ class Tanh final: public ActivationFunctionBase {
 
 
 class SeLu final: public ActivationFunctionBase {
+    /*! \brief Scaled exponential linear unit activation function. */
     private:
         const mlpdouble lambda {1.05070098};
         const mlpdouble alpha {1.67326324};
@@ -207,16 +244,17 @@ class SeLu final: public ActivationFunctionBase {
 };
 
 class GeLu final: public ActivationFunctionBase {
+    /*! \brief Gaussian error linear unit activation function. */
     private:
-    const mlpdouble gelu_c{0.5*sqrt(2)};
+    const mlpdouble gelu_c{0.5*sqrt(2)}, pi_sqrt{sqrt(2/M_PI)};
     public:
     GeLu() {name="GeLu", tag="gelu";}
     virtual mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
         output = 0.5 * x * (1 + erf(x / sqrt(2)));
         if (calc_Jacobian) {
-            Jacobian = 0.5 + 0.5*sqrt(2/M_PI) * exp(-0.5*pow(x,2)) * x + 0.5 * erf(x/sqrt(2));
+            Jacobian = 0.5 + 0.5*pi_sqrt * exp(-0.5*pow(x,2)) * x + 0.5 * erf(x/sqrt(2));
             if (calc_Hessian)
-                Hessian = exp(-0.5*pow(x,2))*(sqrt(2/M_PI) - 0.5*sqrt(2/M_PI)*pow(x,2));
+                Hessian = pi_sqrt*exp(-0.5*pow(x,2))*(1 - 0.5*pow(x,2));
         }
         return output;
     }
