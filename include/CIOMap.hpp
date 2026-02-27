@@ -378,16 +378,20 @@ class CIOMap {
     */
     void FindNetworksForQuery(const std::vector<CNeuralNetwork*> &networks_to_check) {
         for (auto network_to_check : networks_to_check) {
-            if (!CheckUniqueInputs(network_to_check)) {
-              throw DuplicateInputs(network_to_check->GetInputVars());
-              return;
-            }
-            if (CheckNetworkVariables(network_to_check)){
-                IOMap_Network mapped_network;
-                mapped_network.MLP = network_to_check;
-                query_network_maps.push_back(mapped_network);
-            }
+
+          /* Check if network inputs are unique. */
+          if (!CheckUniqueInputs(network_to_check)) {
+            throw DuplicateInputs(network_to_check->GetInputVars());
+            return;
+          }
+          /* Compare network input and output variables and query variables. */
+          if (CheckNetworkVariables(network_to_check)){
+              IOMap_Network mapped_network;
+              mapped_network.MLP = network_to_check;
+              query_network_maps.push_back(mapped_network);
+          }
         }
+        /* Throw exception if no suitable networks could be found for query. */
         if (query_network_maps.empty()) {
           throw InsufficientOutputs(true);
         }
@@ -395,6 +399,7 @@ class CIOMap {
             throw InsufficientOutputs(false);
         }
 
+        /* Map network inputs and outputs to query inputs and outputs. */
         MapInputs();
         MapOutputs();
         MapJacobians();
@@ -472,6 +477,11 @@ class CIOMap {
       }
     }
 
+    /*!
+    * \brief Return the mean values of the input scaling parameters of the query networks.
+    * \param[in] varname - name of the input variable for which to calculate the scaling parameters.
+    * \returns - pair of values used for linear scaling. 
+    */
     std::pair<mlpdouble, mlpdouble> GetInputNorm(const std::string varname) {
       mlpdouble val_limit_1{0},val_limit_2{0};
       for (const auto &mapped_network : query_network_maps) {
