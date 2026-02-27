@@ -48,7 +48,8 @@ class CLookUp_ANN {
    */
 
 private:
-  std::vector<CNeuralNetwork*> NeuralNetworks; /*!< std::std::vector containing all loaded neural networks. */
+  std::vector<bool> internally_generated;      /*!< whether network is to be dereferenced in destructor. */
+  std::vector<CNeuralNetwork*> NeuralNetworks; /*!< std::vector containing all loaded neural networks. */
 
 public:
 
@@ -65,7 +66,9 @@ public:
     for (auto i_MLP = 0u; i_MLP < n_inputs; i_MLP++) {
       MLPToolbox::CNeuralNetwork * mlp = new MLPToolbox::CNeuralNetwork(input_filenames[i_MLP]);
       NeuralNetworks.push_back(mlp);
+      internally_generated.push_back(true);
     }
+    
   }
 
   /*!
@@ -74,8 +77,11 @@ public:
    */
   CLookUp_ANN(const std::vector<std::string> &input_filenames) {
     NeuralNetworks.resize(input_filenames.size());
-    for (auto i_MLP=0u; i_MLP<input_filenames.size(); i_MLP++)
+    internally_generated.resize(input_filenames.size());
+    for (auto i_MLP=0u; i_MLP<input_filenames.size(); i_MLP++) {
       NeuralNetworks[i_MLP] = new MLPToolbox::CNeuralNetwork(input_filenames[i_MLP]);
+      internally_generated[i_MLP] = true;
+    }
   }
 
   /*!
@@ -85,6 +91,7 @@ public:
   CLookUp_ANN(const std::vector<MLPToolbox::CNeuralNetwork*> &mlps) {
     NeuralNetworks.clear();
     for (auto mlp : mlps) AddNetwork(mlp);
+    
   }
 
   /*!
@@ -93,6 +100,7 @@ public:
   */
   void AddNetwork(MLPToolbox::CNeuralNetwork * mlp) {
     NeuralNetworks.push_back(mlp);
+    internally_generated.push_back(false);
   }
 
   /*!
@@ -100,12 +108,17 @@ public:
   */
   CLookUp_ANN(const CLookUp_ANN &copy_class) {
     NeuralNetworks.resize(copy_class.GetNANNs());
-    for (auto i_MLP=0u; i_MLP<NeuralNetworks.size(); i_MLP++)
+    internally_generated.resize(copy_class.GetNANNs());
+    for (auto i_MLP=0u; i_MLP<NeuralNetworks.size(); i_MLP++){
       NeuralNetworks[i_MLP] = new MLPToolbox::CNeuralNetwork(*copy_class.NeuralNetworks[i_MLP]);
+      internally_generated[i_MLP] = true;
+    }
   }
 
   ~CLookUp_ANN() {
-    for (auto MLP : NeuralNetworks) delete MLP;
+    for (auto iMLP=0u; iMLP<GetNANNs(); iMLP++) {
+      if (internally_generated[iMLP]) delete NeuralNetworks[iMLP];
+    }
   }
 
   /*!
@@ -161,6 +174,15 @@ public:
     /* For every loaded MLP, display the inputs, outputs, activation functions,
      * and architecture. */
     for (auto MLP : NeuralNetworks) MLP->DisplayNetwork();
+  }
+
+  std::vector<mlpdouble> GetWeightsBiases(size_t i_network=0) const {
+    return NeuralNetworks[i_network]->GetWeightsBiases();
+  }
+
+  void SetWeightsBiases(const std::vector<mlpdouble>& flat_weights, size_t i_network=0) const {
+    NeuralNetworks[i_network]->SetWeightsBiases(flat_weights);
+    return;
   }
 };
 
