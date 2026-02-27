@@ -762,6 +762,48 @@ namespace MLPToolbox {
         void SetInputName(const size_t iInput, const std::string input) {
             input_names[iInput] = input;
         }
+
+        /*!
+        * \brief Return single vector containing the weights and biases in the network.
+        * \returns - vector of weights and biases.
+        */
+        std::vector<mlpdouble> GetWeightsBiases() const {
+            std::vector<mlpdouble> flat_weights;
+            for (auto iLayer=1; iLayer<n_layers; iLayer++) {
+                auto n_prev = NN[iLayer-1];
+                auto n_cur = NN[iLayer];
+                for (auto jNode=0u; jNode< n_prev; jNode++) {
+                    for (auto iNode=0u; iNode<n_cur; iNode++) 
+                        flat_weights.push_back(GetWeight(iLayer-1, jNode, iNode));
+                    
+                    flat_weights.push_back(GetBias(iLayer-1, jNode));
+                }
+            }
+            for (auto jNode=0u; jNode<NN[n_hidden_layers]; jNode++)
+                flat_weights.push_back(GetBias(n_hidden_layers, jNode));
+            return flat_weights;
+        }
+        
+        /*!
+        * \brief Set network weights and biases from flat vector.
+        * \param[in] flat_weights - 1D vector containing network weight and bias values.
+        */
+        void SetWeightsBiases(const std::vector<mlpdouble>& flat_weights) const {
+            size_t k{0};
+            
+            for (auto iLayer=1; iLayer<n_layers; iLayer++) {
+                auto n_prev = NN[iLayer-1];
+                auto n_cur = NN[iLayer];
+                for (auto jNode=0u; jNode< n_prev; jNode++) {
+                    for (auto iNode=0u; iNode<n_cur; iNode++)
+                        SetWeight(iLayer-1, jNode, iNode, flat_weights[k++]);
+
+                    SetBias(iLayer-1, jNode, flat_weights[k++]);
+                }
+            }
+            for (auto jNode=0u; jNode<NN[n_hidden_layers]; jNode++)
+                SetBias(n_hidden_layers, jNode, flat_weights[k++]);
+        }
     /*!
     * \brief Display the network architecture in the terminal.
     */
