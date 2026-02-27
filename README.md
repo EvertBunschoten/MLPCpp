@@ -5,7 +5,7 @@ title: Multi-Layer Perceptron regression in C++ code
 # Multi-Layer Perceptrons in C++
 <img src="logo.png" alt="isolated" width="200"/>
 
-Artificial neural networks like multi-layer perceptrons (MLP), are useful a variety of applications. From turbulence closure models in computational fluid dynamics to data regression applications, MLP's have been shown to be a valuable tool. This library was developed to easily allow for the evaluation of MLP's within a C++ code environment through a set of header files. To clarify: this library **DOES NOT** allow for the training or optimization of MLP architectures. It only allows for the evaluation of MLP outputs and first-order and second-order output gradients with respect to the network inputs for networks which already have been trained through an external tool like Python Tensorflow. 
+Artificial neural networks like multi-layer perceptrons (MLP), are useful a variety of applications. From turbulence closure models in computational fluid dynamics to data regression applications, MLP's have been shown to be a valuable tool. This library was developed to easily allow for the evaluation of MLP's within a C++ code environment through a set of header files. To clarify: this library **does not yet** allow for the training or optimization of MLP architectures. It only allows for the evaluation of MLP output, Jacobian, and Hessian with respect to the network input for networks which already have been trained through an external tool like Python Tensorflow. 
 
 # MLP class description
 The MLP library can be downloaded from the git repository https://github.com/EvertBunschoten/MLPCpp.git. By including the header file CLookUp_ANN.hpp, it enables the use of multi-layer perceptrons for regression operations in C++ code. 
@@ -38,8 +38,8 @@ The input files required for loading MLP's into C++ through the MLPCpp library a
 
 Using the MLPCpp library in your code is as simple as including the "CLookUp_ANN.hpp" file in your C++ code. An examplary script is provided through "main.cpp", which demonstrates the steps required for loading one or multiple .mlp files, preprocessing regression operations, and the evaluation of the network outputs and output derivatives. 
 
-# Gradient Computation
-The MLPCpp module allows for the evaluation of the analytical first-order and second-order derivatives of the network outputs with respect to the network inputs without the use of algorithmic differentiation. This can be useful in iterative Newton solvers for example. Gradient computation is enabled by supplying additional inputs to the "Predict_ANN" method, as is demonstrated in "main.cpp"
+# Derivatives Calculation
+The MLPCpp module allows for the evaluation of the analytical Jacobian and Hessian of the network output with respect to the network input without the use of algorithmic differentiation. This can be useful in iterative Newton solvers and physics-informed machine learning. 
 
 # Test Case
 
