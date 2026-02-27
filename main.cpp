@@ -55,7 +55,7 @@ int main() {
   double val_u, val_v, val_y, val_dydu, val_dydv, val_d2ydu2, val_d2ydudv, val_d2ydv2;
   /*--- Generate the input-output map and pair the loaded MLP's with the input
    * and output variables of the lookup operation ---*/
-  MLPToolbox::CQuery iomap = MLPToolbox::CQuery();
+  MLPToolbox::CIOMap iomap = MLPToolbox::CIOMap();
 
   iomap.AddQueryInput("u", &val_u);
   iomap.AddQueryInput("v", &val_v);
@@ -66,7 +66,7 @@ int main() {
   iomap.AddQueryHessian("y", "u", "v", &val_d2ydudv);
   iomap.AddQueryHessian("y", "v", "v", &val_d2ydv2);
   
-  MLPToolbox::CQuery iomap_output_only = MLPToolbox::CQuery();
+  MLPToolbox::CIOMap iomap_output_only = MLPToolbox::CIOMap();
   iomap_output_only.AddQueryInput("u", &val_u);
   iomap_output_only.AddQueryInput("v", &val_v);
   iomap_output_only.AddQueryOutput("y", &val_y);
@@ -115,7 +115,6 @@ int main() {
     double dy_du_fd = (val_output_p - val_output_m) / (2*delta_CV);
     double d2y_du2_fd = (val_output_p - 2 * val_output_c + val_output_m) / (delta_CV*delta_CV);
     cout << scientific << val_dydu << "\t" << scientific << dy_du_fd << endl;
-    //cout << scientific << d2Outputs_dInputs2[0][0][0] << "\t" << scientific << d2y_du2_fd << endl;
   }
   input_data_file.close();
   output_data_file.close();
