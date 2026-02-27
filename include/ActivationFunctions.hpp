@@ -40,6 +40,7 @@
 #include "variable_def.hpp"
 #include "option_maps.hpp"
 
+namespace MLPToolbox {
 class ActivationFunctionBase{
     /*! \brief Base class for the hidden layer activation function. 
     The activation function calculates the node output, Jacobian, and Hessian
@@ -259,3 +260,4 @@ class GeLu final: public ActivationFunctionBase {
         return output;
     }
 };
+}
