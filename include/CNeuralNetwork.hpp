@@ -884,6 +884,71 @@ namespace MLPToolbox {
         return false; 
     else return true;
   }
+
+  /*!
+  * \brief Write network information to file.
+  * \param[in] file_out - output file name.
+  */
+    void WriteNeuralNetwork(std::string file_out) const {
+        std::ofstream file_stream;
+        file_stream.open(file_out.c_str(), std::ofstream::out);
+        file_stream << "<header>\n\n";
+        file_stream << "[number of layers]\n";
+        file_stream << GetnLayers() << std::endl;
+        file_stream << "\n[neurons per layer]\n";
+        for (auto iLayer=0u; iLayer<GetnLayers(); iLayer++)
+        file_stream << GetnNodes(iLayer) << std::endl;
+        
+        file_stream << "\n[activation function]\n";
+        for (auto iLayer=0u; iLayer<GetnLayers(); iLayer++)
+        file_stream << GetActivationFunction(iLayer) << std::endl;
+        
+        file_stream << "\n[input names]\n";
+        for (auto iInput=0u; iInput < GetnInputs(); iInput++)
+        file_stream<< GetInputName(iInput) << std::endl;
+        file_stream << "\n[input regularization method]\n";
+        file_stream << GetInputRegularization() << std::endl;
+        file_stream << "\n[input normalization]\n";
+        for (auto iInput=0u; iInput <  GetnInputs(); iInput++) {
+        file_stream << std::showpos<<std::scientific << std::setprecision(16) << GetInputNorm(iInput).first << "\t" << std::showpos<<std::scientific << std::setprecision(16) << GetInputNorm(iInput).second << std::endl;
+        }
+        file_stream << "\n[output names]\n";
+        for (auto iOutput=0u; iOutput < GetnOutputs(); iOutput++)
+        file_stream<< GetOutputName(iOutput) << std::endl;
+        file_stream << "\n[output regularization method]\n";
+        file_stream << GetOutputRegularization() << std::endl;
+        file_stream << "\n[output normalization]\n";
+        for (auto iOutput=0u; iOutput <  GetnOutputs(); iOutput++) {
+        file_stream << std::showpos<<std::scientific << std::setprecision(16) << GetOutputNorm(iOutput).first << "\t" << std::showpos<<std::scientific << std::setprecision(16) << GetOutputNorm(iOutput).second << std::endl;
+        }
+
+        file_stream<<"\n</header>\n";
+
+        file_stream<<"\n[weights per layer]\n";
+        for (auto iLayer = 0u; iLayer < GetnLayers() - 1; iLayer++) {
+        file_stream << "<layer>\n";
+        for (auto iNeuron = 0u; iNeuron < GetnNodes(iLayer); iNeuron++) {
+        for (auto jNeuron = 0u; jNeuron < GetnNodes(iLayer + 1); jNeuron++) {
+            file_stream <<std::showpos<< std::scientific << std::setprecision(16) << GetWeight(iLayer, iNeuron, jNeuron) << " ";
+        }
+        file_stream << std::endl;
+        }
+        file_stream << "</layer>\n";
+    }
+
+    /* Read biases for each neuron */
+        file_stream << "\n[biases per layer]\n";
+        for (auto iLayer = 0u; iLayer < GetnLayers(); iLayer++) {
+        for (auto iNeuron = 0u; iNeuron < GetnNodes(iLayer); iNeuron++) {
+            file_stream << std::showpos<< std::scientific << std::setprecision(16) << GetBias(iLayer, iNeuron) << " ";
+        }
+        file_stream << std::endl;
+        }
+        file_stream.close();
+
+
+        return;
+    };
 };
 
 } // namespace MLPToolbox
