@@ -231,7 +231,11 @@ public:
         getline(file_stream, line);
         std::istringstream input_norm_stream(line);
         input_norm_stream >> word;
-        input_reg_method = scaling_map.find(word)->second;
+        const auto it = scaling_map.find(word);
+        if (it == scaling_map.end())
+            ErrorMessage("Input scaler function not recognized (" + word + ")", "CReadNeuralNetwork:ReadMLPFile");
+        else 
+          input_reg_method=it->second;
       }
 
 
@@ -273,7 +277,11 @@ public:
         getline(file_stream, line);
         std::istringstream input_norm_stream(line);
         input_norm_stream >> word;
-        output_reg_method = scaling_map.find(word)->second;
+        const auto it = scaling_map.find(word);
+        if (it == scaling_map.end())
+            ErrorMessage("Output scaler function not recognized (" + word + ")", "CReadNeuralNetwork:ReadMLPFile");
+        else 
+          input_reg_method=it->second;
       }
 
       /* In case output normalization is applied, read upper and lower output
