@@ -3,7 +3,7 @@
 * \brief Input-output map class definition for the definition of MLP look-up
 operations.
 * \author E.C.Bunschoten
-* \version 1.2.0
+* \version 2.0.0
 *
 * MLPCpp Project Website: https://github.com/EvertBunschoten/MLPCpp
 *
