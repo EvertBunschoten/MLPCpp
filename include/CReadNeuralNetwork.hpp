@@ -28,7 +28,6 @@
 */
 #pragma once
 
-#include "variable_def.hpp"
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
@@ -36,8 +35,13 @@
 #include <limits>
 #include <vector>
 
-namespace MLPToolbox {
+#include "variable_def.hpp"
+#include "option_maps.hpp"
+#include "CNeuralNetwork.hpp"
 
+
+
+namespace MLPToolbox {
 class CReadNeuralNetwork {
 private:
   std::vector<std::string> input_names, /*!< Input variable names. */
@@ -62,14 +66,6 @@ private:
       input_norm,  /*!< Input variable normalization values (min, max). */
       output_norm; /*!< Output variable normalization values (min, max). */
   
-  /*!
-  * \brief Available activation function map.
-  */
-  std::map<std::string, ENUM_SCALING_FUNCTIONS> scaling_map{
-      {"minmax", ENUM_SCALING_FUNCTIONS::MINMAX},
-      {"standard", ENUM_SCALING_FUNCTIONS::STANDARD},
-      {"robust", ENUM_SCALING_FUNCTIONS::ROBUST},
-  };
 
   ENUM_SCALING_FUNCTIONS input_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX},
                          output_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX};
@@ -79,7 +75,7 @@ public:
    * \param[in] filename_in - .mlp input file name containing network
    * information.
    */
-  CReadNeuralNetwork(std::string filename_in) { filename = filename_in; }
+  CReadNeuralNetwork(const std::string filename_in) { filename = filename_in; }
 
   /*!
    * \brief Read input file and store necessary information
@@ -173,7 +169,11 @@ public:
         getline(file_stream, line);
         std::istringstream input_norm_stream(line);
         input_norm_stream >> word;
-        input_reg_method = scaling_map.find(word)->second;
+        const auto it = scaling_map.find(word);
+        if (it == scaling_map.end())
+            ErrorMessage("Input scaler function not recognized (" + word + ")", "CReadNeuralNetwork:ReadMLPFile");
+        else 
+          input_reg_method=it->second;
       }
 
 
@@ -215,7 +215,11 @@ public:
         getline(file_stream, line);
         std::istringstream input_norm_stream(line);
         input_norm_stream >> word;
-        output_reg_method = scaling_map.find(word)->second;
+        const auto it = scaling_map.find(word);
+        if (it == scaling_map.end())
+            ErrorMessage("Output scaler function not recognized (" + word + ")", "CReadNeuralNetwork:ReadMLPFile");
+        else 
+          input_reg_method=it->second;
       }
 
       /* In case output normalization is applied, read upper and lower output
@@ -320,10 +324,13 @@ public:
    * \param[in] iLayer - Total layer index.
    * \returns Number of neurons in the layer.
    */
-  unsigned long GetNneurons(std::size_t iLayer) const {
+  unsigned long GetNneurons(const std::size_t iLayer) const {
     return n_neurons[iLayer];
   }
 
+  std::vector<size_t> GetNneurons() const {
+    return n_neurons;
+  }
   /*!
    * \brief Get synapse weight between two neurons in subsequent layers.
    * \param[in] iLayer - Total layer index.
@@ -331,8 +338,8 @@ public:
    * \param[in] jNeuron - Neuron index in subsequent layer.
    * \returns Weight value
    */
-  mlpdouble GetWeight(std::size_t iLayer, std::size_t iNeuron,
-                      std::size_t jNeuron) const {
+  mlpdouble GetWeight(const std::size_t iLayer, const std::size_t iNeuron,
+                      const std::size_t jNeuron) const {
     return weights_mat[iLayer][iNeuron][jNeuron];
   }
 
@@ -342,7 +349,7 @@ public:
    * \param[in] iNeuron - Neuron index.
    * \returns Bias value
    */
-  mlpdouble GetBias(std::size_t iLayer, std::size_t iNeuron) const {
+  mlpdouble GetBias(const std::size_t iLayer, const std::size_t iNeuron) const {
     return biases_mat[iLayer][iNeuron];
   }
 
@@ -351,7 +358,7 @@ public:
    * \param[in] iInput - Input variable index.
    * \returns Input normalization values (min first, max second)
    */
-  std::pair<mlpdouble, mlpdouble> GetInputNorm(std::size_t iInput) const {
+  std::pair<mlpdouble, mlpdouble> GetInputNorm(const std::size_t iInput) const {
     return input_norm[iInput];
   }
 
@@ -360,7 +367,7 @@ public:
    * \param[in] iOutput - Input variable index.
    * \returns Output normalization values (min first, max second)
    */
-  std::pair<mlpdouble, mlpdouble> GetOutputNorm(std::size_t iOutput) const {
+  std::pair<mlpdouble, mlpdouble> GetOutputNorm(const std::size_t iOutput) const {
     return output_norm[iOutput];
   }
 
@@ -369,7 +376,7 @@ public:
    * \param[in] iLayer - Total layer index.
    * \returns Layer activation function type.
    */
-  std::string GetActivationFunction(std::size_t iLayer) const {
+  std::string GetActivationFunction(const std::size_t iLayer) const {
     return activation_functions[iLayer];
   }
 
@@ -378,7 +385,7 @@ public:
    * \param[in] iInput - Input variable index.
    * \returns Input variable name.
    */
-  std::string GetInputName(std::size_t iInput) const {
+  std::string GetInputName(const std::size_t iInput) const {
     return input_names[iInput];
   }
 
@@ -391,7 +398,7 @@ public:
    * \param[in] iOutput - Output variable index.
    * \returns Output variable name.
    */
-  std::string GetOutputName(std::size_t iOutput) const {
+  std::string GetOutputName(const std::size_t iOutput) const {
     return output_names[iOutput];
   }
 
@@ -399,4 +406,8 @@ public:
     return output_reg_method;
   }
 };
+
+
+
 } // namespace MLPToolbox
+

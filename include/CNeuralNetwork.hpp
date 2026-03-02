@@ -35,986 +35,962 @@
 #include <iostream>
 #include <limits>
 #include <map>
-
-#include "CLayer.hpp"
+#include <random>
 #include "variable_def.hpp"
 
+#include "ActivationFunctions.hpp"
+#include "CReadNeuralNetwork.hpp"
+#include "ScalarFunctions.hpp"
+#include "option_maps.hpp"
+
 namespace MLPToolbox {
-class CNeuralNetwork {
-  /*!
-   *\class CNeuralNetwork
-   *\brief The CNeuralNetwork class allows for the evaluation of a loaded MLP
-   *architecture for a given set of inputs. The class also contains a list of
-   *the various supported activation function types (linear, relu, elu, gelu,
-   *selu, sigmoid, swish, tanh, exp)which can be applied to the layers in the
-   *network. Currently, only dense, feed-forward type neural nets are supported
-   *in this implementation.
-   */
-private:
-  std::vector<std::string> input_names, /*!< MLP input variable names. */
-      output_names;                     /*!< MLP output variable names. */
+  class CNeuralNetwork {
+    private:
+    size_t n_layers{0},         /*!< \brief Total number of layers in the network. */
+           n_hidden_layers{0};  /*!< \brief Number of hidden layers. */
 
-  unsigned long n_hidden_layers = 0; /*!< Number of hidden layers (layers
-                                        between input and output layer). */
+    mlpdouble *** weights_mat {nullptr};    /*!<\brief Weights values. */
+    mlpdouble ** biases_mat {nullptr},      /*!<\brief Biases values. */
+              ** layer_outputs {nullptr};   /*!<\brief Output values of the nodes in the network. */
+    mlpdouble *** layer_Jacobian {nullptr}; /*!<\brief Jacobian values of the node output in the hidden layers. */
+    mlpdouble **** layer_Hessian {nullptr}; /*!<\brief Hessian values of the node output in the hidden layers. */
+    mlpdouble * input_layer {nullptr},      /*!<\brief Scaled values stored at the input layer. */
+              * network_inputs{nullptr};    /*!<\brief Unscaled values of the network input. */
 
-  CLayer *inputLayer = nullptr, /*!< Pointer to network input layer. */
-      *outputLayer = nullptr;   /*!< Pointer to network output layer. */
+    mlpdouble * output_layer {nullptr};     /*!<\brief Scaled values stored at the output layer. */
+    mlpdouble ** output_Jacobian {nullptr}; /*!<\brief Jacobian of the network output w.r.t. the network input. */
+    mlpdouble *** output_Hessian {nullptr}; /*!<\brief Hessian of the network output w.r.t. the network input. */
 
-  std::vector<CLayer *> hiddenLayers; /*!< Hidden layer collection. */
-  std::vector<CLayer *>
-      total_layers; /*!< Hidden layers plus in/output layers */
+    std::vector<std::pair<mlpdouble, mlpdouble>> input_norm,    /*!<\brief Scaling values used to normalize the network input. */
+                                                 output_norm;   /*!<\brief Scaling values used to dimensionalize the network output. */
 
-  // std::vector<su2activematrix> weights_mat; /*!< Weights of synapses
-  // connecting layers */
-  std::vector<std::vector<std::vector<mlpdouble>>> weights_mat;
-
-  std::vector<std::pair<mlpdouble, mlpdouble>>
-      input_norm,  /*!< Normalization factors for network inputs */
-      output_norm; /*!< Normalization factors for network outputs */
-
-  mlpdouble *ANN_outputs; /*!< Pointer to network outputs */
-  std::vector<std::vector<mlpdouble>>
-      dOutputs_dInputs; /*!< Network output derivatives w.r.t inputs */
-  std::vector<std::vector<std::vector<mlpdouble>>> d2Outputs_dInputs2;
-
-  mlpdouble Phi,        /*!< Activation function output value. */
-            Phi_prime,  /*!< Activation function derivative w.r.t. input. */
-            Phi_dprime; /*!< Activation function second derivative w.r.t. input. */
-
-  bool compute_gradient = false,        /*!< Evaluate network output gradients. */
-       compute_second_gradient = false; /*!< Evaluate network output second order gradients. */
-  /*!
-   * \brief Available activation function enumeration.
-   */
-  enum class ENUM_ACTIVATION_FUNCTION {
-    NONE = 0,
-    LINEAR = 1,
-    RELU = 2,
-    ELU = 3,
-    GELU = 4,
-    SELU = 5,
-    SIGMOID = 6,
-    SWISH = 7,
-    TANH = 8,
-    EXPONENTIAL = 9
-  };
-
-  /*!
-   * \brief Available activation function map.
-   */
-  std::map<std::string, ENUM_ACTIVATION_FUNCTION> activation_function_map{
-      {"none", ENUM_ACTIVATION_FUNCTION::NONE},
-      {"linear", ENUM_ACTIVATION_FUNCTION::LINEAR},
-      {"elu", ENUM_ACTIVATION_FUNCTION::ELU},
-      {"relu", ENUM_ACTIVATION_FUNCTION::RELU},
-      {"gelu", ENUM_ACTIVATION_FUNCTION::GELU},
-      {"selu", ENUM_ACTIVATION_FUNCTION::SELU},
-      {"sigmoid", ENUM_ACTIVATION_FUNCTION::SIGMOID},
-      {"swish", ENUM_ACTIVATION_FUNCTION::SWISH},
-      {"tanh", ENUM_ACTIVATION_FUNCTION::TANH},
-      {"exponential", ENUM_ACTIVATION_FUNCTION::EXPONENTIAL}};
-
-  std::vector<ENUM_ACTIVATION_FUNCTION>
-      activation_function_types; /*!< Activation function type for each layer in
-                                    the network. */
-  std::vector<std::string>
-      activation_function_names; /*!< Activation function name for each layer in
-                                    the network. */
-  ENUM_SCALING_FUNCTIONS input_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX},
-                         output_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX};
-public:
-  ~CNeuralNetwork() {
-    delete inputLayer;
-    delete outputLayer;
-    for (std::size_t i = 1; i < total_layers.size() - 1; i++) {
-      delete total_layers[i];
-    }
-    delete[] ANN_outputs;
-  };
-  /*!
-   * \brief Set the input layer of the network.
-   * \param[in] n_neurons - Number of inputs
-   */
-  void DefineInputLayer(unsigned long n_neurons) {
-    /*--- Define the input layer of the network ---*/
-    inputLayer = new CLayer(n_neurons);
-
-    /* Mark layer as input layer */
-    inputLayer->SetInput(true);
-    input_norm.resize(n_neurons);
-    input_names.resize(n_neurons);
-  }
-
-  /*!
-   * \brief Set the output layer of the network.
-   * \param[in] n_neurons - Number of outputs
-   */
-  void DefineOutputLayer(unsigned long n_neurons) {
-    /*--- Define the output layer of the network ---*/
-    outputLayer = new CLayer(n_neurons);
-    output_norm.resize(n_neurons);
-    output_names.resize(n_neurons);
-  }
-
-  /*!
-   * \brief Add a hidden layer to the network
-   * \param[in] n_neurons - Hidden layer size.
-   */
-  void PushHiddenLayer(unsigned long n_neurons) {
-    /*--- Add a hidden layer to the network ---*/
-    CLayer *newLayer = new CLayer(n_neurons);
-    hiddenLayers.push_back(newLayer);
-    n_hidden_layers++;
-  }
-
-  /*!
-   * \brief Set the weight value of a specific synapse.
-   * \param[in] i_layer - current layer.
-   * \param[in] i_neuron - neuron index in current layer.
-   * \param[in] j_neuron - neuron index of connecting neuron.
-   * \param[in] value - weight value.
-   */
-  void SetWeight(unsigned long i_layer, unsigned long i_neuron,
-                 unsigned long j_neuron, mlpdouble value) {
-    weights_mat[i_layer][j_neuron][i_neuron] = value;
-  };
-
-  /*!
-   * \brief Get the weight connecting a neuron in the previous layer to a neuron in the current layer.
-   * \param[in] i_layer Index of the current layer.
-   * \param[in] i_neuron Index of the neuron in the current layer.
-   * \param[in] j_neuron Index of the neuron in the previous layer (input).
-   * \return Weight value.
-   */
-  mlpdouble GetWeight(size_t i_layer, size_t i_neuron, size_t j_neuron) const {
-    return weights_mat[i_layer][j_neuron][i_neuron];
-  }
-
-  /*!
-   * \brief Set bias value at a specific neuron.
-   * \param[in] i_layer - Layer index.
-   * \param[in] i_neuron - Neuron index of current layer.
-   * \param[in] value - Bias value.
-   */
-  void SetBias(unsigned long i_layer, unsigned long i_neuron, mlpdouble value) {
-    total_layers[i_layer]->SetBias(i_neuron, value);
-  }
-
-  /*!
-   * \brief Get the bias value applying to a neuron in a specific layer.
-   * \param[in] i_layer Index of the current layer.
-   * \param[in] i_neuron Index of the neuron in the current layer.
-   * \return Bias value.
-   */
-  mlpdouble GetBias(size_t i_layer, size_t i_neuron) const {
-    return total_layers[i_layer]->GetBias(i_neuron);
-  }
-
-  /*!
-   * \brief Set layer activation function.
-   * \param[in] i_layer - Layer index.
-   * \param[in] input - Activation function name.
-   */
-  void SetActivationFunction(unsigned long i_layer, std::string input) {
-    /*--- Translate activation function name from input file to a number ---*/
-    activation_function_names[i_layer] = input;
-
-    // Set activation function type in current layer.
-    activation_function_types[i_layer] =
-        activation_function_map.find(input)->second;
-    return;
-  }
-
-  /*!
-   * \brief Define the regularization method used to normalize the inputs before feeding them to the network.
-   * \param[in] reg_method_input - regularization method (minmax, standard, or robust).
-   */
-  void SetInputRegularization(ENUM_SCALING_FUNCTIONS reg_method_input) {
-    input_reg_method = reg_method_input;
-    return;
-  }
-
-  /*!
-   * \brief Define the regularization method used to normalize the training data before training. 
-   * \param[in] reg_method_input - regularization method (minmax, standard, or robust).
-   */
-  void SetOutputRegularization(ENUM_SCALING_FUNCTIONS reg_method_input) {
-    output_reg_method = reg_method_input;
-    return;
-  }
-
-  /*!
-   * \brief Display the network architecture in the terminal.
-   */
-  void DisplayNetwork() const {
-    /*--- Display information on the MLP architecture ---*/
-    int display_width = 54;
-    int column_width = int(display_width / 3.0) - 1;
-
-    /*--- Input layer information ---*/
-    std::cout << "+" << std::setfill('-') << std::setw(display_width)
-              << std::right << "+" << std::endl;
-    std::cout << std::setfill(' ');
-    std::cout << "|" << std::left << std::setw(display_width - 1)
-              << "Input Layer Information:"
-              << "|" << std::endl;
+    ENUM_SCALING_FUNCTIONS input_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX},   /*!<\brief Scaling method tag used for the network input. */
+                           output_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX};  /*!<\brief Scaling method tag used for the network output. */
     
+    ScalerFunction * input_scaler{nullptr},     /*!<\brief Function used to scale the network input. */
+                   * output_scaler{nullptr};    /*!<\brief Function used to scale the network output. */
+
+    ActivationFunctionBase** activation_functions {nullptr};    /*!<\brief Hidden layer activation functions. */
     
-    std::string val_disp_1, val_disp_2, label_disp_1, label_disp_2, norm_method;
-    switch (input_reg_method)
-    {
-    case ENUM_SCALING_FUNCTIONS::MINMAX:
-      label_disp_1 = "Lower limit";
-      label_disp_2 = "Upper limit";
-      norm_method = "minimum-maximum";
-      break;
-    case ENUM_SCALING_FUNCTIONS::STANDARD:
-      label_disp_1 = "Mean";
-      label_disp_2 = "std";
-      norm_method = "mean-standard deviation";
-      break;
-    case ENUM_SCALING_FUNCTIONS::ROBUST:
-      label_disp_1 = "Mean";
-      label_disp_2 = "IQ range";
-      norm_method = "Quantile range";
-      break;
-    default:
-      break;
-    }
-    std::cout << "|" << std::left << std::setw(column_width)
-              << "Input Normalization:";
-    std::cout << std::setfill(' ') << std::right << std::setw(column_width) << norm_method
-              << std::setfill(' ') << std::setw(column_width) << std::right << "|" << std::endl;
-    std::cout << "+" << std::setfill('-') << std::setw(display_width)
-              << std::right << "+" << std::endl;
-    std::cout << std::setfill(' ');
-    std::cout << "|" << std::left << std::setw(column_width)
-              << "Input Variable:";
-    std::cout << "|" << std::left << std::setw(column_width) << label_disp_1
-              << "|" << std::left << std::setw(column_width) << label_disp_2
-              << "|" << std::endl;      
-    std::cout << "+" << std::setfill('-') << std::setw(display_width)
-              << std::right << "+" << std::endl;
-    std::cout << std::setfill(' ');
+    size_t * NN {nullptr},  /*!<\brief Hidden layer architecture. */
+             n_inputs{0},   /*!<\brief Number of input nodes. */
+             n_outputs{0};  /*!<\brief Number of output nodes. */
 
-    /*--- Hidden layer information ---*/
-    for (auto iInput = 0u; iInput < inputLayer->GetNNeurons(); iInput++)
-      std::cout << "|" << std::left << std::setw(column_width)
-                << std::to_string(iInput + 1) + ": " + input_names[iInput]
-                << "|" << std::right << std::setw(column_width)
-                << input_norm[iInput].first << "|" << std::right
-                << std::setw(column_width) << input_norm[iInput].second << "|"
-                << std::endl;
-    std::cout << "+" << std::setfill('-') << std::setw(display_width)
-              << std::right << "+" << std::endl;
-    std::cout << std::setfill(' ');
-    std::cout << "|" << std::left << std::setw(display_width - 1)
-              << "Hidden Layers Information:"
-              << "|" << std::endl;
-    std::cout << "+" << std::setfill('-') << std::setw(display_width)
-              << std::right << "+" << std::endl;
-    std::cout << std::setfill(' ');
-    std::cout << "|" << std::setw(column_width) << std::left << "Layer index"
-              << "|" << std::setw(column_width) << std::left << "Neuron count"
-              << "|" << std::setw(column_width) << std::left << "Function"
-              << "|" << std::endl;
-    std::cout << "+" << std::setfill('-') << std::setw(display_width)
-              << std::right << "+" << std::endl;
-    std::cout << std::setfill(' ');
-    for (auto iLayer = 0u; iLayer < n_hidden_layers; iLayer++)
-      std::cout << "|" << std::setw(column_width) << std::right << iLayer + 1
-                << "|" << std::setw(column_width) << std::right
-                << hiddenLayers[iLayer]->GetNNeurons() << "|"
-                << std::setw(column_width) << std::right
-                << activation_function_names[iLayer + 1] << "|" << std::endl;
-    std::cout << "+" << std::setfill('-') << std::setw(display_width)
-              << std::right << "+" << std::endl;
-    std::cout << std::setfill(' ');
+    std::vector<std::string> input_names,   /*!<\brief Names of the network input variables. */
+                             output_names;  /*!<\brief Names of the network output variables. */
 
-    /*--- Output layer information ---*/
-    switch (output_reg_method)
-    {
-    case ENUM_SCALING_FUNCTIONS::MINMAX:
-      label_disp_1 = "Lower limit";
-      label_disp_2 = "Upper limit";
-      norm_method = "minimum-maximum";
-      break;
-    case ENUM_SCALING_FUNCTIONS::STANDARD:
-      label_disp_1 = "Mean";
-      label_disp_2 = "std";
-      norm_method = "mean-standard deviation";
-      break;
-    case ENUM_SCALING_FUNCTIONS::ROBUST:
-      label_disp_1 = "Mean";
-      label_disp_2 = "IQ range";
-      norm_method = "Quantile range";
-      break;
-    default:
-      break;
-    }
-    std::cout << "|" << std::left << std::setw(display_width - 1)
-              << "Output Layer Information:"
-              << "|" << std::endl;
-    std::cout << "+" << std::setfill('-') << std::setw(display_width)
-              << std::right << "+" << std::endl;
-    std::cout << std::setfill(' ');
-    std::cout << "|" << std::left << std::setw(column_width)
-              << "Output Variable:";
-    std::cout << "|" << std::left << std::setw(column_width) << label_disp_1
-              << "|" << std::left << std::setw(column_width) << label_disp_2
-              << "|" << std::endl;
-    std::cout << "+" << std::setfill('-') << std::setw(display_width)
-              << std::right << "+" << std::endl;
-    std::cout << std::setfill(' ');
-    for (auto iOutput = 0u; iOutput < outputLayer->GetNNeurons(); iOutput++)
-      std::cout << "|" << std::left << std::setw(column_width)
-                << std::to_string(iOutput + 1) + ": " + output_names[iOutput]
-                << "|" << std::right << std::setw(column_width)
-                << output_norm[iOutput].first << "|" << std::right
-                << std::setw(column_width) << output_norm[iOutput].second << "|"
-                << std::endl;
-    std::cout << "+" << std::setfill('-') << std::setw(display_width)
-              << std::right << "+" << std::endl;
-    std::cout << std::setfill(' ');
-    std::cout << std::endl;
-  }
+    bool calc_Jacobian {false}, /*!<\brief Evaluate the network Jacobian. */
+         calc_Hessian {false};  /*!<\brief Evaluate the network Hessian. */
+    
+    /*!<\brief Default values for network hyperparameters. */
+    const mlpdouble default_offset{0.0},
+                    default_scale{1.0},
+                    default_weight{0.0},
+                    default_bias{0.0};
 
-  /*!
-   * \brief Size the weight layers in the network according to its architecture.
-   */
-  void SizeWeights() {
-    /*--- Size weight matrices based on neuron counts in each layer ---*/
-
-    /* Generate std::vector containing input, output, and hidden layer
-     * references
-     */
-    total_layers.resize(n_hidden_layers + 2);
-    total_layers[0] = inputLayer;
-    for (auto iLayer = 0u; iLayer < n_hidden_layers; iLayer++) {
-      total_layers[iLayer + 1] = hiddenLayers[iLayer];
-    }
-    total_layers[total_layers.size() - 1] = outputLayer;
-
-    weights_mat.resize(n_hidden_layers + 1);
-    weights_mat[0].resize(hiddenLayers[0]->GetNNeurons());
-    for (auto iNeuron = 0u; iNeuron < hiddenLayers[0]->GetNNeurons(); iNeuron++)
-      weights_mat[0][iNeuron].resize(inputLayer->GetNNeurons());
-
-    for (auto iLayer = 1u; iLayer < n_hidden_layers; iLayer++) {
-      weights_mat[iLayer].resize(hiddenLayers[iLayer]->GetNNeurons());
-      for (auto iNeuron = 0u; iNeuron < hiddenLayers[iLayer]->GetNNeurons();
-           iNeuron++) {
-        weights_mat[iLayer][iNeuron].resize(
-            hiddenLayers[iLayer - 1]->GetNNeurons());
-      }
-    }
-    weights_mat[n_hidden_layers].resize(outputLayer->GetNNeurons());
-    for (auto iNeuron = 0u; iNeuron < outputLayer->GetNNeurons(); iNeuron++) {
-      weights_mat[n_hidden_layers][iNeuron].resize(
-          hiddenLayers[n_hidden_layers - 1]->GetNNeurons());
-    }
-
-    ANN_outputs = new mlpdouble[outputLayer->GetNNeurons()];
-
-    /* Size data structures used for first and second order derivative
-     * computation. */
-    dOutputs_dInputs.resize(outputLayer->GetNNeurons());
-    d2Outputs_dInputs2.resize(outputLayer->GetNNeurons());
-    for (auto iOutput = 0u; iOutput < outputLayer->GetNNeurons(); iOutput++) {
-      dOutputs_dInputs[iOutput].resize(inputLayer->GetNNeurons());
-      d2Outputs_dInputs2[iOutput].resize(inputLayer->GetNNeurons());
-      for (auto jInput = 0u; jInput < inputLayer->GetNNeurons(); jInput++) {
-        d2Outputs_dInputs2[iOutput][jInput].resize(inputLayer->GetNNeurons());
-      }
-    }
-
-    for (auto iLayer = 0u; iLayer < n_hidden_layers + 2; iLayer++) {
-      total_layers[iLayer]->SizeGradients(inputLayer->GetNNeurons());
-    }
-  }
-
-  /*!
-   * \brief Get the number of connecting regions in the network.
-   * \returns number of spaces in between layers.
-   */
-  unsigned long GetNWeightLayers() const { return total_layers.size() - 1; }
-
-  /*!
-   * \brief Get the total number of layers in the network
-   * \returns number of netowork layers.
-   */
-  unsigned long GetNLayers() const { return total_layers.size(); }
-
-  /*!
-   * \brief Get neuron count in a layer.
-   * \param[in] iLayer - Layer index.
-   * \returns number of neurons in the layer.
-   */
-  unsigned long GetNNeurons(unsigned long iLayer) const {
-    return total_layers[iLayer]->GetNNeurons();
-  }
-
-  void ComputeFirstOrderGradient(bool input) { compute_gradient = input; }
-
-  void ComputeSecondOrderGradient(bool input) {
-    compute_second_gradient = input;
-  }
-
-  /*!
-   * \brief Set the neuron output values of the input layer.
-   * \param[in] inputs - Vector containing non-normalized network inputs.
-   * \param[in] iNeuron - Input neuron index.
-   */
-  void ComputeInputLayer(std::vector<mlpdouble> &inputs, std::size_t iNeuron) {
-
-    /* Compute normalized input value according to regularizer. */
-    mlpdouble x_norm = NormalizeInput(inputs[iNeuron], iNeuron);
-
-    inputLayer->SetOutput(iNeuron, x_norm);
-    if (compute_gradient) {
-      for (auto jInput = 0u; jInput < inputLayer->GetNNeurons(); jInput++) {
-        if (jInput == iNeuron) {
-          inputLayer->SetdYdX(
-              iNeuron, jInput,
-              1 / GetRegularizationScale(iNeuron, true));
-        } else {
-          inputLayer->SetdYdX(iNeuron, jInput, 0.0);
-        }
-        if (compute_second_gradient)
-          for (auto kInput = 0u; kInput < inputLayer->GetNNeurons(); kInput++) {
-            inputLayer->Setd2YdX2(iNeuron, jInput, kInput, 0.0);
-          }
-      }
-    }
-  }
-
-  /*!
-   * \brief Evaluate activation function applied to the current layer.
-   * \param[in] iLayer - Current layer index.
-   * \param[in] input - Activation function input value.
-   */
-  void ActivationFunction(std::size_t iLayer, mlpdouble input) {
-    /* Evaluating the activation function sets the value of the class parameter
-     * Phi. In case of gradient computation, Phi_prime and/or Phi_dprime are set
-     * as well, corresponding to the first and second analytical derivative of
-     * the activation function w.r.t. its input respectively. */
-
-    /* Constants used for various activation functions. */
-    mlpdouble exp_x, tanh_x, alpha = 1.67326324, lambda = 1.05070098,
-                             gelu_c = 1.702;
-
-    switch (activation_function_types[iLayer]) {
-    case ENUM_ACTIVATION_FUNCTION::ELU:
-      if (input > 0) {
-        Phi = input;
-        if (compute_gradient) {
-          Phi_prime = 1.0;
-          if (compute_second_gradient)
-            Phi_dprime = 0.0;
-        }
-      } else {
-        exp_x = exp(input);
-        Phi = exp_x - 1;
-        if (compute_gradient) {
-          Phi_prime = exp_x;
-          if (compute_second_gradient)
-            Phi_dprime = exp_x;
-        }
-      }
-      break;
-    case ENUM_ACTIVATION_FUNCTION::LINEAR:
-      Phi = input;
-      if (compute_gradient) {
-        Phi_prime = 1.0;
-        if (compute_second_gradient)
-          Phi_dprime = 0.0;
-      }
-      break;
-    case ENUM_ACTIVATION_FUNCTION::EXPONENTIAL:
-      Phi = exp(input);
-      if (compute_gradient) {
-        Phi_prime = Phi;
-        if (compute_second_gradient)
-          Phi_dprime = Phi;
-      }
-      break;
-    case ENUM_ACTIVATION_FUNCTION::RELU:
-      if (input > 0) {
-        Phi = input;
-        if (compute_gradient)
-          Phi_prime = 1.0;
-      } else {
-        Phi = 0.0;
-        if (compute_gradient)
-          Phi_prime = 0.0;
-      }
-      if (compute_second_gradient)
-        Phi_dprime = 0.0;
-      break;
-    case ENUM_ACTIVATION_FUNCTION::SWISH:
-      Phi = input / (1 + exp(-input));
-      if (compute_gradient) {
-        exp_x = exp(input);
-        Phi_prime = exp_x * (input + exp_x + 1) / pow(exp_x + 1, 2);
-        if (compute_second_gradient)
-          Phi_dprime =
-              exp_x * (-exp_x * (input - 2) + input + 2) / pow(exp_x + 1, 3);
-      }
-      break;
-    case ENUM_ACTIVATION_FUNCTION::TANH:
-      tanh_x = tanh(input);
-      Phi = tanh_x;
-      if (compute_gradient) {
-        Phi_prime = 1 / pow(cosh(input), 2);
-        if (compute_second_gradient)
-          Phi_dprime = -2 * tanh_x * 1 / (pow(cosh(input), 2));
-      }
-      break;
-    case ENUM_ACTIVATION_FUNCTION::SIGMOID:
-      exp_x = exp(-input);
-      Phi = 1.0 / (1 + exp_x);
-      if (compute_gradient) {
-        Phi_prime = exp_x / pow(exp_x + 1, 2);
-        if (compute_second_gradient) {
-          exp_x = exp(input);
-          Phi_dprime = -(exp_x * (exp_x - 1)) / pow(exp_x + 1, 3);
-        }
-      }
-      break;
-    case ENUM_ACTIVATION_FUNCTION::SELU:
-      if (input > 0) {
-        Phi = lambda * input;
-        if (compute_gradient) {
-          Phi_prime = lambda;
-          if (compute_second_gradient)
-            Phi_dprime = 0.0;
-        }
-      } else {
-        exp_x = exp(input);
-        Phi = lambda * alpha * (exp_x - 1);
-        if (compute_gradient) {
-          Phi_prime = Phi + lambda * alpha;
-          if (compute_second_gradient)
-            Phi_dprime = Phi_prime;
-        }
-      }
-      break;
-    case ENUM_ACTIVATION_FUNCTION::GELU:
-      Phi = 0.5 * input * (1 + erf(input / sqrt(2)));
-      if (compute_gradient) {
-        exp_x = exp(-gelu_c * input);
-        Phi_prime = exp_x * (gelu_c * input + exp_x + 1) / pow(exp_x + 1, 2);
-        if (compute_second_gradient)
-          Phi_dprime = input * ((5.79361 * pow(exp_x, 2) / pow(exp_x + 1, 3)) -
-                                (2.8968 * exp_x / pow(exp_x + 1, 2))) +
-                       3.404 * exp_x / pow(exp_x + 1, 2);
-      }
-      break;
-    case ENUM_ACTIVATION_FUNCTION::NONE:
-      Phi = 0.0;
-      if (compute_gradient) {
-        Phi_prime = 0.0;
-        if (compute_second_gradient)
-          Phi_dprime = 0.0;
-      }
-      break;
-    default:
-      break;
-    }
-  }
-
-  /*!
-   * \brief De-normalize the network outputs based on output normalization
-   * values.
-   */
-  void DeNormalizeOutputs() {
-    /* Compute and de-normalize MLP output */
-    for (auto iNeuron = 0u; iNeuron < outputLayer->GetNNeurons(); iNeuron++) {
-      mlpdouble y_norm = outputLayer->GetOutput(iNeuron);
-      mlpdouble output_scale = GetRegularizationScale(iNeuron, false);
-
-      mlpdouble Y_out = DimensionalizeOutput(y_norm, iNeuron);
-
-      /* Storing output value */
-      ANN_outputs[iNeuron] = Y_out;
-
-      /* Scale first and second derivatives */
-      if (compute_gradient) {
-        for (auto jInput = 0u; jInput < inputLayer->GetNNeurons(); jInput++) {
-          outputLayer->SetdYdX(iNeuron, jInput,
-                               output_scale *
-                                   outputLayer->GetdYdX(iNeuron, jInput));
-          dOutputs_dInputs[iNeuron][jInput] =
-              outputLayer->GetdYdX(iNeuron, jInput);
-
-          if (compute_second_gradient) {
-            for (auto kInput = 0u; kInput < inputLayer->GetNNeurons();
-                 kInput++) {
-              outputLayer->Setd2YdX2(
-                  iNeuron, jInput, kInput,
-                  output_scale *
-                      outputLayer->Getd2YdX2(iNeuron, jInput, kInput));
-              d2Outputs_dInputs2[iNeuron][jInput][kInput] =
-                  outputLayer->Getd2YdX2(iNeuron, jInput, kInput);
+    /*!
+    * \brief Set the values of the network input nodes.
+    */
+    void InputLayer() const {
+        for (auto iInput=0u; iInput < n_inputs; iInput++) {
+            // Scale the network input values to normalized inputs.
+            input_layer[iInput] = input_scaler->Normalize(network_inputs[iInput], iInput);
+            if (calc_Jacobian) {
+                // Jacobian of the input layer is a diagonal matrix.
+                std::fill(layer_Jacobian[0][iInput], layer_Jacobian[0][iInput]+n_inputs, 0.0);
+                layer_Jacobian[0][iInput][iInput] = 1.0 / input_scaler->GetScale(iInput);
+                if (calc_Hessian) {
+                // Hessian of the input layer is always zero.
+                for (auto jInput=0u; jInput < n_inputs; jInput++) {
+                        std::fill(layer_Hessian[0][iInput][jInput], layer_Hessian[0][iInput][jInput]+n_inputs, 0.0);
+                    }
+                }
             }
-          }
         }
-      }
     }
-  }
+
+    /*!
+    * \brief Dimensionalize the network output, Jacobian, and Hessian
+    */
+    void OutputLayer() const {
+        for (auto iOutput=0u; iOutput < n_outputs; iOutput++) {
+            output_layer[iOutput] = output_scaler->Dimensionalize(output_layer[iOutput], iOutput);
+            if (calc_Jacobian) {
+                for (auto iInput=0u; iInput < n_inputs; iInput++) {
+                    output_Jacobian[iInput][iOutput] *= output_scaler->GetScale(iOutput);
+                    if (calc_Hessian) {
+                        for (auto jInput=0u; jInput < n_inputs; jInput++) 
+                            output_Hessian[iInput][jInput][iOutput] *= output_scaler->GetScale(iOutput);
+                    }
+                }  
+            }
+        }
+    }
+
+    /*!
+   * \brief Calculate the values of the output, Jacobian, and Hessian of the nodes in the hidden layers.
+   * \param[in] iLayer - layer index
+   */
+    void CalcLayerOutputs(const size_t iLayer) const {
+        if (iLayer==0){
+            /* Nothing done at the input layer. */
+            return;
+        }else {
+            const size_t prev_layer = iLayer-1;
+            /* Recursive function call to the previous layer. */
+            CalcLayerOutputs(prev_layer);
+            
+            for (auto iNeuron=0u; iNeuron < NN[iLayer]; ++iNeuron){
+                /* Calculate the node input through matrix-vector multiplcation of the weights with the output of the previous layer. */
+                const mlpdouble node_input = WeightsMultiplication(prev_layer, iNeuron, layer_outputs[prev_layer], biases_mat[iLayer][iNeuron]);
+
+                /* Evaluate the activation function output and store in the hidden layer node output. */
+                layer_outputs[iLayer][iNeuron] = activation_functions[iLayer]->operator()(node_input, calc_Jacobian, calc_Hessian);
+
+                if (calc_Jacobian) {
+                    for (auto iInput=0u; iInput < n_inputs; iInput++){
+                        /* Calculate the Jacobian of the node output w.r.t. the network input. */
+                        const mlpdouble psi = WeightsMultiplication(prev_layer, iNeuron, layer_Jacobian[prev_layer][iInput]);
+
+                        /* Calculate the derivative of the activation function. */
+                        const mlpdouble phi_prime = activation_functions[iLayer]->GetJacobian();
+
+                        layer_Jacobian[iLayer][iInput][iNeuron] = psi * phi_prime;
+                        if (calc_Hessian) {
+                            for (auto jInput=0u; jInput < n_inputs; jInput++){
+                                /* Calculate the Hessian of the node output w.r.t. the network input. */
+                                const mlpdouble psi_j = (jInput==iInput) ? psi : WeightsMultiplication(prev_layer, iNeuron, layer_Jacobian[prev_layer][jInput]);
+                                
+                                /* Calculate the second-order derivative of the activation function. */
+                                const mlpdouble phi_dprime = activation_functions[iLayer]->GetHessian();
+                                const mlpdouble chi = WeightsMultiplication(prev_layer, iNeuron, layer_Hessian[prev_layer][iInput][jInput]);
+                                layer_Hessian[iLayer][iInput][jInput][iNeuron] = phi_dprime * psi_j * psi + phi_prime * chi;
+                            }
+                        }
+                    }
+                }
+            }
+            return;
+        }
+    }
+
+    
+    /*!
+    * \brief Size the weights arrays and set the network hyperparameters.
+    * \param[in] copy_network - Pointer to reference network used in copy constructor.
+    * \param[in] reader - Pointer to reader class.
+    */
+    void SizeWeights(const CNeuralNetwork * copy_network=nullptr, const CReadNeuralNetwork * reader=nullptr) {
+        const bool from_reader = (reader != nullptr);       /* Retrieve weight information from reader. */
+        const bool from_copy = (copy_network != nullptr);   /* Copy weight information from reference MLP. */
+
+        n_hidden_layers = n_layers - 1;
+        n_inputs = NN[0];
+        n_outputs = NN[n_hidden_layers];
+
+        /* Size weights, biases, Jacobian, and Hessians. */
+        weights_mat = new mlpdouble**[n_hidden_layers];
+        biases_mat = new mlpdouble * [n_layers];
+        layer_outputs = new mlpdouble*[n_layers];
+        layer_Jacobian = new mlpdouble**[n_layers];
+        layer_Hessian = new mlpdouble***[n_layers];
+        for (auto iLayer=0u; iLayer<n_layers; iLayer++) {
+            if (iLayer < n_hidden_layers){
+                weights_mat[iLayer] = new mlpdouble*[NN[iLayer+1]];
+                for (auto iNeuron=0u; iNeuron<NN[iLayer+1]; iNeuron++){
+                    weights_mat[iLayer][iNeuron] = new mlpdouble[NN[iLayer]];
+
+                    /* Set weights values */ 
+                    std::fill(weights_mat[iLayer][iNeuron], weights_mat[iLayer][iNeuron]+NN[iLayer], default_weight);
+                    if (from_reader){
+                        for (auto jNeuron=0u; jNeuron<NN[iLayer]; jNeuron++)
+                            SetWeight(iLayer, jNeuron, iNeuron, reader->GetWeight(iLayer, jNeuron, iNeuron));
+                    }else if (from_copy){
+                        for (auto jNeuron=0u; jNeuron<NN[iLayer]; jNeuron++)
+                            SetWeight(iLayer, jNeuron, iNeuron, copy_network->weights_mat[iLayer][iNeuron][jNeuron]);
+                    }
+                }
+            }
+            biases_mat[iLayer] = new mlpdouble[NN[iLayer]];
+
+            /* Set bias values. */
+            std::fill(biases_mat[iLayer], biases_mat[iLayer]+NN[iLayer], default_bias);
+            if (from_reader){
+                for (auto iNeuron=0u; iNeuron<NN[iLayer]; iNeuron++) 
+                    SetBias(iLayer, iNeuron, reader->GetBias(iLayer, iNeuron));
+            } else if (from_copy) {
+                for (auto iNeuron=0u; iNeuron<NN[iLayer]; iNeuron++) 
+                    SetBias(iLayer, iNeuron, copy_network->biases_mat[iLayer][iNeuron]);
+            }
+
+            /* Size hidden layer Jacobian and Hessian. */
+            layer_outputs[iLayer] = new mlpdouble[NN[iLayer]];
+            layer_Jacobian[iLayer] = new mlpdouble*[n_inputs];
+            layer_Hessian[iLayer] = new mlpdouble**[n_inputs];
+            for (auto iInput=0u; iInput<n_inputs; iInput++){
+                layer_Jacobian[iLayer][iInput] = new mlpdouble[NN[iLayer]];
+                layer_Hessian[iLayer][iInput] = new mlpdouble*[n_inputs];
+                for (auto jInput=0u; jInput < n_inputs; jInput++)
+                    layer_Hessian[iLayer][iInput][jInput] = new mlpdouble[NN[iLayer]];
+            }
+        }
+
+        /* Set default scaling values for network input and output. */
+        input_norm.resize(n_inputs);
+        std::fill(input_norm.begin(), input_norm.end(), std::make_pair(default_offset, default_scale));
+        output_norm.resize(n_outputs);
+        std::fill(output_norm.begin(), output_norm.end(), std::make_pair(default_offset, default_scale));
+        network_inputs = new mlpdouble[n_inputs];
+        output_Jacobian = layer_Jacobian[n_hidden_layers];
+        output_Hessian = layer_Hessian[n_hidden_layers];
+        input_names.resize(n_inputs);
+        output_names.resize(n_outputs);
+        
+        input_layer = layer_outputs[0];
+        output_layer = layer_outputs[n_hidden_layers];
+
+        /* Set hidden layer activation functions. */
+        activation_functions = new ActivationFunctionBase*[n_layers];
+        std::fill(activation_functions, activation_functions+n_layers, nullptr);
+        SetActivationFunction();
+        if (from_reader){
+            for (auto iLayer=0u; iLayer<n_layers; iLayer++)
+                SetActivationFunction(iLayer, reader->GetActivationFunction(iLayer));
+        } else if (from_copy){
+            for (auto iLayer=0u; iLayer<n_layers; iLayer++){
+                SetActivationFunction(iLayer, copy_network->activation_functions[iLayer]->GetTag());
+            }
+        }
+    }
+    
+    /*!
+    * \brief Matrix-vector multiplication between the weights and node output of the previous layer.
+    * \param[in] iLayer - layer index
+    * \param[in] iNeuron - node index
+    * \param[in] array_in - vector for multiplication
+    * \param[in] bias - node bias value, defaults to 0.0
+    * \returns - innder product between array and weights.
+    */
+    const mlpdouble WeightsMultiplication(const size_t iLayer, const size_t iNeuron, const mlpdouble*array_in, const mlpdouble bias=0.0) const {
+        return std::inner_product(weights_mat[iLayer][iNeuron], weights_mat[iLayer][iNeuron] + NN[iLayer], array_in, bias);
+    }
+    
+    public:
+        CNeuralNetwork() = default;
+
+        /*!
+        * \brief Constructor from ASCII file name
+        * \param[in] MLP_filename - MLPCpp ASCII file name from which to read network information.
+        */
+        CNeuralNetwork(const std::string MLP_filename) {
+
+            /* Read content of MLP file. */
+            CReadNeuralNetwork reader = CReadNeuralNetwork(MLP_filename);
+            reader.ReadMLPFile();
+
+            /* Retrieve hidden layer information. */
+            const auto N_H = reader.GetNneurons();
+            n_layers = N_H.size();
+            NN = new size_t[n_layers];
+            for (auto iLayer=0u; iLayer<(n_layers); iLayer++)
+                NN[iLayer] = N_H[iLayer];
+            
+            /* Retrieve other network hyperparameters. */
+            SizeWeights(nullptr, &reader);
+
+            /* Retrieve input and output normalization functions and scaling values. */
+            SetInputRegularization(reader.GetInputRegularization());
+            for (auto iInput=0u; iInput<n_inputs; iInput++){
+                SetInputName(iInput, reader.GetInputName(iInput));
+                SetInputNorm(iInput, reader.GetInputNorm(iInput).first, reader.GetInputNorm(iInput).second);
+            }
+            SetOutputRegularization(reader.GetOutputRegularization());
+            for (auto iOutput=0u; iOutput<n_outputs; iOutput++){
+                SetOutputName(iOutput, reader.GetOutputName(iOutput));
+                SetOutputNorm(iOutput, reader.GetOutputNorm(iOutput).first, reader.GetOutputNorm(iOutput).second);
+            }
+
+        }
+
+        /*!
+        * \brief Copy constructor
+        * \param[in] copy_network - network from which to copy information.
+        */
+        CNeuralNetwork(const CNeuralNetwork & copy_network) {
+            n_layers = copy_network.n_layers;
+            if (n_layers > 1){
+                NN = new size_t[n_layers];
+                std::copy(copy_network.NN, copy_network.NN+n_layers, NN);
+                SizeWeights(&copy_network);
+                input_layer = layer_outputs[0];
+                output_layer = layer_outputs[n_hidden_layers];
+                SetInputRegularization(copy_network.input_reg_method);
+                std::copy(copy_network.input_names.begin(), copy_network.input_names.end(), input_names.begin());
+                std::copy(copy_network.input_norm.begin(), copy_network.input_norm.end(), input_norm.begin());
+                
+                SetOutputRegularization(copy_network.output_reg_method);
+                std::copy(copy_network.output_names.begin(), copy_network.output_names.end(), output_names.begin());
+                std::copy(copy_network.output_norm.begin(), copy_network.output_norm.end(), output_norm.begin());
+            }
+        }
+        
+        /*!
+        * \brief Constructor from network architecture.
+        * \param[in] NN_input - vector describing number of nodes per layer in the network.
+        */
+        CNeuralNetwork(const std::vector<size_t> &NN_input) {
+            if (std::find(NN_input.begin(), NN_input.end(), 0) != NN_input.end()){
+                ErrorMessage("Number of nodes should be positive", "CNeuralNetwork:CNeuralNetwork");
+                return;
+            }
+            n_layers = NN_input.size();
+            NN = new size_t[n_layers];
+            std::copy(NN_input.begin(), NN_input.end(), NN);
+            
+            /* Set default values for network hyperparameters. */
+            SizeWeights();
+            SetInputRegularization();
+            SetOutputRegularization();
+        }
+
+        /*!
+        * \brief Specify method used to scale the network input.
+        * \param[in] reg_method_tag - scaling method tag, defaults to "minmax"
+        */
+        void SetInputRegularization(const std::string reg_method_tag="minmax") {
+            const auto it = scaling_map.find(reg_method_tag);
+            if (it == scaling_map.end())
+                ErrorMessage("Scaler function not recognized (" + reg_method_tag + ")", "CNeuralNetwork:SetInputRegularization");
+            else
+                input_reg_method = it->second;
+            SetInputRegularization(input_reg_method);
+        }
+
+        std::string GetInputRegularization() const {return input_scaler->GetTag();}
+        std::string GetOutputRegularization() const {return output_scaler->GetTag();}
+        /*!
+        * \brief Specify method used to scale the network output.
+        * \param[in] reg_method_tag - scaling method tag, defaults to "minmax"
+        */
+        void SetOutputRegularization(const std::string reg_method_tag="minmax") {
+            const auto it = scaling_map.find(reg_method_tag);
+            if (it == scaling_map.end())
+                ErrorMessage("Scaler function not recognized (" + reg_method_tag + ")", "CNeuralNetwork:SetOutputRegularization");
+            else
+                output_reg_method = it->second;
+            SetOutputRegularization(output_reg_method);
+        }
+        
+        /*!
+        * \brief Define the regularization method used to normalize the inputs before feeding them to the network.
+        * \param[in] reg_method_input - regularization method (minmax, standard, or robust).
+        */
+        void SetInputRegularization(const ENUM_SCALING_FUNCTIONS reg_method_input) {
+            if (input_scaler != nullptr) delete input_scaler;
+          switch (reg_method_input)
+          {
+          
+          case ENUM_SCALING_FUNCTIONS::STANDARD:
+            input_scaler = new StandardScaler(n_inputs);
+            break;
+          case ENUM_SCALING_FUNCTIONS::ROBUST:
+            input_scaler = new RobustScaler(n_inputs);
+            break;
+          case ENUM_SCALING_FUNCTIONS::MINMAX:
+          default:
+            input_scaler = new MinMaxScaler(n_inputs);
+            break;
+          };
+          input_reg_method = reg_method_input;
+          return;
+        }
+
+        /*!
+        * \brief Define the regularization method used to normalize the training data before training. 
+        * \param[in] reg_method_input - regularization method (minmax, standard, or robust).
+        */
+        void SetOutputRegularization(const ENUM_SCALING_FUNCTIONS reg_method_input) {
+          if (output_scaler != nullptr) delete output_scaler;
+          switch (reg_method_input)
+          {
+          
+          case ENUM_SCALING_FUNCTIONS::STANDARD:
+            output_scaler = new StandardScaler(n_outputs);
+            break;
+          case ENUM_SCALING_FUNCTIONS::ROBUST:
+            output_scaler = new RobustScaler(n_outputs);
+            break;
+          case ENUM_SCALING_FUNCTIONS::MINMAX:
+          default:
+            output_scaler = new MinMaxScaler(n_outputs);
+            break;
+          };
+          output_reg_method = reg_method_input;
+          return;
+        }
+
+        /*!
+        * \brief Set the normalization factors for the input layer
+        * \param[in] iInput - Input index.
+        * \param[in] scale_val_1 - First scaling value (mean for "robust", "standard", minimum for "minmax")
+        * \param[in] scale_val_2 - Second scaling value (standard deviation for "standard", inter-quantile range for "robust", maximum for "minmax")
+        */
+        void SetInputNorm(const size_t iInput, const mlpdouble scale_val_1=0.0,
+                            const mlpdouble scale_val_2=1.0) {
+            input_norm[iInput] = std::make_pair(scale_val_1, scale_val_2);
+            input_scaler->SetScaling(iInput, scale_val_1, scale_val_2);
+        }
+
+        std::pair<mlpdouble, mlpdouble> GetInputNorm(const size_t iInput) const {return input_norm[iInput];}
+        std::pair<mlpdouble, mlpdouble> GetOutputNorm(const size_t iOutput) const {return output_norm[iOutput];}
+        /*!
+        * \brief Set the normalization factors for the output layer
+        * \param[in] iOutput - Input index.
+        * \param[in] scale_val_1 - First scaling value (mean for "robust", "standard", minimum for "minmax")
+        * \param[in] scale_val_2 - Second scaling value (standard deviation for "standard", inter-quantile range for "robust", maximum for "minmax")
+        */
+        void SetOutputNorm(const size_t iOutput, const mlpdouble scale_val_1=0.0,
+                            const mlpdouble scale_val_2=1.0) {
+            output_norm[iOutput] = std::make_pair(scale_val_1, scale_val_2);
+            output_scaler->SetScaling(iOutput, scale_val_1, scale_val_2);
+        }
+        
+        /*!
+        * \brief Retrieve relative distance between the network input range and query input.
+        * \param[in] query - network input values.
+        * \returns - relative distance between query and network feature range.
+        */
+        mlpdouble QueryDistance(const std::vector<mlpdouble> &query) const {
+            return input_scaler->Distance(query);
+        }
+
+        /*!
+        * \brief Retrieve relative distance between the network input range and network input values.
+        * \returns - relative distance between query and network feature range.
+        */
+        mlpdouble QueryDistance() const {
+            return input_scaler->Distance(network_inputs);
+        }
+
+        /*!
+        * \brief Set random values for the network weights and biases.
+        */
+        void RandomWeights(){
+            std::random_device rd;  
+            std::mt19937 gen(rd());
+            std::uniform_real_distribution<> dis(-1.0, 1.0);
+            for (auto iLayer=0u; iLayer<n_layers; iLayer++) {
+                if (iLayer < (n_hidden_layers)){
+                    for (auto iNeuron=0u; iNeuron<NN[iLayer]; iNeuron++){
+                        for (auto jNeuron=0u; jNeuron<NN[iLayer+1]; jNeuron++){
+                            SetWeight(iLayer, iNeuron, jNeuron, dis(gen));
+                        }
+                    }
+                }
+                for (auto iNeuron=0u; iNeuron<NN[iLayer]; iNeuron++) {
+                    SetBias(iLayer, iNeuron, dis(gen));
+                }
+            }
+        }
+        
+
+        ~CNeuralNetwork() {
+            for (auto iLayer=0u; iLayer<n_layers; iLayer++) {
+                delete [] biases_mat[iLayer];
+                delete [] layer_outputs[iLayer];
+                for (auto iInput=0u; iInput<n_inputs; iInput++){
+                    delete [] layer_Jacobian[iLayer][iInput];
+                    for (auto jInput=0u; jInput < n_inputs; jInput++) {
+                        delete [] layer_Hessian[iLayer][iInput][jInput];
+                    }
+                    delete [] layer_Hessian[iLayer][iInput];
+                }
+                delete [] layer_Jacobian[iLayer];
+                delete [] layer_Hessian[iLayer];
+
+                if (iLayer < (n_hidden_layers)) {
+                    for (auto iNeuron=0u; iNeuron < NN[iLayer+1]; iNeuron++) 
+                        delete [] weights_mat[iLayer][iNeuron];
+                    delete [] weights_mat[iLayer]; 
+                }
+                delete activation_functions[iLayer];
+            }
+            delete [] layer_Jacobian;
+            delete [] layer_Hessian;
+            delete [] activation_functions;
+            delete [] layer_outputs;
+            delete [] biases_mat;
+            delete [] weights_mat;
+            delete [] NN;
+            delete [] network_inputs;
+            if (input_scaler != nullptr) delete input_scaler;
+            if (output_scaler != nullptr) delete output_scaler;
+            
+            return;
+        }
+
+        
+        /*!
+        * \brief Set the weight value connecting two nodes in the network.
+        * \param[in] iLayer - layer index
+        * \param[in] iNode - node index
+        * \param[in] jNode - connecting node index
+        * \param[in] val_weight - weight value
+        */
+        void SetWeight(const size_t iLayer, const size_t iNode, const size_t jNode, const mlpdouble val_weight) const {
+            weights_mat[iLayer][jNode][iNode] = val_weight;
+        }
+
+        mlpdouble GetWeight(const size_t iLayer, const size_t iNode, const size_t jNode) const {
+            return weights_mat[iLayer][jNode][iNode];
+        }
+        /*!
+        * \brief Set the bias value for a node in the network.
+        * \param[in] iLayer - layer index
+        * \param[in] iNode - node index
+        * \param[in] val_bias - bias value
+        */
+        void SetBias(const size_t iLayer, const size_t iNode, const mlpdouble val_bias) const {
+            biases_mat[iLayer][iNode] = val_bias;
+        }
+        
+        mlpdouble GetBias(const size_t iLayer, const size_t iNode) const {
+            return biases_mat[iLayer][iNode];
+        }
+        /*!
+        * \brief Enable Jacobian calculation while evaluating the network output.
+        * \param[in] enable_Jacobian - calculate the Jacobian, defaults to false.
+        */
+        void CalcJacobian(const bool enable_Jacobian=false) {
+            calc_Jacobian = enable_Jacobian;
+        }
+
+        /*!
+        * \brief Enable Hessian calculation while evaluating the network output.
+        * \param[in] enable_Hessian - calculate the Hessian, defaults to false.
+        */
+        void CalcHessian(const bool enable_Hessian=false) {
+            calc_Hessian = enable_Hessian;
+        }
+
+        /*!
+        * \brief Set the value for one of the network inputs.
+        * \param[in] iInput - input node index
+        * \param[in] val_input - input value
+        */
+        void SetInput(const size_t iInput, const mlpdouble val_input) const {
+            network_inputs[iInput] = val_input;
+            return;
+        }
+
+        /*!
+        * \brief Set the network inputs
+        * \param[in] input_vals - pointer to array of input values
+        */
+        void SetInput(const mlpdouble* const input_vals) const {
+            std::copy(input_vals, input_vals + n_inputs, input_layer);
+        }
+
+        /*!
+        * \brief Set the network inputs
+        * \param[in] input_vals - vector of input values
+        */
+        void SetInput(const std::vector<mlpdouble> &input_vals) const {
+            for (auto iInput=0u; iInput<n_inputs; iInput++) SetInput(iInput, input_vals[iInput]);
+        }
+
+        /*!
+        * \brief Retrieve the pointer to one of the network inputs.
+        * \param[in] iInput - input node index
+        * \returns - pointer to network input node
+        */
+        mlpdouble * InputLayer(const size_t iInput) const { return &network_inputs[iInput];}
+
+        /*!
+        * \brief Retrieve the pointer to one of the network outputs.
+        * \param[in] iOutput - output node index
+        * \returns - pointer to network output node
+        */
+        mlpdouble * OutputLayer(const size_t iOutput) const {return &output_layer[iOutput];}
+
+        /*!
+        * \brief Retrieve the pointer to one of the network Jacobians.
+        * \param[in] iOutput - output node index
+        * \param[in] iInput - input node index
+        * \returns - pointer to network Jacobian
+        */
+        mlpdouble * Jacobian(const size_t iOutput, const size_t iInput) const 
+        {return &output_Jacobian[iInput][iOutput];}
+
+        /*!
+        * \brief Retrieve the pointer to one of the network Hessians
+        * \param[in] iOutput - output node index
+        * \param[in] iInput - input node index
+        * \param[in] jInput - second input node index
+        * \returns - pointer to network Hessian
+        */
+        mlpdouble * Hessian(const size_t iOutput, const size_t iInput, const size_t jInput) const
+        {return &output_Hessian[iInput][jInput][iOutput];}
+
+
+        /*!
+        * \brief Retrieve the value for one of the network outputs.
+        * \param[in] iOutput - output node index
+        * \returns - network output value
+        */
+        mlpdouble GetOutput(const size_t iOutput) const {
+            return output_layer[iOutput];
+        }
+
+        /*!
+        * \brief Retrieve the value for one of the network Jacobians.
+        * \param[in] iOutput - output node index
+        * \param[in] iInput - input node index
+        * \returns - network Jacobian value
+        */
+        mlpdouble GetJacobian(const size_t iOutput, const size_t iInput) const {
+            return output_Jacobian[iInput][iOutput];
+        }
+
+        /*!
+        * \brief Retrieve the value for one of the network Hessian
+        * \param[in] iOutput - output node index
+        * \param[in] iInput - input node index
+        * \param[in] jInput - second input node index
+        * \returns - network Hessian value
+        */
+        mlpdouble GetHessian(const size_t iOutput, const size_t iInput, const size_t jInput) const {
+            return output_Hessian[iInput][jInput][iOutput];
+        }
+
+        /*!
+        * \brief Calculate the network output, Jacobian, and Hessian from a provided set of inputs.
+        * \param[in] X_in - vector of network inputs
+        * \param[in] evaluate_Jacobian - calculate the network Jacobian, defaults to false
+        * \param[in] evaluate_Hessian - calculate the network Hessian, defaults to false
+        */
+        void Predict(const std::vector<mlpdouble> &X_in, const bool evaluate_Jacobian=false, const bool evaluate_Hessian=false) {
+            SetInput(X_in);
+            calc_Jacobian=evaluate_Jacobian;
+            calc_Hessian=evaluate_Hessian;
+            Predict();
+        }
+        
+        /*!
+        * \brief Calculate the network output, Jacobian, and Hessian from the stored network inputs.
+        */
+        void Predict() const {
+            InputLayer();
+            CalcLayerOutputs(n_hidden_layers);
+            OutputLayer();
+        }
+        /*!
+        * \brief Set the activation function for the nodes in one of the layers in the network.
+        * \param[in] iLayer - layer index
+        * \param[in] name_activation_function - activation function tag
+        */
+        void SetActivationFunction(const size_t iLayer, const std::string name_activation_function="linear") {
+            /* Check if activation function tag is valid */
+            const auto it = activation_function_map.find(name_activation_function);
+            if (it == activation_function_map.end()) {
+                std::string msg = "Activation function not supported (" + name_activation_function + ")";
+                ErrorMessage(msg, "CNeuralNetwork:SetActivationFunction");
+            }
+            
+            const auto i_phi = it->second;
+            ActivationFunctionBase * function_out;
+            switch (i_phi)
+            {
+            case ENUM_ACTIVATION_FUNCTION::LINEAR:
+                function_out = new Lin();
+                break;
+            case ENUM_ACTIVATION_FUNCTION::ELU:
+                function_out = new Elu();
+                break;
+            case ENUM_ACTIVATION_FUNCTION::EXPONENTIAL:
+                function_out = new Exponential();
+                break;
+            case ENUM_ACTIVATION_FUNCTION::RELU:
+                function_out = new Relu();
+                break;
+            case ENUM_ACTIVATION_FUNCTION::SWISH:
+                function_out = new Swish();
+                break;
+            case ENUM_ACTIVATION_FUNCTION::TANH:
+                function_out = new Tanh();
+                break;
+            case ENUM_ACTIVATION_FUNCTION::SIGMOID:
+                function_out = new Sigmoid();
+                break;
+            case ENUM_ACTIVATION_FUNCTION::SELU:
+                function_out = new SeLu();
+                break;
+            case ENUM_ACTIVATION_FUNCTION::GELU:
+                function_out = new GeLu();
+                break;
+            default:
+                function_out = new Lin();
+                break;
+            }
+            if (activation_functions[iLayer] != nullptr){
+                delete activation_functions[iLayer];
+            }
+            activation_functions[iLayer] = function_out;
+        }
+
+        /*!
+        * \brief Set the activation function for all hidden layers
+        * \param[in] name_activation_function - activation function tag
+        */
+        void SetActivationFunction(const std::string name_activation_function="linear") {
+            for (auto iLayer=0u; iLayer < n_layers; iLayer++) 
+                SetActivationFunction(iLayer, name_activation_function);
+        }
+
+        /*!
+        * \brief Add an output variable name to the network.
+        * \param[in] input - Output variable name.
+        */
+        void SetOutputName(const size_t iOutput, const std::string input) {
+            output_names[iOutput] = input;
+        }
+
+        /*!
+        * \brief Add an input variable name to the network.
+        * \param[in] output - Input variable name.
+        */
+        void SetInputName(const size_t iInput, const std::string input) {
+            input_names[iInput] = input;
+        }
+
+        /*!
+        * \brief Return single vector containing the weights and biases in the network.
+        * \returns - vector of weights and biases.
+        */
+        std::vector<mlpdouble> GetWeightsBiases() const {
+            std::vector<mlpdouble> flat_weights;
+            for (auto iLayer=1; iLayer<n_layers; iLayer++) {
+                auto n_prev = NN[iLayer-1];
+                auto n_cur = NN[iLayer];
+                for (auto jNode=0u; jNode< n_prev; jNode++) {
+                    for (auto iNode=0u; iNode<n_cur; iNode++) 
+                        flat_weights.push_back(GetWeight(iLayer-1, jNode, iNode));
+                    
+                    flat_weights.push_back(GetBias(iLayer-1, jNode));
+                }
+            }
+            for (auto jNode=0u; jNode<NN[n_hidden_layers]; jNode++)
+                flat_weights.push_back(GetBias(n_hidden_layers, jNode));
+            return flat_weights;
+        }
+        
+        /*!
+        * \brief Set network weights and biases from flat vector.
+        * \param[in] flat_weights - 1D vector containing network weight and bias values.
+        */
+        void SetWeightsBiases(const std::vector<mlpdouble>& flat_weights) const {
+            size_t k{0};
+            
+            for (auto iLayer=1; iLayer<n_layers; iLayer++) {
+                auto n_prev = NN[iLayer-1];
+                auto n_cur = NN[iLayer];
+                for (auto jNode=0u; jNode< n_prev; jNode++) {
+                    for (auto iNode=0u; iNode<n_cur; iNode++)
+                        SetWeight(iLayer-1, jNode, iNode, flat_weights[k++]);
+
+                    SetBias(iLayer-1, jNode, flat_weights[k++]);
+                }
+            }
+            for (auto jNode=0u; jNode<NN[n_hidden_layers]; jNode++)
+                SetBias(n_hidden_layers, jNode, flat_weights[k++]);
+        }
+    /*!
+    * \brief Display the network architecture in the terminal.
+    */
+    void DisplayNetwork() const {
+        /*--- Display information on the MLP architecture ---*/
+        const int display_width{54};
+        const int column_width = int(display_width / 3.0) - 1;
+
+        /*--- Input layer information ---*/
+        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+                << std::right << "+" << std::endl;
+        std::cout << std::setfill(' ');
+        std::cout << "|" << std::left << std::setw(display_width - 1)
+                << "Input Layer Information:"
+                << "|" << std::endl;
+        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+                << std::right << "+" << std::endl;
+        input_scaler->PrintInfo(display_width, input_names);
+        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+                << std::right << "+" << std::endl;
+
+        std::cout << std::setfill(' ');
+        std::cout << "|" << std::left << std::setw(display_width - 1)
+                << "Hidden Layers Information:"
+                << "|" << std::endl;
+        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+                << std::right << "+" << std::endl;
+        std::cout << std::setfill(' ');
+        std::cout << "|" << std::setw(column_width) << std::left << "Layer index"
+                << "|" << std::setw(column_width) << std::left << "Neuron count"
+                << "|" << std::setw(column_width) << std::left << "Function"
+                << "|" << std::endl;
+        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+                << std::right << "+" << std::endl;
+        std::cout << std::setfill(' ');
+        for (size_t iLayer = 1; iLayer < n_hidden_layers; iLayer++)
+        std::cout << "|" << std::setw(column_width) << std::right << iLayer + 1
+                    << "|" << std::setw(column_width) << std::right
+                    << NN[iLayer] << "|"
+                    << std::setw(column_width) << std::right
+                    << activation_functions[iLayer]->GetName() << "|" << std::endl;
+        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+                << std::right << "+" << std::endl;
+        std::cout << std::setfill(' ');
+
+        std::cout << "|" << std::left << std::setw(display_width - 1)
+                << "Output Layer Information:"
+                << "|" << std::endl;
+        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+                << std::right << "+" << std::endl;
+        output_scaler->PrintInfo(display_width, output_names);
+        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+                << std::right << "+" << std::endl;
+        std::cout << std::setfill(' ');
+        std::cout << std::endl;
+    }
+  /*!
+   * \brief Get network number of inputs.
+   * \returns Number of network inputs
+   */
+  std::size_t GetnInputs() const { return n_inputs; }
 
   /*!
-   * \brief Evaluate the network based on dimensionalized inputs.
-   * \param[in] inputs - Vector containing non-normalized network inputs.
+   * \brief Get network number of outputs.
+   * \returns Number of network outputs
    */
-  void Predict(std::vector<mlpdouble> &inputs) {
+  std::size_t GetnOutputs() const { return n_outputs; }
 
-    for (auto iLayer = 0u; iLayer < n_hidden_layers + 2; iLayer++) {
-      for (auto iNeuron = 0u; iNeuron < total_layers[iLayer]->GetNNeurons();
-           iNeuron++) {
-        if (total_layers[iLayer]->IsInput()) {
-          ComputeInputLayer(inputs, iNeuron);
-        } else {
-          /* Compute activation function input value. */
-          mlpdouble X = ComputeX(iLayer, iNeuron);
-
-          /* Evaluate activation function. */
-          ActivationFunction(iLayer, X);
-
-          /* Store activation function output in current neuron. */
-          mlpdouble Yi = Phi;
-          total_layers[iLayer]->SetOutput(iNeuron, Yi);
-
-          /* Compute first and/or second order derivatives. */
-          if (compute_gradient) {
-            for (auto jInput = 0u; jInput < inputLayer->GetNNeurons();
-                 jInput++) {
-              mlpdouble psi_j = ComputePsi(iLayer, iNeuron, jInput);
-              mlpdouble dYi_dIj = psi_j * Phi_prime;
-              total_layers[iLayer]->SetdYdX(iNeuron, jInput, dYi_dIj);
-              if (compute_second_gradient) {
-                for (auto kInput = 0u; kInput < inputLayer->GetNNeurons();
-                     kInput++) {
-                  mlpdouble psi_k = ComputePsi(iLayer, iNeuron, kInput);
-                  mlpdouble chi = ComputeChi(iLayer, iNeuron, jInput, kInput);
-                  mlpdouble d2Yi_dIjdIk =
-                      Phi_dprime * psi_j * psi_k + Phi_prime * chi;
-
-                  total_layers[iLayer]->Setd2YdX2(iNeuron, jInput, kInput,
-                                                  d2Yi_dIjdIk);
-                } // kInput
-              }   // compute_second_gradient
-            }     // jInput
-          }       // compute_gradient
-        }         // is_input_layer
-      }           // iNeuron
-    }             // iLayer
-
-    // De-normalize the network outputs and gradients.
-    DeNormalizeOutputs();
-  }
-
-  /*!
-   * \brief Set the normalization factors for the input layer
-   * \param[in] iInput - Input index.
-   * \param[in] input_min - Minimum input value.
-   * \param[in] input_max - Maximum input value.
-   */
-  void SetInputNorm(unsigned long iInput, mlpdouble input_min,
-                    mlpdouble input_max) {
-    input_norm[iInput] = std::make_pair(input_min, input_max);
-  }
-
-  /*!
-   * \brief Set the normalization factors for the output layer
-   * \param[in] iOutput - Input index.
-   * \param[in] input_min - Minimum output value.
-   * \param[in] input_max - Maximum output value.
-   */
-  void SetOutputNorm(unsigned long iOutput, mlpdouble output_min,
-                     mlpdouble output_max) {
-    output_norm[iOutput] = std::make_pair(output_min, output_max);
-  }
-
-  std::pair<mlpdouble, mlpdouble> GetInputNorm(unsigned long iInput) const {
-    return input_norm[iInput];
-  }
-
-  std::pair<mlpdouble, mlpdouble> GetOutputNorm(unsigned long iOutput) const {
-    return output_norm[iOutput];
-  }
-  /*!
-   * \brief Add an output variable name to the network.
-   * \param[in] input - Input variable name.
-   */
-  void SetOutputName(size_t iOutput, std::string input) {
-    output_names[iOutput] = input;
-  }
-
-  /*!
-   * \brief Add an input variable name to the network.
-   * \param[in] output - Output variable name.
-   */
-  void SetInputName(size_t iInput, std::string input) {
-    input_names[iInput] = input;
-  }
-
+  std::size_t GetnLayers() const { return n_layers; }
+  std::size_t GetnNodes(const size_t iLayer) const { return NN[iLayer]; }
+  std::string GetActivationFunction(const size_t iLayer) const {return activation_functions[iLayer]->GetTag();}
   /*!
    * \brief Get network input variable name.
    * \param[in] iInput - Input variable index.
    * \returns input variable name.
    */
-  std::string GetInputName(std::size_t iInput) const {
+  std::string GetInputName(const std::size_t iInput) const {
     return input_names[iInput];
   }
+
+  /*!
+  * \brief Retrieve the network input variable names
+  * \returns vector of input variables
+  */
+  std::vector<std::string> GetInputVars() const { return input_names; }
+
+  /*!
+  * \brief Retrieve the network output variable names
+  * \returns vector of output variables
+  */
+  std::vector<std::string> GetOutputVars() const { return output_names; }
+  
 
   /*!
    * \brief Get network output variable name.
    * \param[in] iOutput - Output variable index.
    * \returns output variable name.
    */
-  std::string GetOutputName(std::size_t iOutput) const {
+  std::string GetOutputName(const size_t iOutput=0) const {
     return output_names[iOutput];
   }
 
   /*!
-   * \brief Get network number of inputs.
-   * \returns Number of network inputs
-   */
-  std::size_t GetnInputs() const { return input_names.size(); }
-
-  /*!
-   * \brief Get network number of outputs.
-   * \returns Number of network outputs
-   */
-  std::size_t GetnOutputs() const { return output_names.size(); }
-
-  /*!
-   * \brief Get network evaluation output.
-   * \param[in] iOutput - output index.
-   * \returns Prediction value.
-   */
-  mlpdouble GetANNOutput(std::size_t iOutput) const {
-    return ANN_outputs[iOutput];
+  * \brief Check whether specified input is within the feature range of the network
+  * \param[in] X_in - network input
+  * \returns whether input is within network feature range
+  */
+  bool CheckInputInclusion(const std::vector<mlpdouble> &X_in) const {
+    SetInput(X_in);
+    return CheckInputInclusion();
   }
 
   /*!
-   * \brief Get network output derivative w.r.t specific input.
-   * \param[in] iOutput - output variable index.
-   * \param[in] iInput - input variable index.
-   * \returns Output derivative w.r.t input.
-   */
-  mlpdouble GetdOutputdInput(std::size_t iOutput, std::size_t iInput) const {
-    return dOutputs_dInputs[iOutput][iInput];
+  * \brief Check whether input is within the feature range of the network
+  * \returns whether input is within network feature range
+  */
+  bool CheckInputInclusion() const {
+    const auto dist = QueryDistance();
+    if ((dist > 0) && (input_reg_method==ENUM_SCALING_FUNCTIONS::MINMAX))
+        return false; 
+    else return true;
   }
 
   /*!
-   * \brief Get network output second derivative w.r.t specific inputs.
-   * \param[in] iOutput - output variable index.
-   * \param[in] iInput - first input variable index.
-   * \param[in] jInput - second input variable index.
-   * \returns Output second derivative w.r.t inputs.
-   */
-  mlpdouble Getd2OutputdInput2(std::size_t iOutput, std::size_t iInput,
-                               std::size_t jInput) const {
-    return d2Outputs_dInputs2[iOutput][iInput][jInput];
-  }
-  /*!
-   * \brief Set the activation function array size.
-   * \param[in] n_layers - network layer count.
-   */
-  void SizeActivationFunctions(unsigned long n_layers) {
-    activation_function_types.resize(n_layers);
-    activation_function_names.resize(n_layers);
-  }
+  * \brief Write network information to file.
+  * \param[in] file_out - output file name.
+  */
+    void WriteNeuralNetwork(std::string file_out) const {
+        std::ofstream file_stream;
+        file_stream.open(file_out.c_str(), std::ofstream::out);
+        file_stream << "<header>\n\n";
+        file_stream << "[number of layers]\n";
+        file_stream << GetnLayers() << std::endl;
+        file_stream << "\n[neurons per layer]\n";
+        for (auto iLayer=0u; iLayer<GetnLayers(); iLayer++)
+        file_stream << GetnNodes(iLayer) << std::endl;
+        
+        file_stream << "\n[activation function]\n";
+        for (auto iLayer=0u; iLayer<GetnLayers(); iLayer++)
+        file_stream << GetActivationFunction(iLayer) << std::endl;
+        
+        file_stream << "\n[input names]\n";
+        for (auto iInput=0u; iInput < GetnInputs(); iInput++)
+        file_stream<< GetInputName(iInput) << std::endl;
+        file_stream << "\n[input regularization method]\n";
+        file_stream << GetInputRegularization() << std::endl;
+        file_stream << "\n[input normalization]\n";
+        for (auto iInput=0u; iInput <  GetnInputs(); iInput++) {
+        file_stream << std::showpos<<std::scientific << std::setprecision(16) << GetInputNorm(iInput).first << "\t" << std::showpos<<std::scientific << std::setprecision(16) << GetInputNorm(iInput).second << std::endl;
+        }
+        file_stream << "\n[output names]\n";
+        for (auto iOutput=0u; iOutput < GetnOutputs(); iOutput++)
+        file_stream<< GetOutputName(iOutput) << std::endl;
+        file_stream << "\n[output regularization method]\n";
+        file_stream << GetOutputRegularization() << std::endl;
+        file_stream << "\n[output normalization]\n";
+        for (auto iOutput=0u; iOutput <  GetnOutputs(); iOutput++) {
+        file_stream << std::showpos<<std::scientific << std::setprecision(16) << GetOutputNorm(iOutput).first << "\t" << std::showpos<<std::scientific << std::setprecision(16) << GetOutputNorm(iOutput).second << std::endl;
+        }
 
-  /*!
-   * \brief Compute neuron activation function input.
-   * \param[in] iLayer - Network layer index.
-   * \param[in] iNeuron - Layer neuron index.
-   * \returns Neuron activation function input.
-   */
-  mlpdouble ComputeX(std::size_t iLayer, std::size_t iNeuron) const {
-    mlpdouble x;
-    x = total_layers[iLayer]->GetBias(iNeuron);
-    std::size_t nNeurons_previous = total_layers[iLayer - 1]->GetNNeurons();
-    for (std::size_t jNeuron = 0; jNeuron < nNeurons_previous; jNeuron++) {
-      x += weights_mat[iLayer - 1][iNeuron][jNeuron] *
-           total_layers[iLayer - 1]->GetOutput(jNeuron);
+        file_stream<<"\n</header>\n";
+
+        file_stream<<"\n[weights per layer]\n";
+        for (auto iLayer = 0u; iLayer < GetnLayers() - 1; iLayer++) {
+        file_stream << "<layer>\n";
+        for (auto iNeuron = 0u; iNeuron < GetnNodes(iLayer); iNeuron++) {
+        for (auto jNeuron = 0u; jNeuron < GetnNodes(iLayer + 1); jNeuron++) {
+            file_stream <<std::showpos<< std::scientific << std::setprecision(16) << GetWeight(iLayer, iNeuron, jNeuron) << " ";
+        }
+        file_stream << std::endl;
+        }
+        file_stream << "</layer>\n";
     }
-    return x;
-  }
 
-  /*!
-   * \brief Compute the weighted sum of the neuron output derivatives of the
-   * previous layer. \param[in] iLayer - Current network layer index. \param[in]
-   * iNeuron - Layer neuron index. \param[in] jInput - Input variable index used
-   * for derivative. \returns Weighted sum of prefious layer derivatives w.r.t.
-   * input variable.
-   */
-  mlpdouble ComputePsi(std::size_t iLayer, std::size_t iNeuron,
-                       std::size_t jInput) const {
-    mlpdouble psi = 0;
-    for (auto jNeuron = 0u; jNeuron < total_layers[iLayer - 1]->GetNNeurons();
-         jNeuron++) {
-      psi += weights_mat[iLayer - 1][iNeuron][jNeuron] *
-             total_layers[iLayer - 1]->GetdYdX(jNeuron, jInput);
-    }
-    return psi;
-  }
-
-  /*!
-   * \brief Compute the weighted sum of the neuron output second derivatives of
-   * the previous layer. \param[in] iLayer - Current network layer index.
-   * \param[in] iNeuron - Layer neuron index.
-   * \param[in] jInput - First input variable index used for derivative.
-   * \param[in] kInput - Second input variable index used for derivative.
-   * \returns Weighted sum of previous layer second derivatives w.r.t. input
-   * variables.
-   */
-  mlpdouble ComputeChi(std::size_t iLayer, std::size_t iNeuron,
-                       std::size_t jInput, std::size_t kInput) const {
-    mlpdouble chi = 0;
-    for (auto jNeuron = 0u; jNeuron < total_layers[iLayer - 1]->GetNNeurons();
-         jNeuron++) {
-      chi += weights_mat[iLayer - 1][iNeuron][jNeuron] *
-             total_layers[iLayer - 1]->Getd2YdX2(jNeuron, jInput, kInput);
-    }
-    return chi;
-  }
-
-  /*!
-   * \brief Compute the weighted sum of the weighted output derivatives of the previous layer.
-   * \param[in] iLayer - Current network layer index.
-   * \param[in] iNeuron - Neuron index of current layer.
-   * \param[in] iInput - Input index for which to compute derivative.
-   * \returns Weighted sum of previous layer output derivatives.
-   */
-  mlpdouble ComputedOutputdInput(std::size_t iLayer, std::size_t iNeuron,
-                                 std::size_t iInput) const {
-    mlpdouble doutput_dinput = 0;
-    for (auto jNeuron = 0u; jNeuron < total_layers[iLayer - 1]->GetNNeurons();
-         jNeuron++) {
-      doutput_dinput += weights_mat[iLayer - 1][iNeuron][jNeuron] *
-                        total_layers[iLayer - 1]->GetdYdX(jNeuron, iInput);
-    }
-    return doutput_dinput;
-  }
-
-  /*!
-   * \brief Normalize the network input.
-   * \param[in] val_input_dim - Dimensional input value.
-   * \param[in] iInput - Input index.
-   * \returns Normalized network input value.
-   */
-  mlpdouble NormalizeInput(mlpdouble val_input_dim, std::size_t iInput) const {
-    mlpdouble val_norm_input{0};
-    switch(input_reg_method)
-    {
-    case ENUM_SCALING_FUNCTIONS::MINMAX:
-      val_norm_input = (val_input_dim - input_norm[iInput].first) / (input_norm[iInput].second - input_norm[iInput].first);
-      break;
-    case ENUM_SCALING_FUNCTIONS::STANDARD:
-    case ENUM_SCALING_FUNCTIONS::ROBUST:
-    default:
-      val_norm_input= (val_input_dim - input_norm[iInput].first) / input_norm[iInput].second;
-      break;
-    }
-    return val_norm_input;
-  }
-
-  mlpdouble GetRegularizationScale(std::size_t iInput, bool is_input=true) const {
-    switch(input_reg_method)
-    {
-    case ENUM_SCALING_FUNCTIONS::MINMAX:
-      if (is_input) {
-        return input_norm[iInput].second - input_norm[iInput].first;
-      } else {
-        return output_norm[iInput].second - output_norm[iInput].first;
-      }
-      break;
-    case ENUM_SCALING_FUNCTIONS::STANDARD:
-    case ENUM_SCALING_FUNCTIONS::ROBUST:
-      if (is_input) {
-        return input_norm[iInput].second;
-      } else {
-        return output_norm[iInput].second;
-      }
-      break;
-    default:
-      return 0;
-      break;
-    }
-  }
-
-  mlpdouble GetRegularizationOffset(std::size_t iInput, bool is_input=true) const {
-    switch(input_reg_method)
-    {
-    case ENUM_SCALING_FUNCTIONS::MINMAX:
-      if (is_input) {
-        return 0.5*(input_norm[iInput].second + input_norm[iInput].first);
-      } else {
-        return 0.5*(output_norm[iInput].second + output_norm[iInput].first);
-      }
-      break;
-    case ENUM_SCALING_FUNCTIONS::STANDARD:
-    case ENUM_SCALING_FUNCTIONS::ROBUST:
-      if (is_input) {
-        return input_norm[iInput].first;
-      } else {
-        return output_norm[iInput].first;
-      }
-      break;
-    default:
-      return 0;
-      break;
-    }
-  }
-
-  mlpdouble DimensionalizeOutput(mlpdouble val_output_norm, std::size_t iOutput) const {
-    mlpdouble val_dim_output{0};
-    switch(input_reg_method)
-    {
-    case ENUM_SCALING_FUNCTIONS::MINMAX:
-      val_dim_output = (output_norm[iOutput].second - output_norm[iOutput].first) * val_output_norm + output_norm[iOutput].first;
-      break;
-    case ENUM_SCALING_FUNCTIONS::STANDARD:
-    case ENUM_SCALING_FUNCTIONS::ROBUST:
-    default:
-      val_dim_output = output_norm[iOutput].second * val_output_norm + output_norm[iOutput].first;
-      break;
-    }
-    return val_dim_output;
-  }
+    /* Read biases for each neuron */
+        file_stream << "\n[biases per layer]\n";
+        for (auto iLayer = 0u; iLayer < GetnLayers(); iLayer++) {
+        for (auto iNeuron = 0u; iNeuron < GetnNodes(iLayer); iNeuron++) {
+            file_stream << std::showpos<< std::scientific << std::setprecision(16) << GetBias(iLayer, iNeuron) << " ";
+        }
+        file_stream << std::endl;
+        }
+        file_stream.close();
 
 
-  bool CheckInputInclusion(mlpdouble val_input, size_t iInput) const {
-    bool inside {true};
-    mlpdouble val_input_norm;
-    switch(input_reg_method)
-    {
-    case ENUM_SCALING_FUNCTIONS::MINMAX:
-      if ((val_input < input_norm[iInput].first) || 
-          (val_input > input_norm[iInput].second))
-          inside = false;
-      break;
-    case ENUM_SCALING_FUNCTIONS::STANDARD:
-      val_input_norm = (val_input - input_norm[iInput].first) / input_norm[iInput].second;
-      if ((val_input_norm < -2.0) || (val_input_norm > 2.0))
-        inside = false;
-      break;
-    case ENUM_SCALING_FUNCTIONS::ROBUST:
-      val_input_norm = (val_input - input_norm[iInput].first) / input_norm[iInput].second;
-      if ((val_input_norm < -10.0) || (val_input_norm > 10.0))
-        inside = false;
-      break;
-    default:
-      break;
-    }
-    
-    return inside;
-  }
-
+        return;
+    };
 };
 
 } // namespace MLPToolbox

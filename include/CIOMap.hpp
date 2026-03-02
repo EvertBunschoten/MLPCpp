@@ -31,201 +31,439 @@ operations.
 #include "variable_def.hpp"
 #include <string>
 #include <vector>
+#include <set>
+#include "CNeuralNetwork.hpp"
 namespace MLPToolbox {
-class CIOMap
-/*!
- *\class CIOMap
- *\brief This class is used by the CLookUp_ANN class to assign user-defined
- *inputs and outputs to loaded multi-layer perceptrons. When a look-up operation
- *is called with a specific CIOMap, the multi-layer perceptrons are evaluated
- *with input and output variables coinciding with the desired input and output
- *variable names.
- *
- *
- * For example, in a custom, data-driven fluid model, MLP's are used for
- *thermodynamic state definition. There are three MLP's loaded. MLP_1 predicts
- *temperature and specific heat based on density and energy. MLP_2 predicts
- *pressure and speed of sound based on density and energy as well. MLP_3
- *predicts density and energy based on pressure and temperature. During a
- *certain look-up operation in the CFluidModel, temperature, speed of sound and
- *pressure are needed for a given density and energy. What the CIOMap does is to
- *point to MLP_1 for temperature evalutation, and to MLP_2 for pressure and
- *speed of sound evaluation. MLP_3 is not considered, as the respective inputs
- *and outputs don't match with the function call inputs and outputs.
- *
- *  call variables:      MLP inputs:                     MLP outputs: call
- *outputs:
- *
- *                        2--> energy --|            |--> temperature --> 1
- *                                      |--> MLP_1 --|
- *  1:density            1--> density --|            |--> c_p 1:temperature
- *  2:energy 2:speed of sound 1--> density --|            |--> pressure --> 3
- *3:pressure
- *                                      |--> MLP_2 --|
- *                        2--> energy --|            |--> speed of sound --> 2
- *
- *                           pressure --|            |--> density
- *                                      |--> MLP_3 --|
- *                        temperature --|            |--> energy
- *
- *
- * \author E.Bunschoten
- */
-{
-private:
-  std::vector<std::string> inputVariables, /*!< Input variable names for the
-                                              current input-output map. */
-      outputVariables; /*!< Output variable names for the current input-output
-                          map. */
+  
+struct IOMap_Network {
+  /*! \brief struct with query information. */
 
-  std::vector<std::size_t> MLP_indices; /*!< Loaded MLP index */
-  std::vector<std::vector<std::pair<std::size_t, std::size_t>>>
-      Input_Map,  /*!< Mapping of call variable inputs to matching MLP inputs */
-      Output_Map; /*!< Mapping of call variable outputs to matching MLP outputs
-                   */
-public:
-  /*!
-   * \brief Initiate input-output map with user-defined input and output
-   * variables. \param[in] inputVariables_in - Vector containing input variable
-   * names. \param[in] outputVariables_in - Vector containing output variable
-   * names.
-   */
-  CIOMap(std::vector<std::string> &inputVariables_in,
-         std::vector<std::string> &outputVariables_in) {
-    inputVariables.resize(inputVariables_in.size());
-    for (auto iVar = 0u; iVar < inputVariables_in.size(); iVar++) {
-      inputVariables[iVar] = inputVariables_in[iVar];
+  CNeuralNetwork* MLP; /*! \brief Pointer to network selected for query. */
+  std::vector<std::pair<mlpdouble*, mlpdouble*>> input_map; /*! \brief Link between query input and network input nodes. */
+  std::vector<std::pair<mlpdouble*,mlpdouble*>> output_map; /*! \brief Link between network output nodes and query output. */
+  std::vector<std::pair<const mlpdouble*, const mlpdouble*>> Jacobian_map;  /*! \brief Link between network Jacobians and query Jacobians. */
+  std::vector<std::pair<const mlpdouble*, const mlpdouble*>> Hessian_map;   /*! \brief Link between network Hessians and query Hessians. */
+  bool evaluate_Jacobian {false}; /*! \brief Evaluate Jacobians while evaluating the network output. */
+  bool evaluate_Hessian {false};  /*! \brief Evaluate Hessians while evaluating the network output. */
+};
+
+class CIOMap {
+    /*! \brief Class used to pair look-up variables with network outputs. */
+    private: 
+    std::vector<std::pair<std::string, mlpdouble*>> query_input;  
+    std::vector<std::pair<std::string, mlpdouble*>> query_output;
+    
+    std::vector<IOMap_Network> query_network_maps; /*! \brief Query information per network. */
+
+    std::vector<std::pair<std::pair<std::string, std::string>, mlpdouble*>> query_Jacobian; /*! \brief Jacobians to be evaluated. */
+    std::vector<std::pair<std::pair<std::string, std::pair<std::string, std::string>>, mlpdouble*>> query_Hessian; /*! \brief Hessians to be evaluated. */
+
+    std::vector<mlpdouble> query_output_vals; /*! \brief Network outputs corresponding to query. */
+    std::vector<mlpdouble*> null_outputs;     /*! \brief Pointers to outputs that should return zero. */
+
+    /*!
+    * \brief Check whether look-up variable should return zero.
+    * \param[in] variable_name_in - Query variable name to check.
+    * \returns - if variable is a variant of "NULL", "NONE", or "ZERO"
+    */
+    bool CheckNull(const std::string & variable_name_in) const {
+      std::string variable_name = variable_name_in;
+      std::transform(variable_name.begin(), variable_name.end(), variable_name.begin(), [](unsigned char c){ return std::tolower(c);});
+      
+      if (!variable_name.compare("null") || !variable_name.compare("none") || !variable_name.compare("zero")) {
+        return true;
+      } else 
+        return false;
     }
-    outputVariables.resize(outputVariables_in.size());
-    for (auto iVar = 0u; iVar < outputVariables_in.size(); iVar++) {
-      outputVariables[iVar] = outputVariables_in[iVar];
+
+    /*!
+    * \brief Set the value of null variables to zero.
+    */
+    void SetNullOutputs() const { for (auto nulls : null_outputs) *nulls = mlpdouble(0.0); }
+
+    /*!
+    * \brief Evaluate the output, Jacobian, and Hessian of network selected for query.
+    * \param[in] mapped_network - query struct
+    */
+    bool NetworkInference(const IOMap_Network &mapped_network) const { 
+      bool inside = mapped_network.MLP->CheckInputInclusion();
+      if (inside){
+        mapped_network.MLP->CalcJacobian(mapped_network.evaluate_Jacobian);
+        mapped_network.MLP->CalcHessian(mapped_network.evaluate_Hessian);
+        mapped_network.MLP->Predict();
+        RetrieveNetworkOutput(mapped_network);
+        mapped_network.MLP->CalcJacobian(false);
+        mapped_network.MLP->CalcHessian(false);
+      }
+      return inside;
     }
-  }
 
-  /*!
-   * \brief Insert MLP index with stored input and output variables.
-   * \param[in] iMLP - Loaded MLP index.
-   */
-  void PushMLPIndex(std::size_t iMLP) { MLP_indices.push_back(iMLP); }
-
-  /*!
-   * \brief Insert MLP input translation vector.
-   * \param[in] inputIndices - Vector containing input variable index
-   * translation.
-   */
-  void PushInputIndices(std::vector<std::pair<size_t, size_t>> inputIndices) {
-    Input_Map.push_back(inputIndices);
-  }
-
-  /*!
-   * \brief Insert MLP output translation vector.
-   * \param[in] outputIndices - Vector containing output variable index
-   * translation.
-   */
-  void PushOutputIndices(std::vector<std::pair<size_t, size_t>> outputIndices) {
-    Output_Map.push_back(outputIndices);
-  }
-
-  /*!
-   * \brief Get input variables of current input-output map.
-   * \return Vector of input variables.
-   */
-  std::vector<std::string> GetInputVars() { return inputVariables; }
-
-  /*!
-   * \brief Get output variables of current input-output map.
-   * \return Vector of output variables.
-   */
-  std::vector<std::string> GetOutputVars() { return outputVariables; }
-
-  /*!
-   * \brief Get the number of MLPs in the current IO map
-   * \return number of MLPs with matching inputs and output(s)
-   */
-  std::size_t GetNMLPs() const { return MLP_indices.size(); }
-
-  /*!
-   * \brief Get the loaded MLP index
-   * \return MLP index
-   */
-  std::size_t GetMLPIndex(std::size_t i_Map) const {
-    return MLP_indices[i_Map];
-  }
-
-  /*!
-   * \brief Get the call input variable index
-   * \param[in] i_Map - input-output mapping index of the IO map
-   * \param[in] iInput - input index of the call input variable
-   * \return MLP input variable index
-   */
-  std::size_t GetInputIndex(std::size_t i_Map, std::size_t iInput) const {
-    return Input_Map[i_Map][iInput].first;
-  }
-
-  /*!
-   * \brief Get the call output variable index
-   * \param[in] i_Map - input-output mapping index of the IO map
-   * \param[in] iOutput - output index of the call input variable
-   * \return call variable output index
-   */
-  std::size_t GetOutputIndex(std::size_t i_Map, std::size_t iOutput) const {
-    return Output_Map[i_Map][iOutput].first;
-  }
-
-  /*!
-   * \brief Get the MLP output variable index
-   * \param[in] i_Map - input-output mapping index of the IO map
-   * \param[in] iOutput - output index of the call input variable
-   * \return MLP output variable index
-   */
-  std::size_t GetMLPOutputIndex(std::size_t i_Map, std::size_t iOutput) const {
-    return Output_Map[i_Map][iOutput].second;
-  }
-
-  /*!
-   * \brief Get the number of matching output variables between the call and MLP
-   * outputs \param[in] i_Map - input-output mapping index of the IO map \return
-   * Number of matching variables between the loaded MLP and call variables
-   */
-  std::size_t GetNMappedOutputs(std::size_t i_Map) const {
-    return Output_Map[i_Map].size();
-  }
-
-  /*!
-   * \brief Get the mapping of MLP outputs matching to call outputs
-   * \param[in] i_Map - input-output mapping index of the IO map
-   * \return Mapping of MLP output variables to call variables
-   */
-  std::vector<std::pair<std::size_t, std::size_t>>
-  GetOutputMapping(std::size_t i_map) const {
-    return Output_Map[i_map];
-  }
-
-  /*!
-   * \brief Get the mapping of MLP inputs to call inputs
-   * \param[in] i_Map - input-output mapping index of the IO map
-   * \return Mapping of MLP input variables to call inputs
-   */
-  std::vector<std::pair<std::size_t, std::size_t>>
-  GetInputMapping(std::size_t i_map) const {
-    return Input_Map[i_map];
-  }
-
-  /*!
-   * \brief Get the mapped inputs for the MLP at i_Map
-   * \param[in] i_Map - input-output mapping index of the IO map
-   * \param[in] inputs - call inputs
-   * \return std::vector with call inputs in the correct order of the loaded MLP
-   */
-  std::vector<mlpdouble> GetMLPInputs(std::size_t i_Map,
-                                      const std::vector<mlpdouble> &inputs) const {
-    std::vector<mlpdouble> MLP_input;
-    MLP_input.resize(Input_Map[i_Map].size());
-
-    for (std::size_t iInput = 0; iInput < Input_Map[i_Map].size(); iInput++) {
-      MLP_input[iInput] = inputs[GetInputIndex(i_Map, iInput)];
+    /*!
+    * \brief Check whether network inputs are unique.
+    * \param[in] network_to_check - pointer to network object.
+    */
+    bool CheckUniqueInputs(const CNeuralNetwork  *network_to_check) const {
+      auto network_inputs = network_to_check->GetInputVars();
+      std::sort(network_inputs.begin(),network_inputs.end());
+      return std::unique(network_inputs.begin(),network_inputs.end()) == network_inputs.end();
     }
-    return MLP_input;
-  }
+
+    /*!
+    * \brief Check whether the network inputs and output are in the query
+    * \param[in] network_to_check - pointer to network object.
+    * \returns - if query inputs correspond to network inputs and if at least one query output is in the network output variables.
+    */
+    bool CheckNetworkVariables(const CNeuralNetwork  *network_to_check) {
+        const std::vector<std::string> network_inputs = network_to_check->GetInputVars();
+        const std::vector<std::string> network_outputs = network_to_check->GetOutputVars();
+        bool network_compatible{true};
+        for (auto q_in : query_input) {
+            auto a = find(network_inputs.begin(), network_inputs.end(), q_in.first);
+            if (a == end(network_inputs)){
+                network_compatible = false;
+            }
+        }
+        if (network_compatible) {
+            bool found_output{false};
+            for (std::string var_out : network_outputs) {
+                auto loc = std::find_if(query_output.begin(), query_output.end(), [var_out](std::pair<std::string, mlpdouble*>q) {return q.first==var_out;});
+                if (loc != query_output.end()) {
+                    found_output = true;
+                }
+            }
+            network_compatible = found_output;
+        }
+        return network_compatible;
+    }
+
+    /*!
+    * \brief Copy the query input to the network input.
+    * \param[in] mapped_network - network object.
+    */
+    void SetNetworkInputs(const IOMap_Network &mapped_network) const {
+      for (const auto &q_in : mapped_network.input_map) *q_in.second = *q_in.first;
+    } 
+
+    /*!
+    * \brief Copy the query input to the network input.
+    * \param[in] mapped_network - pointer to network object.
+    * \param[in] vals_input - query input.
+    */
+    void SetNetworkInputs(const IOMap_Network &mapped_network, const std::vector<mlpdouble> &vals_input) const {
+      for (auto iInput=0u; iInput < mapped_network.input_map.size(); iInput++) 
+        *mapped_network.input_map[iInput].second = vals_input[iInput];
+    }
+
+    /*!
+    * \brief Retrieve query output from network output.
+    * \param[in] mapped_network - network object.
+    */
+    void RetrieveNetworkOutput(const IOMap_Network &mapped_network) const {
+      for (const auto &q_out : mapped_network.output_map) *q_out.first = *q_out.second;
+    }
+
+    /*!
+    * \brief Link the query input terms to the mapped network inputs
+    */
+    void MapInputs(){
+        for (auto &mapped_network : query_network_maps) {
+          const auto network_input_vars = mapped_network.MLP->GetInputVars();
+          for (const auto &q : query_input) {
+
+            auto loc=std::find(network_input_vars.begin(), network_input_vars.end(), q.first);
+            if (loc != network_input_vars.end()) {
+              const auto ref_query_input = q.second;
+              const auto iInput_network = distance(network_input_vars.begin(), loc);
+              auto ref_network_input = mapped_network.MLP->InputLayer(iInput_network);
+              mapped_network.input_map.push_back(std::make_pair(ref_query_input, ref_network_input));
+            }
+          }
+        }
+    }
+
+    /*!
+    * \brief Link the query ouput terms to the mapped network outputs
+    */
+    void MapOutputs() {
+      for (const auto &q : query_output) {
+        if (CheckNull(q.first)) {
+          null_outputs.push_back(q.second);
+        } else {
+        for (auto &mapped_network : query_network_maps) {
+          const auto network_output_vars = mapped_network.MLP->GetOutputVars();
+          auto loc = std::find(network_output_vars.begin(), network_output_vars.end(), q.first);
+          if (loc != network_output_vars.end()) {
+            const auto iOutput = distance(network_output_vars.begin(), loc);
+            const auto ref_query_output = q.second;
+            const auto ref_network_output = mapped_network.MLP->OutputLayer(iOutput);
+            mapped_network.output_map.push_back(std::make_pair(ref_query_output, ref_network_output));          
+          }
+          }
+        }
+      }
+    }
+
+    /*!
+    * \brief Map the query Jacobian terms to the Jaobians of the mapped networks
+    */
+    void MapJacobians() {
+      for (auto &mapped_network : query_network_maps) {
+        const auto network_output_vars = mapped_network.MLP->GetOutputVars();
+        const auto network_input_vars = mapped_network.MLP->GetInputVars();
+        for (const auto &q : query_Jacobian) {
+          const auto ref_output_Jacobian = q.second;
+          const auto varname_enumerator = q.first.first;
+          const auto varname_demominator = q.first.second;
+          auto loc_enumerator = std::find(network_output_vars.begin(), network_output_vars.end(), varname_enumerator);
+          if (loc_enumerator != network_output_vars.end()) {
+            const auto iOutput = distance(network_output_vars.begin(), loc_enumerator);
+            auto loc_demoninator = std::find(network_input_vars.begin(), network_input_vars.end(), varname_demominator);
+            if (loc_demoninator != network_input_vars.end()) {
+              const auto iInput = distance(network_input_vars.begin(), loc_demoninator);
+              mapped_network.output_map.push_back(std::make_pair(ref_output_Jacobian, mapped_network.MLP->Jacobian(iOutput, iInput)));
+              mapped_network.evaluate_Jacobian=true;
+            }
+          }
+        }
+      }
+    }
+
+    /*!
+    * \brief Map the query Hessian terms to the Hessians of the mapped networks
+    */
+    void MapHessians() {
+      for (auto &mapped_network : query_network_maps) {
+        const auto network_output_vars = mapped_network.MLP->GetOutputVars(), 
+                   network_input_vars = mapped_network.MLP->GetInputVars();
+        for (const auto &q : query_Hessian) {
+          const std::string varname_enumerator = q.first.first,
+                            varname_demominator_1 = q.first.second.first, 
+                            varname_demominator_2 = q.first.second.second;
+          const auto ref_output_Hessian = q.second;
+
+          auto loc_enumerator = std::find(network_output_vars.begin(), network_output_vars.end(), varname_enumerator);
+          if (loc_enumerator != network_output_vars.end()) {
+            const auto iOutput = std::distance(network_output_vars.begin(), loc_enumerator);
+            auto loc_demoninator_1 = std::find(network_input_vars.begin(), network_input_vars.end(), varname_demominator_1);
+            if (loc_demoninator_1 != network_input_vars.end()) {
+              const auto iInput = std::distance(network_input_vars.begin(), loc_demoninator_1);
+              auto loc_denominator_2 = std::find(network_input_vars.begin(), network_input_vars.end(), varname_demominator_2);
+              if (loc_denominator_2 != network_input_vars.end()) {
+                const auto jInput = std::distance(network_input_vars.begin(), loc_denominator_2);
+                const auto ref_network_Hessian = mapped_network.MLP->Hessian(iOutput, iInput, jInput);
+                mapped_network.output_map.push_back(std::make_pair(ref_output_Hessian, ref_network_Hessian));
+                mapped_network.evaluate_Hessian=true;
+                mapped_network.evaluate_Jacobian=true;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    public:
+    CIOMap()=default;
+
+    CIOMap(const std::vector<std::string> &varnames_in, const std::vector<std::string> &varnames_out) {
+      SetQueryInput(varnames_in);
+      SetQueryOutput(varnames_out);
+    }
+    
+    const std::vector<IOMap_Network> GetNetworksInQuery() const {return query_network_maps;}
+
+    /*!
+    * \brief Define query input variables
+    * \param[in] varnames - vector with input names.
+    */
+    void SetQueryInput(const std::vector<std::string> &varnames) {
+      query_input.clear();
+      for (auto var : varnames)
+        query_input.push_back(std::make_pair(var, nullptr));
+    }
+
+    /*!
+    * \brief Define query output variables
+    * \param[in] varnames - vectory with output names.
+    */
+    void SetQueryOutput(const std::vector<std::string> &varnames) {
+      query_output.clear();
+      query_output_vals.resize(varnames.size());
+      for (auto iOutput=0u; iOutput<varnames.size(); iOutput++)
+        query_output.push_back(std::make_pair(varnames[iOutput], &query_output_vals[iOutput]));
+    }
+    
+    /*!
+    * \brief Get outputs for query.
+    */
+    std::vector<mlpdouble> GetQueryOutput() const {return query_output_vals;}
+
+    /*!
+    * \brief Add input variable to query.
+    * \param[in] varname - query input variable name.
+    * \param[in] ref_input - pointer to query input variable.
+    */
+    void AddQueryInput(const std::string varname, mlpdouble* ref_input=nullptr) {
+      query_input.push_back(std::make_pair(varname, ref_input));
+    }
+    
+    /*!
+    * \brief Add output variable to query.
+    * \param[in] varname - query output variable name.
+    * \param[in] ref_output - pointer to query output variable.
+    */
+    void AddQueryOutput(const std::string varname, mlpdouble* ref_output=nullptr) {
+      query_output.push_back(std::make_pair(varname, ref_output));
+    }
+
+    /*!
+    * \brief Add Jacobian to query.
+    * \param[in] varname_output - output variable for which to calculate Jacobian.
+    * \param[in] varname_input - input variable for which to calculate Jacobian.
+    * \param[in] ref_output - pointer to Jacobian output.
+    */
+    void AddQueryJacobian(const std::string varname_output, const std::string varname_input, mlpdouble*ref_output) {
+      query_Jacobian.push_back(std::make_pair(std::make_pair(varname_output, varname_input),ref_output));
+    }
+
+    /*!
+    * \brief Add Hessian to query.
+    * \param[in] varname_output - output variable for which to calculate Hessian.
+    * \param[in] varname_input_1 - first input variable for which to calculate Hessian.
+    * \param[in] varname_input_2 - second input variable for which to calculate Hessian.
+    * \param[in] ref_output - pointer to Hessian output.
+    */
+    void AddQueryHessian(const std::string varname_output, const std::string varname_input_1, const std::string varname_input_2, mlpdouble*ref_output) {
+      query_Hessian.push_back(std::make_pair(std::make_pair(varname_output, std::make_pair(varname_input_1, varname_input_2)),ref_output));
+    }
+
+
+    /*!
+    * \brief Identify networks with compatible input and output variables for query.
+    * \param[in] networks_to_check - vector with pointers to network pointers. 
+    */
+    void FindNetworksForQuery(const std::vector<CNeuralNetwork*> &networks_to_check) {
+        for (auto network_to_check : networks_to_check) {
+
+          /* Check if network inputs are unique. */
+          if (!CheckUniqueInputs(network_to_check)) {
+            std::string msg = "Network has duplicate inputs: ";
+            for (const auto & var : network_to_check->GetInputVars()) msg += (var + ", ");
+            ErrorMessage(msg, "CIOMap:FindNetworksForQuery");
+            return;
+          }
+          /* Compare network input and output variables and query variables. */
+          if (CheckNetworkVariables(network_to_check)){
+              IOMap_Network mapped_network;
+              mapped_network.MLP = network_to_check;
+              query_network_maps.push_back(mapped_network);
+          }
+        }
+        /* Throw exception if no suitable networks could be found for query. */
+        if (query_network_maps.empty()) {
+          ErrorMessage("Not all queries are present in the network inputs", "CIOMap:FindNetworksForQuery");
+        }
+        if (!CheckUseOfOutputs()) {
+          ErrorMessage("Not all queries are present in the network outputs", "CIOMap:FindNetworksForQuery");
+        }
+
+        /* Map network inputs and outputs to query inputs and outputs. */
+        MapInputs();
+        MapOutputs();
+        MapJacobians();
+        MapHessians();
+    }
+
+    /*!
+    * \brief Set the input and evaluate the output of the mapped networks.
+    */
+    bool operator()() const 
+    {
+      bool within_bounds{false};
+      for (const auto &mapped_network : query_network_maps) {
+        SetNetworkInputs(mapped_network);
+        if (NetworkInference(mapped_network)) within_bounds=true;
+      }
+      SetNullOutputs();
+      return within_bounds;
+    };
+
+    /*!
+    * \brief Set the input and evaluate the output of the mapped networks.
+    * \param[in] vals_input - query input values.
+    * \param[in] refs_output - pointers to query output.
+    */
+    bool operator()(const std::vector<mlpdouble> &vals_input,const std::vector<mlpdouble*> &refs_output) const 
+    {
+      if (refs_output.size() != query_output_vals.size()){
+        ErrorMessage("Number of outputs in query differs from number of requested outputs.", "CIOMap:operator()");
+      }
+      bool within_bounds{false};
+      for (const auto &mapped_network : query_network_maps) {
+        SetNetworkInputs(mapped_network, vals_input);
+        if (NetworkInference(mapped_network)) within_bounds=true;
+      }
+      SetNullOutputs();
+
+      for (auto iOutput=0u; iOutput<query_output_vals.size(); iOutput++)
+        *refs_output[iOutput] = query_output_vals[iOutput];
+      return within_bounds;
+    };
+
+    /*!
+    * \brief Check whether all query outputs are present in the loaded network outputs.
+    * \returns whether all query outputs are included
+    */
+    bool CheckUseOfOutputs() const {
+        bool found_all_query_vars {true};
+        for (auto &q : query_output) {
+          bool found_var{false};
+          if (CheckNull(q.first)) {
+            found_var = true;
+          }
+          for (const auto &mapped_network : query_network_maps) {
+            const auto vars_network_out = mapped_network.MLP->GetOutputVars();
+            auto loc = std::find(vars_network_out.begin(), vars_network_out.end(), q.first);
+            if (loc != vars_network_out.end())
+              found_var = true;
+          }
+          if (!found_var){
+              std::cout << "Warning! " << q.first << " is not present in the outputs of any of the loaded networks" << std::endl;
+              found_all_query_vars = false;
+          }
+        }
+        return found_all_query_vars;
+    }
+
+    /*!
+    * \brief Display information about the mapped networks in the terminal.
+    */
+    void DisplayQueryNetworks() const {
+      for (const auto &mapped_network : query_network_maps) {
+          mapped_network.MLP->DisplayNetwork();
+          std::cout << std::endl;
+      }
+    }
+
+    /*!
+    * \brief Return the mean values of the input scaling parameters of the query networks.
+    * \param[in] varname - name of the input variable for which to calculate the scaling parameters.
+    * \returns - pair of values used for linear scaling. 
+    */
+    std::pair<mlpdouble, mlpdouble> GetInputNorm(const std::string varname) {
+      mlpdouble val_limit_1{0},val_limit_2{0};
+      for (const auto &mapped_network : query_network_maps) {
+        auto network_input_names = mapped_network.MLP->GetInputVars();
+        auto loc = std::find(network_input_names.begin(), network_input_names.end(), varname);
+        size_t iInput = std::distance(network_input_names.begin(), loc);
+        auto input_norm = mapped_network.MLP->GetInputNorm(iInput);
+        val_limit_1 += input_norm.first;
+        val_limit_2 += input_norm.second;
+      }
+      val_limit_1 /= query_network_maps.size();
+      val_limit_2 /= query_network_maps.size();
+      return std::make_pair(val_limit_1, val_limit_2);
+    }
 };
 } // namespace MLPToolbox
+
+
