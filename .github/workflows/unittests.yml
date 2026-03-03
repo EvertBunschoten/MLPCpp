@@ -5,7 +5,7 @@ on:
     branches:
       - 'develop'
       - 'main'
-      - 'feature_cicid'
+      - 'feature_cicd'
   pull_request:
     branches:
       - 'develop'
