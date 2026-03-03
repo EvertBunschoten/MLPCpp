@@ -14,3 +14,4 @@
 - [ ] I am submitting my contribution to the develop branch.
 - [ ] The derivatives calculated in the test case according to finite-differences and the network output match.
 - [ ] I have sufficiently commented my changes.
+- [ ] My code does not generate any compiler warnings when compiling ```main.cpp``` with the ```-Wall``` flag.
