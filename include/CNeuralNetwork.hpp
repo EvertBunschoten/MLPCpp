@@ -769,7 +769,7 @@ namespace MLPToolbox {
         */
         std::vector<mlpdouble> GetWeightsBiases() const {
             std::vector<mlpdouble> flat_weights;
-            for (auto iLayer=1; iLayer<n_layers; iLayer++) {
+            for (size_t iLayer=1; iLayer<n_layers; iLayer++) {
                 auto n_prev = NN[iLayer-1];
                 auto n_cur = NN[iLayer];
                 for (auto jNode=0u; jNode< n_prev; jNode++) {
@@ -791,7 +791,7 @@ namespace MLPToolbox {
         void SetWeightsBiases(const std::vector<mlpdouble>& flat_weights) const {
             size_t k{0};
             
-            for (auto iLayer=1; iLayer<n_layers; iLayer++) {
+            for (size_t iLayer=1; iLayer<n_layers; iLayer++) {
                 auto n_prev = NN[iLayer-1];
                 auto n_cur = NN[iLayer];
                 for (auto jNode=0u; jNode< n_prev; jNode++) {
