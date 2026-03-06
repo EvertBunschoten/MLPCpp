@@ -2,7 +2,7 @@
 * \file ScalerFunctions.hpp
 * \brief Functions used to scale network input and output.
 * \author E.C.Bunschoten
-* \version 2.0.0
+* \version 2.0.1
 *
 * MLPCpp Project Website: https://github.com/EvertBunschoten/MLPCpp
 *

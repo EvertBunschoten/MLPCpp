@@ -2,7 +2,7 @@
 * \file CNeuralNetwork.hpp
 * \brief Declaration of the CNeuralNetwork class.
 * \author E.C.Bunschoten
-* \version 2.0.0
+* \version 2.0.1
 *
 * MLPCpp Project Website: https://github.com/EvertBunschoten/MLPCpp
 *
