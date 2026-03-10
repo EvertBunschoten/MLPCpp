@@ -195,6 +195,7 @@ public:
       }
 
       /* Read MLP output variable names */
+      
       if (line.compare("[output names]") == 0) {
         found_output_names = true;
         auto n_outputs = n_neurons[n_neurons.size() - 1];
