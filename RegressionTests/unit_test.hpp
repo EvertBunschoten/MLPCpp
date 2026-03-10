@@ -38,6 +38,14 @@ class InputOutputMapping : public UnitTest {
     virtual bool RunTest();
 };
 
+class ScalerTests : public UnitTest {
+    private:
+    bool Consistency();
+    public:
+    ScalerTests() : UnitTest("Scaler functions") {};
+    virtual bool RunTest();
+};
+
 static std::vector<double> RandomInputs(size_t n_inp) {
     std::random_device rd;  // Will be used to obtain a seed for the random number engine
     std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
@@ -73,11 +81,17 @@ static MLPToolbox::CNeuralNetwork* CreateRandomNetwork() {
     mlp->SetOutputName(0, "a");
 
     std::vector<std::string> activation_function_options = {"elu","relu","tanh","swish","sigmoid", "gelu", "selu"};
+    std::vector<std::string> scaler_functions = {"minmax", "robust", "standard"};
     std::string phi = activation_function_options[rand() % (activation_function_options.size())];
-
+    std::string inp_scaler = scaler_functions[rand() % scaler_functions.size()];
+    std::string outp_scaler = scaler_functions[rand() % scaler_functions.size()];
+    
     mlp->SetActivationFunction(phi);
     mlp->SetActivationFunction(0, "linear");
     mlp->SetActivationFunction(NN.size()-1, "linear");
+    mlp->SetInputRegularization(inp_scaler);
+    mlp->SetOutputRegularization(inp_scaler);
+    
     mlp->RandomWeights();
     return mlp;
 }
