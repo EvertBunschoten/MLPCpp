@@ -326,11 +326,14 @@ namespace MLPToolbox {
                 output_layer = layer_outputs[n_hidden_layers];
                 SetInputRegularization(copy_network.input_reg_method);
                 std::copy(copy_network.input_names.begin(), copy_network.input_names.end(), input_names.begin());
-                std::copy(copy_network.input_norm.begin(), copy_network.input_norm.end(), input_norm.begin());
-                
+                for (auto iInput=0u; iInput<n_inputs; iInput++){
+                    SetInputNorm(iInput, copy_network.GetInputNorm(iInput).first, copy_network.GetInputNorm(iInput).second);
+                }
                 SetOutputRegularization(copy_network.output_reg_method);
                 std::copy(copy_network.output_names.begin(), copy_network.output_names.end(), output_names.begin());
-                std::copy(copy_network.output_norm.begin(), copy_network.output_norm.end(), output_norm.begin());
+                for (auto iOutput=0u; iOutput<n_outputs; iOutput++){
+                    SetOutputNorm(iOutput, copy_network.GetOutputNorm(iOutput).first, copy_network.GetOutputNorm(iOutput).second);
+                }
             }
         }
         
