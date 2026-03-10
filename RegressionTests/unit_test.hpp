@@ -90,8 +90,10 @@ static MLPToolbox::CNeuralNetwork* CreateRandomNetwork() {
     mlp->SetActivationFunction(0, "linear");
     mlp->SetActivationFunction(NN.size()-1, "linear");
     mlp->SetInputRegularization(inp_scaler);
-    mlp->SetOutputRegularization(inp_scaler);
-    
+    mlp->SetOutputRegularization(outp_scaler);
+    for (auto iInput=0u; iInput < 3; iInput++)
+        mlp->SetInputNorm(iInput, dis(gen)-2.0, dis(gen)+1.0);
+    mlp->SetOutputNorm(0, dis(gen)-2.0, dis(gen)+1.0);
     mlp->RandomWeights();
     return mlp;
 }
