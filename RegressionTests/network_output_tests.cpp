@@ -7,10 +7,6 @@
 
 bool OutputCorrectness::CopyConstructorTest() {
     MLPToolbox::CNeuralNetwork * mlp = CreateRandomNetwork();
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<> dis(0.0, 1.0);
     
     std::vector<double> network_inputs = RandomInputs(mlp->GetnInputs());
     mlp->Predict(network_inputs);
@@ -19,9 +15,9 @@ bool OutputCorrectness::CopyConstructorTest() {
 
     MLPToolbox::CNeuralNetwork mlp_copy = MLPToolbox::CNeuralNetwork(*mlp);
     mlp_copy.Predict(network_inputs);
-
     
     double network_output_copy = mlp_copy.GetOutput(0);
+
     delete mlp;
     bool passed = (network_output_ref == network_output_copy);
 

@@ -39,12 +39,19 @@ bool InputOutputMapping::DifferentInputsDifferentOutputs() {
     mlp_collection.PairVariableswithMLPs(query_2);
     
     /* Evaluate the output of the two networks */
-    val_in_1 = 0.4;
-    val_in_2 = 0.7;
-    val_in_3 = 0.2;
-    mlp_collection.Predict(query_1);
-    mlp_collection.Predict(query_2);
-
+    std::random_device rd;  
+    std::mt19937 gen(rd()); 
+    std::uniform_real_distribution<> dis(-1.0, 1.0);
+    bool inside{false};
+    /* Only compare output when input are within network input range */
+    while (!inside) {
+        val_in_1 = dis(gen);
+        val_in_2 = dis(gen);
+        val_in_3 = dis(gen);
+        bool inside_1 = mlp_collection.Predict(query_1);
+        bool inside_2 = mlp_collection.Predict(query_2);
+        inside = (inside_1 && inside_2);
+    }  
     bool passed_test = (val_out_1 == val_out_2);
 
     delete mlp_1;
@@ -86,13 +93,19 @@ bool InputOutputMapping::SameInputsDifferentOutputs() {
     mlp_collection.PairVariableswithMLPs(query);
     
     /* Evaluate the output of the two networks */
-    val_in_1 = 0.4;
-    val_in_2 = 0.7;
-    val_in_3 = 0.2;
-    mlp_collection.Predict(query);
-
+    std::random_device rd;
+    std::mt19937 gen(rd()); 
+    std::uniform_real_distribution<> dis(-1.0, 1.0);
+    bool inside{false};
+    /* Only compare output when input are within network input range */
+    while (!inside) {
+        val_in_1 = dis(gen);
+        val_in_2 = dis(gen);
+        val_in_3 = dis(gen);
+        inside = mlp_collection.Predict(query);
+    }  
     bool passed_test = (val_out_1 == val_out_2);
-
+    
     delete mlp_1;
     delete mlp_2;
     return passed_test;
