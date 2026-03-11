@@ -2,7 +2,7 @@
 * \file ActivationFunctions.hpp
 * \brief Activation functions supported by MLPCpp
 * \author E.C.Bunschoten
-* \version 2.0.1
+* \version 2.1.0
 *
 * MLPCpp Project Website: https://github.com/EvertBunschoten/MLPCpp
 *
