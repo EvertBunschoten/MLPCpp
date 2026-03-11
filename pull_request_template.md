@@ -12,6 +12,6 @@
 *Put an X by all that apply. You can fill this out after submitting the PR. If you have any questions, don't hesitate to ask! We want to help. These are a guide for you to know what the reviewers will be looking for in your contribution.*
 
 - [ ] I am submitting my contribution to the develop branch.
-- [ ] The derivatives calculated in the test case according to finite-differences and the network output match.
+- [ ] I have added a unit/regression test, if applicable.
 - [ ] I have sufficiently commented my changes.
 - [ ] My code does not generate any compiler warnings when compiling ```main.cpp``` with the ```-Wall``` flag.
