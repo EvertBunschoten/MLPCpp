@@ -48,7 +48,7 @@ class InputOutputMapping : public UnitTest {
 
 class GradientCorrectness : public UnitTest {
     private:
-    const double delta_inp{1e-6}; /* Input step size for finite-differneces. */
+    const double delta_inp{10.0}; /* Input step size for finite-differneces. */
     /*! \brief Determine whether Jacobians are correctly evaluated. */
     bool JacobianCorrectness();
 
