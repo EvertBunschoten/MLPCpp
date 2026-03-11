@@ -5,17 +5,15 @@ bool InputOutputMapping::DifferentInputsDifferentOutputs() {
     /*! \brief Different queries with the same network should return the same values. */
 
     /* Create two identical networks with different input and output variable names. */
-    MLPToolbox::CNeuralNetwork * mlp_1 = CreateRandomNetwork();
-    mlp_1->SetInputName(0, "a");
-    mlp_1->SetInputName(1, "b");
-    mlp_1->SetInputName(2, "c");
-    mlp_1->SetOutputName(0, "x");
+    std::vector<std::string> input_names_1 = {"a","b","c"}, output_names_1 = {"x", "z"};
+    MLPToolbox::CNeuralNetwork * mlp_1 = CreateRandomNetwork(input_names_1, output_names_1);
 
     MLPToolbox::CNeuralNetwork * mlp_2 = new MLPToolbox::CNeuralNetwork(*mlp_1);
     mlp_2->SetInputName(0, "d");
     mlp_2->SetInputName(1, "e");
     mlp_2->SetInputName(2, "f");
     mlp_2->SetOutputName(0, "y");
+    mlp_2->SetOutputName(1, "q");
 
     /* Add networks to collection */
     MLPToolbox::CLookUp_ANN mlp_collection;
@@ -53,7 +51,21 @@ bool InputOutputMapping::DifferentInputsDifferentOutputs() {
         inside = (inside_1 && inside_2);
     }  
     bool passed_test = (val_out_1 == val_out_2);
-
+    summary << "Network inputs: " << std::endl;
+    summary << "1 : " << val_in_1 << std::endl;
+    summary << "2 : " << val_in_2 << std::endl;
+    summary << "3 : " << val_in_3 << std::endl;
+    summary << "Network outputs: " << std::endl;
+    summary << "Network 1: " << std::endl;
+    summary << mlp_1->GetOutputName(0) << " : " << mlp_1->GetOutput(0) << std::endl;
+    summary << mlp_1->GetOutputName(1) << " : " << mlp_1->GetOutput(1) << std::endl;
+    summary << "Network 2: " << std::endl;
+    summary << mlp_2->GetOutputName(0) << " : " << mlp_2->GetOutput(0) << std::endl;
+    summary << mlp_2->GetOutputName(1) << " : " << mlp_2->GetOutput(1) << std::endl;
+    summary << "Target variables:" << std::endl;
+    summary << val_out_1 << std::endl;
+    summary << val_out_2 << std::endl;
+    
     delete mlp_1;
     delete mlp_2;
     return passed_test;
@@ -63,18 +75,16 @@ bool InputOutputMapping::DifferentInputsDifferentOutputs() {
 bool InputOutputMapping::SameInputsDifferentOutputs() {
     /*! \brief Different queries with the same network should return the same values. */
 
-    /* Create two identical networks with different input and output variable names. */
-    MLPToolbox::CNeuralNetwork * mlp_1 = CreateRandomNetwork();
-    mlp_1->SetInputName(0, "a");
-    mlp_1->SetInputName(1, "b");
-    mlp_1->SetInputName(2, "c");
-    mlp_1->SetOutputName(0, "x");
+    /* Create two identical networks with different output variable names. */
+    const std::vector<std::string> network_inputs = {"a", "b", "c"};
+    const std::vector<std::string> output_names_1 = {"x", "z"};
+    const std::vector<std::string> output_names_2 = {"y", "q"};
+    
+    MLPToolbox::CNeuralNetwork * mlp_1 = CreateRandomNetwork(network_inputs, output_names_1);
 
     MLPToolbox::CNeuralNetwork * mlp_2 = new MLPToolbox::CNeuralNetwork(*mlp_1);
-    mlp_2->SetInputName(0, "a");
-    mlp_2->SetInputName(1, "b");
-    mlp_2->SetInputName(2, "c");
-    mlp_2->SetOutputName(0, "y");
+    for (auto iOutput=0u; iOutput<mlp_2->GetnOutputs();iOutput++)
+        mlp_2->SetOutputName(iOutput, output_names_2[iOutput]);
 
     /* Add networks to collection */
     MLPToolbox::CLookUp_ANN mlp_collection;
@@ -84,11 +94,11 @@ bool InputOutputMapping::SameInputsDifferentOutputs() {
     /* Define two queries for the two sets of inputs-outputs that refer to the same variables. */
     double val_in_1, val_in_2, val_in_3, val_out_1, val_out_2;
     MLPToolbox::CIOMap query;
-    query.AddQueryInput("a", &val_in_1);
-    query.AddQueryInput("b", &val_in_2);
-    query.AddQueryInput("c", &val_in_3);
-    query.AddQueryOutput("x", &val_out_1);
-    query.AddQueryOutput("y", &val_out_2);
+    query.AddQueryInput(network_inputs[0], &val_in_1);
+    query.AddQueryInput(network_inputs[1], &val_in_2);
+    query.AddQueryInput(network_inputs[2], &val_in_3);
+    query.AddQueryOutput(output_names_1[0], &val_out_1);
+    query.AddQueryOutput(output_names_2[0], &val_out_2);
 
     mlp_collection.PairVariableswithMLPs(query);
     
@@ -105,6 +115,20 @@ bool InputOutputMapping::SameInputsDifferentOutputs() {
         inside = mlp_collection.Predict(query);
     }  
     bool passed_test = (val_out_1 == val_out_2);
+    summary << "Network inputs: " << std::endl;
+    summary << "1 : " << val_in_1 << std::endl;
+    summary << "2 : " << val_in_2 << std::endl;
+    summary << "3 : " << val_in_3 << std::endl;
+    summary << "Network outputs: " << std::endl;
+    summary << "Network 1: " << std::endl;
+    summary << mlp_1->GetOutputName(0) << " : " << mlp_1->GetOutput(0) << std::endl;
+    summary << mlp_1->GetOutputName(1) << " : " << mlp_1->GetOutput(1) << std::endl;
+    summary << "Network 2: " << std::endl;
+    summary << mlp_2->GetOutputName(0) << " : " << mlp_2->GetOutput(0) << std::endl;
+    summary << mlp_2->GetOutputName(1) << " : " << mlp_2->GetOutput(1) << std::endl;
+    summary << "Target variables:" << std::endl;
+    summary << val_out_1 << std::endl;
+    summary << val_out_2 << std::endl;
     
     delete mlp_1;
     delete mlp_2;

@@ -8,4 +8,5 @@ PRIVATE
 unit_tests.cpp 
 network_output_tests.cpp
 input_output_mapping.cpp
+gradient_correctness.cpp
 )
