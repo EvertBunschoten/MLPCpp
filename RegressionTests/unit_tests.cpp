@@ -7,6 +7,7 @@ int main() {
     std::vector<UnitTest*> unit_tests;
     unit_tests.push_back(new OutputCorrectness());
     unit_tests.push_back(new InputOutputMapping());
+    unit_tests.push_back(new GradientCorrectness());
 
     std::vector<bool> passed_tests;
     passed_tests.resize(unit_tests.size(), false);

@@ -5,9 +5,9 @@
 #pragma once
 class UnitTest {
     protected:
-    std::string tag;
-    bool passed{false};
-    std::stringstream summary;
+    std::string tag;    /*! \brief Display tag */
+    bool passed{false}; /*! \brief Test is passed */
+    std::stringstream summary;  /*! \brief Message displayed when failed */
     public:
     std::string GetTag() const {return tag;}
     bool did_pass() const {return passed;}
@@ -21,8 +21,13 @@ class UnitTest {
 
 class OutputCorrectness : public UnitTest {
     private:
+    /*! \brief Check whether copy constructor works correctly */
     bool CopyConstructorTest();
+
+    /*! \brief Network read from a written file should be the same */
     bool FileWriterReaderTest();
+
+    /*! \brief Network with same weights and biases should have the same output */
     bool WeightsBiasesTest();
     public:
     OutputCorrectness() : UnitTest("Output correctness") {};
@@ -31,22 +36,35 @@ class OutputCorrectness : public UnitTest {
 
 class InputOutputMapping : public UnitTest {
     private: 
+    /*! \brief Link networks with different inputs and different outputs to query. */
     bool DifferentInputsDifferentOutputs();
+
+    /*! \brief Link networks with same input and different output to query.*/
     bool SameInputsDifferentOutputs();
     public: 
     InputOutputMapping() : UnitTest("Input-output mapping") {};
     virtual bool RunTest();
 };
 
-class ScalerTests : public UnitTest {
+class GradientCorrectness : public UnitTest {
     private:
-    bool Consistency();
+    const double delta_inp{1e-6}; /* Input step size for finite-differneces. */
+    /*! \brief Determine whether Jacobians are correctly evaluated. */
+    bool JacobianCorrectness();
+
+    /*! \brief Determine whether Hessians are correctly evaluated. */
+    bool HessianCorrectness();
     public:
-    ScalerTests() : UnitTest("Scaler functions") {};
+    GradientCorrectness() : UnitTest("Gradient correctness") {};
     virtual bool RunTest();
 };
 
-static std::vector<double> RandomInputs(size_t n_inp) {
+/*! 
+* \brief Create a vector with random values for the network input. 
+* \param[in] n_inp - number of network input nodes.
+* \returns vector with randomized network inputs.
+*/
+static std::vector<double> RandomInputs(const size_t n_inp) {
     std::random_device rd;  // Will be used to obtain a seed for the random number engine
     std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
     std::uniform_real_distribution<> dis(0.0, 1.0);
@@ -57,28 +75,38 @@ static std::vector<double> RandomInputs(size_t n_inp) {
     return network_inputs;
 }
 
-static MLPToolbox::CNeuralNetwork* CreateRandomNetwork() {
-     std::random_device rd;  // Will be used to obtain a seed for the random number engine
+/*!
+* \brief Create a multi-layer perceptron with a randomized architecture.
+* \param[in] input_names - vector with input variable names.
+* \param[out] output_names - vector with output variable names.
+* \returns pointer to CNeuralNetwork object.
+*/
+static MLPToolbox::CNeuralNetwork* CreateRandomNetwork(const std::vector<std::string> &input_names={"x","y","z"}, 
+                                                       const std::vector<std::string> &output_names={"a"}) {
+    std::random_device rd;  // Will be used to obtain a seed for the random number engine
     std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
     std::uniform_real_distribution<> dis(-1.0, 1.0);
     MLPToolbox::CNeuralNetwork*mlp = new MLPToolbox::CNeuralNetwork();
     
-    std::vector<std::string> input_names = {"x","y", "z"};
-    
-    size_t N_h_max{20}, N_h_min{5};
-    size_t n_hidden_layers = 1 + (rand() % (4)) ;
+    size_t n_inp = input_names.size(),
+           n_outp = output_names.size();
+
+    const size_t N_h_max{20}, N_h_min{5};
+    const size_t L_min{1}, L_max{4};
+
+    size_t n_hidden_layers = L_min + (rand() % (L_max));
     size_t N_h = N_h_min + (rand() % (N_h_max - N_h_min));
     std::vector<size_t> NN;
     NN.resize(n_hidden_layers+2);
     std::fill(NN.begin(), NN.end(), N_h);
-    NN[0] = 3;
-    NN[NN.size()-1] = 1;
+    NN[0] = n_inp;
+    NN[NN.size()-1] = n_outp;
     mlp = new MLPToolbox::CNeuralNetwork(NN);
     mlp->SetInputRegularization(ENUM_SCALING_FUNCTIONS::MINMAX);
     mlp->SetOutputRegularization(ENUM_SCALING_FUNCTIONS::MINMAX);
 
-    for (auto iInput=0u; iInput<input_names.size(); iInput++) mlp->SetInputName(iInput, input_names[iInput]);
-    mlp->SetOutputName(0, "a");
+    for (auto iInput=0u; iInput<n_inp; iInput++) mlp->SetInputName(iInput, input_names[iInput]);
+    for (auto iOutput=0u; iOutput<n_outp; iOutput++) mlp->SetOutputName(iOutput, output_names[iOutput]);
 
     std::vector<std::string> activation_function_options = {"elu","relu","tanh","swish","sigmoid", "gelu", "selu"};
     std::vector<std::string> scaler_functions = {"minmax", "robust", "standard"};
@@ -91,9 +119,10 @@ static MLPToolbox::CNeuralNetwork* CreateRandomNetwork() {
     mlp->SetActivationFunction(NN.size()-1, "linear");
     mlp->SetInputRegularization(inp_scaler);
     mlp->SetOutputRegularization(outp_scaler);
-    for (auto iInput=0u; iInput < 3; iInput++)
+    for (auto iInput=0u; iInput < n_inp; iInput++)
         mlp->SetInputNorm(iInput, dis(gen)-2.0, dis(gen)+1.0);
-    mlp->SetOutputNorm(0, dis(gen)-2.0, dis(gen)+1.0);
+    for (auto iOutput=0u; iOutput < n_outp; iOutput++)
+        mlp->SetOutputNorm(iOutput, dis(gen)-1.0, dis(gen)+1.0);
     mlp->RandomWeights();
     return mlp;
 }
