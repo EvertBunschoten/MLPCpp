@@ -103,7 +103,6 @@ int main() {
 
     /* Validate gradient computation */
     double delta_CV = 1e-5;
-    double val_output_c = val_y;
     double val_output_p, val_output_m;
     val_u += delta_CV;
     ANN_test.Predict(iomap_output_only);
@@ -113,7 +112,6 @@ int main() {
     ANN_test.Predict(iomap_output_only);
     val_output_m = val_y;
     double dy_du_fd = (val_output_p - val_output_m) / (2*delta_CV);
-    double d2y_du2_fd = (val_output_p - 2 * val_output_c + val_output_m) / (delta_CV*delta_CV);
     cout << scientific << val_dydu << "\t" << scientific << dy_du_fd << endl;
   }
   input_data_file.close();
