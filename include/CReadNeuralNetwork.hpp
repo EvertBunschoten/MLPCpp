@@ -195,6 +195,7 @@ public:
       }
 
       /* Read MLP output variable names */
+
       if (line.compare("[output names]") == 0) {
         found_output_names = true;
         auto n_outputs = n_neurons[n_neurons.size() - 1];
@@ -213,13 +214,13 @@ public:
 
       if (line.compare("[output regularization method]") == 0) {
         getline(file_stream, line);
-        std::istringstream input_norm_stream(line);
-        input_norm_stream >> word;
+        std::istringstream output_norm_stream(line);
+        output_norm_stream >> word;
         const auto it = scaling_map.find(word);
         if (it == scaling_map.end())
             ErrorMessage("Output scaler function not recognized (" + word + ")", "CReadNeuralNetwork:ReadMLPFile");
         else 
-          input_reg_method=it->second;
+          output_reg_method=it->second;
       }
 
       /* In case output normalization is applied, read upper and lower output

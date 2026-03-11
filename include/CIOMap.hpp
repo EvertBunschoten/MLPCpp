@@ -118,8 +118,8 @@ class CIOMap {
         const std::vector<std::string> network_outputs = network_to_check->GetOutputVars();
         bool network_compatible{true};
         for (auto q_in : query_input) {
-            auto a = find(network_inputs.begin(), network_inputs.end(), q_in.first);
-            if (a == end(network_inputs)){
+            auto a = std::find(network_inputs.begin(), network_inputs.end(), q_in.first);
+            if (a == std::end(network_inputs)){
                 network_compatible = false;
             }
         }
