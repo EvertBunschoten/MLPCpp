@@ -41,6 +41,13 @@ class InputOutputMapping : public UnitTest {
 
     /*! \brief Link networks with same input and different output to query.*/
     bool SameInputsDifferentOutputs();
+
+    /*! \brief Link multiple networks with different inputs and outputs to the same query. */
+    bool DifferentInputsDifferentOutputs2();
+
+    /*! \brief Query containing null variables. */
+    bool NullOutputs();
+
     public: 
     InputOutputMapping() : UnitTest("Input-output mapping") {};
     virtual bool RunTest();
