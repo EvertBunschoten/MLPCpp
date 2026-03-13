@@ -61,6 +61,127 @@ class CIOMap {
     std::vector<mlpdouble> query_output_vals; /*! \brief Network outputs corresponding to query. */
     std::vector<mlpdouble*> null_outputs;     /*! \brief Pointers to outputs that should return zero. */
 
+    
+    /*!
+    * \brief Check whether query input or output variables are unique sets.
+    * \param[in] is_input - check query input or output variables.
+    */
+    void CheckUniqueQueryVars(const bool is_input=true) const {
+      std::vector<std::string> query_duplicates, query_vars_copy;
+      const auto query_vars = is_input ? query_input : query_output;
+      for (auto q : query_vars) {
+        if(!CheckNull(q.first)) query_vars_copy.push_back(q.first);
+      }
+      std::sort(query_vars_copy.begin(), query_vars_copy.end());
+      const auto duplicate = std::adjacent_find(query_vars_copy.begin(), query_vars_copy.end());
+      if (duplicate != query_vars_copy.end()) {
+        std::string msg = "Query contains duplicate ";
+        msg += is_input ? "inputs:":"outputs:";
+        msg += *duplicate;
+        ErrorMessage(msg, "CIOMap::CheckQueryVars");
+      }
+    }
+
+    /*!
+    * \brief Check if there are shared variables between query input and output variables.
+    */
+    void CheckSharedVars() const {
+      std::vector<std::string> query_input_vars, query_output_vars;
+      for (auto q_in : query_input) query_input_vars.push_back(q_in.first);
+      for (auto q_out : query_output) query_output_vars.push_back(q_out.first);
+
+      std::vector<std::string> shared_vars;
+      shared_vars.clear();
+      for (auto q : query_output_vars) {
+        auto f = std::find(query_input_vars.begin(), query_input_vars.end(), q);
+        if (f != query_input_vars.end())
+          shared_vars.push_back(*f);
+      }
+      if (!shared_vars.empty()) {
+        std::string msg = "Query has shared variables between input and output: ";
+        for (auto q : shared_vars) msg += (q + " ");
+        ErrorMessage(msg, "CIOMap::CheckSharedVars");
+      }
+      
+    }
+
+    /*!
+    * \brief Check if Jacobian variables are included in the query variables.
+    */
+    void CheckJacobianQuery() const {
+
+      /* Gather unique Jacobian enumerator and denominator variables from the query. */
+      std::vector<std::string> query_Jacobian_y_vars={}, query_Jacobian_x_vars={};
+      for (const auto q_in : query_Jacobian){
+        query_Jacobian_y_vars.push_back(q_in.first.first);
+        query_Jacobian_x_vars.push_back(q_in.first.second);
+      }
+      auto unique_Jac_y_vars = std::set(query_Jacobian_y_vars.begin(), query_Jacobian_y_vars.end());
+      auto unique_Jac_x_vars = std::set(query_Jacobian_x_vars.begin(), query_Jacobian_x_vars.end());
+      
+      /* Check whether the unique Jacobian enumerator set contains the query output variable set. */
+      for (auto q_out : query_output) {
+        auto f_y = std::find(unique_Jac_y_vars.begin(), unique_Jac_y_vars.end(), q_out.first);
+        if (f_y != unique_Jac_y_vars.end()){
+          unique_Jac_y_vars.erase(f_y);
+        }
+      }
+      /* Check whether the unique Jacobian denominator set contains the query input variable set. */
+      for (auto q_in : query_input) {
+        auto f_x = std::find(unique_Jac_x_vars.begin(), unique_Jac_x_vars.end(), q_in.first);
+        if (f_x != unique_Jac_x_vars.end()) 
+          unique_Jac_x_vars.erase(f_x);
+      }
+
+      if (!unique_Jac_y_vars.empty() || !unique_Jac_x_vars.empty()) {
+        std::string msg = "Jacobian enumerator variables not included in query: ";
+        for (auto s : unique_Jac_y_vars) msg += (s + " ");
+        msg += "\n";
+        msg += "Jacobian denominator  variables not included in query: ";
+        for (auto s : unique_Jac_x_vars) msg += (s + " ");
+        ErrorMessage(msg, "CIOMap::CheckJacobianQuery");
+      }
+    }
+
+    /*!
+    * \brief Check if Jacobian variables are included in the query variables.
+    */
+    void CheckHessianQuery() const {
+
+      /* Gather unique Hessian enumerator and denominator variables from the query. */
+      std::vector<std::string> query_Hessian_y_vars={}, query_Hessian_x_vars={};
+      for (const auto q_in : query_Hessian){
+        query_Hessian_y_vars.push_back(q_in.first.first);
+        query_Hessian_x_vars.push_back(q_in.first.second.first);
+        query_Hessian_x_vars.push_back(q_in.first.second.second);
+      }
+      auto unique_Hes_y_vars = std::set(query_Hessian_y_vars.begin(), query_Hessian_y_vars.end());
+      auto unique_Hes_x_vars = std::set(query_Hessian_x_vars.begin(), query_Hessian_x_vars.end());
+
+      /* Check whether the unique Hessian enumerator set contains the query output variable set. */
+      for (auto q_out : query_output) {
+        auto f_y = std::find(unique_Hes_y_vars.begin(), unique_Hes_y_vars.end(), q_out.first);
+        if (f_y != unique_Hes_y_vars.end()){
+          unique_Hes_y_vars.erase(f_y);
+        }
+      }
+      /* Check whether the unique Hessian denominator set contains the query input variable set. */
+      for (auto q_in : query_input) {
+        auto f_x = std::find(unique_Hes_x_vars.begin(), unique_Hes_x_vars.end(), q_in.first);
+        if (f_x != unique_Hes_x_vars.end()) 
+          unique_Hes_x_vars.erase(f_x);
+      }
+
+      if (!unique_Hes_y_vars.empty() || !unique_Hes_x_vars.empty()) {
+        std::string msg = "Hessian enumerator variables not included in query: ";
+        for (auto s : unique_Hes_y_vars) msg += (s + " ");
+        msg += "\n";
+        msg += "Hessian denominator variables not included in query: ";
+        for (auto s : unique_Hes_x_vars) msg += (s + " ");
+        ErrorMessage(msg, "CIOMap::CheckHessianQuery");
+      }
+    }
+
     /*!
     * \brief Check whether look-up variable should return zero.
     * \param[in] variable_name_in - Query variable name to check.
@@ -259,6 +380,24 @@ class CIOMap {
       SetQueryOutput(varnames_out);
     }
     
+    /*!
+    * \brief Check compatibility of query variables.
+    */
+    void CompatibilityChecks() const {
+      /* Check if query inputs and outputs are unique sets. */
+      CheckUniqueQueryVars(true);
+      CheckUniqueQueryVars(false);  
+
+      /* Check if no variables are shared between query input and output. */
+      CheckSharedVars();
+
+      /* Check if Jacobian enumerator and denominator are in query output and input respectively. */
+      CheckJacobianQuery();
+      
+      /* Check if Hessian enumerator and denominator are in query output and input respectively. */
+      CheckHessianQuery();
+    }
+
     const std::vector<IOMap_Network> GetNetworksInQuery() const {return query_network_maps;}
 
     /*!
@@ -332,6 +471,7 @@ class CIOMap {
     * \param[in] networks_to_check - vector with pointers to network pointers. 
     */
     void FindNetworksForQuery(const std::vector<CNeuralNetwork*> &networks_to_check) {
+        CompatibilityChecks();
         query_network_maps.clear();
         for (auto network_to_check : networks_to_check) {
           /* Compare network input and output variables and query variables. */
