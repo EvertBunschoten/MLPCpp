@@ -358,8 +358,14 @@ class CIOMap {
               query_network_maps.push_back(mapped_network);
           }
         }
+        
+        bool null_in_query{false};
+        for (auto q : query_output) {
+          if (CheckNull(q.first)) null_in_query = true;
+        }
+        
         /* Throw exception if no suitable networks could be found for query. */
-        if (query_network_maps.empty()) {
+        if (query_network_maps.empty() && !null_in_query && query_output.size() > 0) {
           ErrorMessage("Not all queries are present in the network inputs", "CIOMap:FindNetworksForQuery");
         }
         if (!CheckUseOfOutputs()) {
@@ -378,10 +384,10 @@ class CIOMap {
     */
     bool operator()() const 
     {
-      bool within_bounds{false};
+      bool within_bounds{true};
       for (const auto &mapped_network : query_network_maps) {
         SetNetworkInputs(mapped_network);
-        if (NetworkInference(mapped_network)) within_bounds=true;
+        if (!NetworkInference(mapped_network)) within_bounds=false;
       }
       SetNullOutputs();
       return within_bounds;
