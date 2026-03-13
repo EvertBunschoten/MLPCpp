@@ -99,37 +99,27 @@ class CIOMap {
     }
 
     /*!
-    * \brief Check whether network inputs are unique.
-    * \param[in] network_to_check - pointer to network object.
-    */
-    bool CheckUniqueInputs(const CNeuralNetwork  *network_to_check) const {
-      auto network_inputs = network_to_check->GetInputVars();
-      std::sort(network_inputs.begin(),network_inputs.end());
-      return std::unique(network_inputs.begin(),network_inputs.end()) == network_inputs.end();
-    }
-
-    /*!
     * \brief Check whether the network inputs and output are in the query
     * \param[in] network_to_check - pointer to network object.
-    * \returns - if query inputs correspond to network inputs and if at least one query output is in the network output variables.
+    * \returns - if network input variables are in the query input and if at least one network output variable is in the query.
     */
     bool CheckNetworkVariables(const CNeuralNetwork  *network_to_check) {
-        const std::vector<std::string> network_inputs = network_to_check->GetInputVars();
+        std::vector<std::string> network_inputs = network_to_check->GetInputVars();
         const std::vector<std::string> network_outputs = network_to_check->GetOutputVars();
-        bool network_compatible{true};
+        bool network_compatible{false};
+        /* Check whether network all input variables are contained in query input. */
         for (auto q_in : query_input) {
             auto a = std::find(network_inputs.begin(), network_inputs.end(), q_in.first);
-            if (a == std::end(network_inputs)){
-                network_compatible = false;
-            }
+            if (a != std::end(network_inputs)) network_inputs.erase(a);
         }
+        if (network_inputs.empty()) network_compatible = true;
+
         if (network_compatible) {
+            /* Check if at least one network output is contained in the query output*/
             bool found_output{false};
             for (std::string var_out : network_outputs) {
                 auto loc = std::find_if(query_output.begin(), query_output.end(), [var_out](std::pair<std::string, mlpdouble*>q) {return q.first==var_out;});
-                if (loc != query_output.end()) {
-                    found_output = true;
-                }
+                if (loc != query_output.end()) found_output = true;
             }
             network_compatible = found_output;
         }
@@ -342,15 +332,8 @@ class CIOMap {
     * \param[in] networks_to_check - vector with pointers to network pointers. 
     */
     void FindNetworksForQuery(const std::vector<CNeuralNetwork*> &networks_to_check) {
+        query_network_maps.clear();
         for (auto network_to_check : networks_to_check) {
-
-          /* Check if network inputs are unique. */
-          if (!CheckUniqueInputs(network_to_check)) {
-            std::string msg = "Network has duplicate inputs: ";
-            for (const auto & var : network_to_check->GetInputVars()) msg += (var + ", ");
-            ErrorMessage(msg, "CIOMap:FindNetworksForQuery");
-            return;
-          }
           /* Compare network input and output variables and query variables. */
           if (CheckNetworkVariables(network_to_check)){
               IOMap_Network mapped_network;

@@ -51,6 +51,26 @@ private:
   std::vector<bool> internally_generated;      /*!< whether network is to be dereferenced in destructor. */
   std::vector<CNeuralNetwork*> NeuralNetworks; /*!< std::vector containing all loaded neural networks. */
 
+  /*!
+  * \brief Check whether network input and output variables are unique.
+  * \param[in] network_to_check - pointer to network object.
+  */
+  void CheckUniqueInputsOutputs(const CNeuralNetwork  *network_to_check) const {
+    auto network_inputs = network_to_check->GetInputVars();
+    std::sort(network_inputs.begin(),network_inputs.end());
+    bool unique_inputs = std::unique(network_inputs.begin(),network_inputs.end()) == network_inputs.end();
+
+    auto network_outputs = network_to_check->GetOutputVars();
+    std::sort(network_outputs.begin(),network_outputs.end());
+    bool unique_outputs = std::unique(network_outputs.begin(),network_outputs.end()) == network_outputs.end();
+    
+    if (!unique_outputs || !unique_inputs) {
+      std::cerr<<"Network contains duplicate input or output variables: " << std::endl;
+      network_to_check->DisplayNetwork(std::cerr);
+      ErrorMessage("Network input variables or output variables contain duplicates", "CLookUp_ANN::CheckUniqueInputsOutputs");
+    }
+  }
+
 public:
 
   CLookUp_ANN() = default;
@@ -65,6 +85,7 @@ public:
     /*--- Generate an MLP for every filename provided ---*/
     for (auto i_MLP = 0u; i_MLP < n_inputs; i_MLP++) {
       MLPToolbox::CNeuralNetwork * mlp = new MLPToolbox::CNeuralNetwork(input_filenames[i_MLP]);
+      CheckUniqueInputsOutputs(mlp);
       NeuralNetworks.push_back(mlp);
       internally_generated.push_back(true);
     }
@@ -80,6 +101,7 @@ public:
     internally_generated.resize(input_filenames.size());
     for (auto i_MLP=0u; i_MLP<input_filenames.size(); i_MLP++) {
       NeuralNetworks[i_MLP] = new MLPToolbox::CNeuralNetwork(input_filenames[i_MLP]);
+      CheckUniqueInputsOutputs(NeuralNetworks[i_MLP]);
       internally_generated[i_MLP] = true;
     }
   }
@@ -99,6 +121,7 @@ public:
   * \param[in] mlp - pointer to network object.
   */
   void AddNetwork(MLPToolbox::CNeuralNetwork * mlp) {
+    CheckUniqueInputsOutputs(mlp);
     NeuralNetworks.push_back(mlp);
     internally_generated.push_back(false);
   }
@@ -111,6 +134,7 @@ public:
     internally_generated.resize(copy_class.GetNANNs());
     for (auto i_MLP=0u; i_MLP<NeuralNetworks.size(); i_MLP++){
       NeuralNetworks[i_MLP] = new MLPToolbox::CNeuralNetwork(*copy_class.NeuralNetworks[i_MLP]);
+      CheckUniqueInputsOutputs(NeuralNetworks[i_MLP]);
       internally_generated[i_MLP] = true;
     }
   }
