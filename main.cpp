@@ -3,7 +3,7 @@
 * \brief Example script demonstrating the use of the MLPCpp library within C++
 code.
 * \author E.C.Bunschoten
-* \version 2.1.0
+* \version 2.1.1
 *
 * MLPCpp Project Website: https://github.com/EvertBunschoten/MLPCpp
 *

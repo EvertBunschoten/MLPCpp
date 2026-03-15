@@ -2,7 +2,7 @@
 * \file CLookUp_ANN.hpp
 * \brief Declaration of the main MLP evaluation class.
 * \author E.C.Bunschoten
-* \version 2.1.0
+* \version 2.1.1
 *
 * MLPCpp Project Website: https://github.com/EvertBunschoten/MLPCpp
 *
