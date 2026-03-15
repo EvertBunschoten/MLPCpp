@@ -112,7 +112,7 @@ class CIOMap {
 
       /* Gather unique Jacobian enumerator and denominator variables from the query. */
       std::vector<std::string> query_Jacobian_y_vars={}, query_Jacobian_x_vars={};
-      for (const auto q_in : query_Jacobian){
+      for (const auto &q_in : query_Jacobian){
         query_Jacobian_y_vars.push_back(q_in.first.first);
         query_Jacobian_x_vars.push_back(q_in.first.second);
       }
@@ -150,7 +150,7 @@ class CIOMap {
 
       /* Gather unique Hessian enumerator and denominator variables from the query. */
       std::vector<std::string> query_Hessian_y_vars={}, query_Hessian_x_vars={};
-      for (const auto q_in : query_Hessian){
+      for (const auto &q_in : query_Hessian){
         query_Hessian_y_vars.push_back(q_in.first.first);
         query_Hessian_x_vars.push_back(q_in.first.second.first);
         query_Hessian_x_vars.push_back(q_in.first.second.second);
