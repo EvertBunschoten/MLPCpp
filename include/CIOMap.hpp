@@ -3,7 +3,7 @@
 * \brief Input-output map class definition for the definition of MLP look-up
 operations.
 * \author E.C.Bunschoten
-* \version 2.0.0
+* \version 2.1.0
 *
 * MLPCpp Project Website: https://github.com/EvertBunschoten/MLPCpp
 *
@@ -61,6 +61,195 @@ class CIOMap {
     std::vector<mlpdouble> query_output_vals; /*! \brief Network outputs corresponding to query. */
     std::vector<mlpdouble*> null_outputs;     /*! \brief Pointers to outputs that should return zero. */
 
+    
+    /*!
+    * \brief Check whether query input or output variables are unique sets.
+    * \param[in] is_input - check query input or output variables.
+    */
+    void CheckUniqueQueryVars(const bool is_input=true) const {
+      std::vector<std::string> query_duplicates, query_vars_copy;
+      const auto query_vars = is_input ? query_input : query_output;
+      for (auto q : query_vars) {
+        if(!CheckNull(q.first)) query_vars_copy.push_back(q.first);
+      }
+      std::sort(query_vars_copy.begin(), query_vars_copy.end());
+      const auto duplicate = std::adjacent_find(query_vars_copy.begin(), query_vars_copy.end());
+      if (duplicate != query_vars_copy.end()) {
+        std::string msg = "Query contains duplicate ";
+        msg += is_input ? "inputs:":"outputs:";
+        msg += *duplicate;
+        ErrorMessage(msg, "CIOMap::CheckQueryVars");
+      }
+    }
+
+    /*!
+    * \brief Check if there are shared variables between query input and output variables.
+    */
+    void CheckSharedVars() const {
+      std::vector<std::string> query_input_vars, query_output_vars;
+      for (auto q_in : query_input) query_input_vars.push_back(q_in.first);
+      for (auto q_out : query_output) query_output_vars.push_back(q_out.first);
+
+      std::vector<std::string> shared_vars;
+      shared_vars.clear();
+      for (auto q : query_output_vars) {
+        auto f = std::find(query_input_vars.begin(), query_input_vars.end(), q);
+        if (f != query_input_vars.end())
+          shared_vars.push_back(*f);
+      }
+      if (!shared_vars.empty()) {
+        std::string msg = "Query has shared variables between input and output: ";
+        for (auto q : shared_vars) msg += (q + " ");
+        ErrorMessage(msg, "CIOMap::CheckSharedVars");
+      }
+      
+    }
+
+    /*!
+    * \brief Check if Jacobian variables are included in the query variables.
+    */
+    void CheckJacobianQuery() const {
+
+      /* Gather unique Jacobian enumerator and denominator variables from the query. */
+      std::vector<std::string> query_Jacobian_y_vars={}, query_Jacobian_x_vars={};
+      for (const auto &q_in : query_Jacobian){
+        query_Jacobian_y_vars.push_back(q_in.first.first);
+        query_Jacobian_x_vars.push_back(q_in.first.second);
+      }
+      auto unique_Jac_y_vars = std::set(query_Jacobian_y_vars.begin(), query_Jacobian_y_vars.end());
+      auto unique_Jac_x_vars = std::set(query_Jacobian_x_vars.begin(), query_Jacobian_x_vars.end());
+      
+      /* Check whether the unique Jacobian enumerator set contains the query output variable set. */
+      for (auto q_out : query_output) {
+        auto f_y = std::find(unique_Jac_y_vars.begin(), unique_Jac_y_vars.end(), q_out.first);
+        if (f_y != unique_Jac_y_vars.end()){
+          unique_Jac_y_vars.erase(f_y);
+        }
+      }
+      /* Check whether the unique Jacobian denominator set contains the query input variable set. */
+      for (auto q_in : query_input) {
+        auto f_x = std::find(unique_Jac_x_vars.begin(), unique_Jac_x_vars.end(), q_in.first);
+        if (f_x != unique_Jac_x_vars.end()) 
+          unique_Jac_x_vars.erase(f_x);
+      }
+
+      if (!unique_Jac_y_vars.empty() || !unique_Jac_x_vars.empty()) {
+        std::string msg = "Jacobian enumerator variables not included in query: ";
+        for (auto s : unique_Jac_y_vars) msg += (s + " ");
+        msg += "\n";
+        msg += "Jacobian denominator  variables not included in query: ";
+        for (auto s : unique_Jac_x_vars) msg += (s + " ");
+        ErrorMessage(msg, "CIOMap::CheckJacobianQuery");
+      }
+    }
+
+    /*!
+    * \brief Check if Jacobian variables are included in the query variables.
+    */
+    void CheckHessianQuery() const {
+
+      /* Gather unique Hessian enumerator and denominator variables from the query. */
+      std::vector<std::string> query_Hessian_y_vars={}, query_Hessian_x_vars={};
+      for (const auto &q_in : query_Hessian){
+        query_Hessian_y_vars.push_back(q_in.first.first);
+        query_Hessian_x_vars.push_back(q_in.first.second.first);
+        query_Hessian_x_vars.push_back(q_in.first.second.second);
+      }
+      auto unique_Hes_y_vars = std::set(query_Hessian_y_vars.begin(), query_Hessian_y_vars.end());
+      auto unique_Hes_x_vars = std::set(query_Hessian_x_vars.begin(), query_Hessian_x_vars.end());
+
+      /* Check whether the unique Hessian enumerator set contains the query output variable set. */
+      for (auto q_out : query_output) {
+        auto f_y = std::find(unique_Hes_y_vars.begin(), unique_Hes_y_vars.end(), q_out.first);
+        if (f_y != unique_Hes_y_vars.end()){
+          unique_Hes_y_vars.erase(f_y);
+        }
+      }
+      /* Check whether the unique Hessian denominator set contains the query input variable set. */
+      for (auto q_in : query_input) {
+        auto f_x = std::find(unique_Hes_x_vars.begin(), unique_Hes_x_vars.end(), q_in.first);
+        if (f_x != unique_Hes_x_vars.end()) 
+          unique_Hes_x_vars.erase(f_x);
+      }
+
+      if (!unique_Hes_y_vars.empty() || !unique_Hes_x_vars.empty()) {
+        std::string msg = "Hessian enumerator variables not included in query: ";
+        for (auto s : unique_Hes_y_vars) msg += (s + " ");
+        msg += "\n";
+        msg += "Hessian denominator variables not included in query: ";
+        for (auto s : unique_Hes_x_vars) msg += (s + " ");
+        ErrorMessage(msg, "CIOMap::CheckHessianQuery");
+      }
+    }
+
+    /*!
+    *\brief Check if the enumerator and denominator of the query Jacobians are in the inputs and outputs of the same network.
+    */
+    void CheckJacobianNetworks() const { 
+
+      std::vector<std::pair<std::string, std::string>> incompatible_jacobians={};
+      for (auto J_q : query_Jacobian) {
+        bool compatible_jac{false};
+        std::string name_enumerator = J_q.first.first;
+        std::string name_denominator = J_q.first.second;
+        
+        for (auto M : query_network_maps) {
+          auto input_vars = M.MLP->GetInputVars();
+          auto output_vars = M.MLP->GetOutputVars();
+          
+          auto f_output = std::find(output_vars.begin(), output_vars.end(), name_enumerator);
+          auto f_input = std::find(input_vars.begin(), input_vars.end(), name_denominator);
+          if (f_output != output_vars.end() && f_input != input_vars.end())
+            compatible_jac = true;
+        }
+
+        if (!compatible_jac)
+          incompatible_jacobians.push_back(std::make_pair(name_enumerator, name_denominator));
+      }
+
+      if (!incompatible_jacobians.empty()) {
+        std::string msg = "The following Jacobian queries were not supported by the networks:\n";
+        for (auto J : incompatible_jacobians)
+          msg += ("d" + J.first + "/d"+J.second+"\n");
+        ErrorMessage(msg, "CIOMap::CheckJacobianNetworks");
+      }
+    }
+
+    /*!
+    *\brief Check if the enumerator and denominators of the query Hessians are in the inputs and outputs of the same network.
+    */
+    void CheckHessianNetworks() const { 
+
+      std::vector<std::pair<std::string, std::pair<std::string, std::string>>> incompatible_hessians={};
+      for (auto H_q : query_Hessian) {
+        bool compatible_hes{false};
+        std::string name_enumerator = H_q.first.first;
+        std::string name_denominator_1 = H_q.first.second.first;
+        std::string name_denominator_2 = H_q.first.second.second;
+
+        for (auto M : query_network_maps) {
+          auto input_vars = M.MLP->GetInputVars();
+          auto output_vars = M.MLP->GetOutputVars();
+          
+          auto f_output = std::find(output_vars.begin(), output_vars.end(), name_enumerator);
+          auto f_input_1 = std::find(input_vars.begin(), input_vars.end(), name_denominator_1);
+          auto f_input_2 = std::find(input_vars.begin(), input_vars.end(), name_denominator_2);
+          
+          if (f_output != output_vars.end() && f_input_1 != input_vars.end() && f_input_2 != input_vars.end())
+            compatible_hes = true;
+        }
+
+        if (!compatible_hes)
+          incompatible_hessians.push_back(std::make_pair(name_enumerator, std::make_pair(name_denominator_1,name_denominator_2)));
+      }
+
+      if (!incompatible_hessians.empty()) {
+        std::string msg = "The following Hessian queries were not supported by the networks:\n";
+        for (auto H : incompatible_hessians)
+          msg += ("d2" + H.first + "/d"+H.second.first + "d"+H.second.second+"\n");
+        ErrorMessage(msg, "CIOMap::CheckHessianNetworks");
+      }
+    }
     /*!
     * \brief Check whether look-up variable should return zero.
     * \param[in] variable_name_in - Query variable name to check.
@@ -99,37 +288,27 @@ class CIOMap {
     }
 
     /*!
-    * \brief Check whether network inputs are unique.
-    * \param[in] network_to_check - pointer to network object.
-    */
-    bool CheckUniqueInputs(const CNeuralNetwork  *network_to_check) const {
-      auto network_inputs = network_to_check->GetInputVars();
-      std::sort(network_inputs.begin(),network_inputs.end());
-      return std::unique(network_inputs.begin(),network_inputs.end()) == network_inputs.end();
-    }
-
-    /*!
     * \brief Check whether the network inputs and output are in the query
     * \param[in] network_to_check - pointer to network object.
-    * \returns - if query inputs correspond to network inputs and if at least one query output is in the network output variables.
+    * \returns - if network input variables are in the query input and if at least one network output variable is in the query.
     */
     bool CheckNetworkVariables(const CNeuralNetwork  *network_to_check) {
-        const std::vector<std::string> network_inputs = network_to_check->GetInputVars();
+        std::vector<std::string> network_inputs = network_to_check->GetInputVars();
         const std::vector<std::string> network_outputs = network_to_check->GetOutputVars();
-        bool network_compatible{true};
+        bool network_compatible{false};
+        /* Check whether network all input variables are contained in query input. */
         for (auto q_in : query_input) {
             auto a = std::find(network_inputs.begin(), network_inputs.end(), q_in.first);
-            if (a == std::end(network_inputs)){
-                network_compatible = false;
-            }
+            if (a != std::end(network_inputs)) network_inputs.erase(a);
         }
+        if (network_inputs.empty()) network_compatible = true;
+
         if (network_compatible) {
+            /* Check if at least one network output is contained in the query output*/
             bool found_output{false};
             for (std::string var_out : network_outputs) {
                 auto loc = std::find_if(query_output.begin(), query_output.end(), [var_out](std::pair<std::string, mlpdouble*>q) {return q.first==var_out;});
-                if (loc != query_output.end()) {
-                    found_output = true;
-                }
+                if (loc != query_output.end()) found_output = true;
             }
             network_compatible = found_output;
         }
@@ -269,6 +448,24 @@ class CIOMap {
       SetQueryOutput(varnames_out);
     }
     
+    /*!
+    * \brief Check compatibility of query variables.
+    */
+    void CompatibilityChecks() const {
+      /* Check if query inputs and outputs are unique sets. */
+      CheckUniqueQueryVars(true);
+      CheckUniqueQueryVars(false);  
+
+      /* Check if no variables are shared between query input and output. */
+      CheckSharedVars();
+
+      /* Check if Jacobian enumerator and denominator are in query output and input respectively. */
+      CheckJacobianQuery();
+
+      /* Check if Hessian enumerator and denominators are in query output and input respectively. */
+      CheckHessianQuery();
+    }
+
     const std::vector<IOMap_Network> GetNetworksInQuery() const {return query_network_maps;}
 
     /*!
@@ -342,34 +539,100 @@ class CIOMap {
     * \param[in] networks_to_check - vector with pointers to network pointers. 
     */
     void FindNetworksForQuery(const std::vector<CNeuralNetwork*> &networks_to_check) {
-        for (auto network_to_check : networks_to_check) {
+        /* Check if query input and output variables are compatible. */
+        CompatibilityChecks();
 
-          /* Check if network inputs are unique. */
-          if (!CheckUniqueInputs(network_to_check)) {
-            std::string msg = "Network has duplicate inputs: ";
-            for (const auto & var : network_to_check->GetInputVars()) msg += (var + ", ");
-            ErrorMessage(msg, "CIOMap:FindNetworksForQuery");
-            return;
-          }
-          /* Compare network input and output variables and query variables. */
-          if (CheckNetworkVariables(network_to_check)){
-              IOMap_Network mapped_network;
-              mapped_network.MLP = network_to_check;
-              query_network_maps.push_back(mapped_network);
-          }
+        /* Collect query input and output variables without null */
+        std::vector<std::string> query_vars_out = {}, query_vars_in = {};
+        bool null_in_query{false};
+        for (auto q_in : query_input) query_vars_in.push_back(q_in.first);
+        for (auto q_out : query_output) {
+          if (!CheckNull(q_out.first))
+            query_vars_out.push_back(q_out.first);
+          else null_in_query = true;
         }
-        /* Throw exception if no suitable networks could be found for query. */
-        if (query_network_maps.empty()) {
-          ErrorMessage("Not all queries are present in the network inputs", "CIOMap:FindNetworksForQuery");
-        }
-        if (!CheckUseOfOutputs()) {
-          ErrorMessage("Not all queries are present in the network outputs", "CIOMap:FindNetworksForQuery");
+        
+        /* Copy of query variables used to check if all variables are covered by the networks. */
+        auto remaining_query_vars_in = query_vars_in;
+        auto remaining_query_vars_out = query_vars_out;
+
+        /* Check network compatibility with query */
+        query_network_maps.clear();
+        for (auto network_to_check : networks_to_check) {
+          bool compatible_input{false},
+               compatible_output{false};
+          std::vector<std::string> network_input_vars = network_to_check->GetInputVars();
+          /* Check if the set of network input variables is a sub-set of the set of the query input variables */
+          for (auto q_in : query_vars_in) {
+            auto f = std::find(network_input_vars.begin(), network_input_vars.end(), q_in);
+            if (f != network_input_vars.end()){
+              network_input_vars.erase(f);
+            }
+          }
+          if (network_input_vars.empty())
+            compatible_input = true;
+          
+          if (compatible_input) {
+            /* Check if any of the query output variables are in the set of network output variables . */
+            compatible_output = false;
+            std::vector<std::string> network_output_vars = network_to_check->GetOutputVars();
+            for (auto q_out : query_vars_out) {
+              auto f = std::find(network_output_vars.begin(), network_output_vars.end(), q_out);
+              if (f != network_output_vars.end()){
+                compatible_output = true;
+              }
+            }
+          }
+
+          if (compatible_input && compatible_output) {
+            /* Add network to query */
+            IOMap_Network mapped_network;
+            mapped_network.MLP = network_to_check;
+            query_network_maps.push_back(mapped_network);
+
+            /* Update remaining query variables based on the network input and output variables. */
+            const auto M_input = network_to_check->GetInputVars();
+            for (auto m_in : M_input) {
+              auto q = std::find(remaining_query_vars_in.begin(), remaining_query_vars_in.end(), m_in);
+              if (q != remaining_query_vars_in.end())
+                remaining_query_vars_in.erase(q);
+            }
+            const auto M_output = network_to_check->GetOutputVars();
+            for (auto m_out : M_output) {
+                auto q = std::find(remaining_query_vars_out.begin(), remaining_query_vars_out.end(), m_out);
+                if (q != remaining_query_vars_out.end())
+                  remaining_query_vars_out.erase(q);
+              }
+            }
+          }
+        
+        /* Exit with an error if any of the query input and output variables are not included in the 
+        network input and output sets. */
+        if (!query_output.empty()) {
+          if (!remaining_query_vars_out.empty()) {
+            std::string msg = "The following query output variables are not present in the network output variables: ";
+            for (auto v_out : remaining_query_vars_out)
+              msg += (v_out + " ");
+            ErrorMessage(msg, "CIOMap::FindNetworksForQuery");
+          }
+          if (!remaining_query_vars_in.empty() && !null_in_query) {
+            std::string msg = "The following query input variables are not present in the network input variables: ";
+            for (auto v_out : remaining_query_vars_in)
+              msg += (v_out + " ");
+            ErrorMessage(msg, "CIOMap::FindNetworksForQuery");
+          }
         }
 
         /* Map network inputs and outputs to query inputs and outputs. */
         MapInputs();
         MapOutputs();
+
+        /* Check if Jacobian queries are supported by compatible networks. */
+        CheckJacobianNetworks();
         MapJacobians();
+
+        /* Check if Hessian queries are supported by compatible networks. */
+        CheckHessianNetworks();
         MapHessians();
     }
 
@@ -378,10 +641,10 @@ class CIOMap {
     */
     bool operator()() const 
     {
-      bool within_bounds{false};
+      bool within_bounds{true};
       for (const auto &mapped_network : query_network_maps) {
         SetNetworkInputs(mapped_network);
-        if (NetworkInference(mapped_network)) within_bounds=true;
+        if (!NetworkInference(mapped_network)) within_bounds=false;
       }
       SetNullOutputs();
       return within_bounds;

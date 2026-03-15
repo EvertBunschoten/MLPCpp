@@ -2,7 +2,7 @@
 * \file ScalerFunctions.hpp
 * \brief Functions used to scale network input and output.
 * \author E.C.Bunschoten
-* \version 2.0.0
+* \version 2.1.0
 *
 * MLPCpp Project Website: https://github.com/EvertBunschoten/MLPCpp
 *
@@ -101,8 +101,9 @@ class ScalerFunction {
     * \brief Display scaler function information in the terminal.
     * \param[in] display_width - maximum column width.
     * \param[in] input_names - names of input/output variables.
+    * \param[in] outp - output stream.
     */
-    virtual void PrintInfo(const int display_width, const std::vector<std::string>& input_names) const =0;
+    virtual void PrintInfo(const int display_width, const std::vector<std::string>& input_names, std::ostream &outp=std::cout) const =0;
 
     /*!
     * \brief Get scaler function ID tag.
@@ -166,25 +167,25 @@ class StandardScaler : public ScalerFunction {
         }
         return val_dist;
     };
-    virtual void PrintInfo(const int display_width, const std::vector<std::string> &input_names) const {
+    virtual void PrintInfo(const int display_width, const std::vector<std::string> &input_names, std::ostream &outp=std::cout) const {
         const int column_width = int(display_width / 3.0) - 1;
-        std::cout << "|" << std::setfill(' ') << std::left << std::setw(display_width - 1)
+        outp << "|" << std::setfill(' ') << std::left << std::setw(display_width - 1)
                 << "Standard scaling" 
-                << "|" << std::endl;std::cout << "+" << std::setfill('-') << std::setw(display_width)
+                << "|" << std::endl;outp << "+" << std::setfill('-') << std::setw(display_width)
                 << std::right << "+" << std::endl;
-        std::cout << std::setfill(' ');
-        std::cout << "|" << std::left << std::setw(column_width)
+        outp << std::setfill(' ');
+        outp << "|" << std::left << std::setw(column_width)
                 << "Variable:";
-        std::cout << "|" << std::left << std::setw(column_width) << "Mean"
+        outp << "|" << std::left << std::setw(column_width) << "Mean"
                 << "|" << std::left << std::setw(column_width) << "Std"
                 << "|" << std::endl;      
-        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+        outp << "+" << std::setfill('-') << std::setw(display_width)
                 << std::right << "+" << std::endl;
-        std::cout << std::setfill(' ');
+        outp << std::setfill(' ');
 
         /*--- Hidden layer information ---*/
         for (auto iInput = 0u; iInput < vals_mu.size(); iInput++)
-        std::cout << "|" << std::left << std::setw(column_width)
+        outp << "|" << std::left << std::setw(column_width)
                     << std::to_string(iInput + 1) + ": " + input_names[iInput]
                     << "|" << std::right << std::setw(column_width)
                     << vals_mu[iInput] << "|" << std::right
@@ -197,25 +198,25 @@ class RobustScaler : public StandardScaler {
     /*! \brief Inter-quantile range scaling. Similar to standard scaling, but using inter-quantile range rather than standard deviation. */
     public:
     RobustScaler(const size_t n_in) : StandardScaler(n_in) {tag = "robust";};
-    virtual void PrintInfo(const int display_width, const std::vector<std::string> &input_names) const {
+    virtual void PrintInfo(const int display_width, const std::vector<std::string> &input_names, std::ostream &outp=std::cout) const {
         const int column_width = int(display_width / 3.0) - 1;
-        std::cout << "|" << std::setfill(' ') << std::left << std::setw(display_width - 1)
+        outp << "|" << std::setfill(' ') << std::left << std::setw(display_width - 1)
                 << "Inter-quantile range scaling" 
-                << "|" << std::endl;std::cout << "+" << std::setfill('-') << std::setw(display_width)
+                << "|" << std::endl;outp << "+" << std::setfill('-') << std::setw(display_width)
                 << std::right << "+" << std::endl;
-        std::cout << std::setfill(' ');
-        std::cout << "|" << std::left << std::setw(column_width)
+        outp << std::setfill(' ');
+        outp << "|" << std::left << std::setw(column_width)
                 << "Variable:";
-        std::cout << "|" << std::left << std::setw(column_width) << "Mean"
+        outp << "|" << std::left << std::setw(column_width) << "Mean"
                 << "|" << std::left << std::setw(column_width) << "IQ range"
                 << "|" << std::endl;      
-        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+        outp << "+" << std::setfill('-') << std::setw(display_width)
                 << std::right << "+" << std::endl;
-        std::cout << std::setfill(' ');
+        outp << std::setfill(' ');
 
         /*--- Hidden layer information ---*/
         for (auto iInput = 0u; iInput < vals_mu.size(); iInput++)
-        std::cout << "|" << std::left << std::setw(column_width)
+        outp << "|" << std::left << std::setw(column_width)
                     << std::to_string(iInput + 1) + ": " + input_names[iInput]
                     << "|" << std::right << std::setw(column_width)
                     << vals_mu[iInput] << "|" << std::right
@@ -284,26 +285,26 @@ class MinMaxScaler :  public ScalerFunction {
         }
         return val_dist;
     };
-    virtual void PrintInfo(const int display_width, const std::vector<std::string> &input_names) const {
+    virtual void PrintInfo(const int display_width, const std::vector<std::string> &input_names, std::ostream &outp=std::cout) const {
         const int column_width = int(display_width / 3.0) - 1;
-        std::cout << "|" << std::setfill(' ') << std::left << std::setw(display_width - 1)
+        outp << "|" << std::setfill(' ') << std::left << std::setw(display_width - 1)
                 << "Min-max scaling" 
                 << "|" << std::endl;
-        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+        outp << "+" << std::setfill('-') << std::setw(display_width)
                 << std::right << "+" << std::endl;
-        std::cout << std::setfill(' ');
-        std::cout << "|" << std::left << std::setw(column_width)
+        outp << std::setfill(' ');
+        outp << "|" << std::left << std::setw(column_width)
                 << "Variable:";
-        std::cout << "|" << std::left << std::setw(column_width) << "min"
+        outp << "|" << std::left << std::setw(column_width) << "min"
                 << "|" << std::left << std::setw(column_width) << "max"
                 << "|" << std::endl;      
-        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+        outp << "+" << std::setfill('-') << std::setw(display_width)
                 << std::right << "+" << std::endl;
-        std::cout << std::setfill(' ');
+        outp << std::setfill(' ');
 
         /*--- Hidden layer information ---*/
         for (auto iInput = 0u; iInput < vals_min.size(); iInput++)
-        std::cout << "|" << std::left << std::setw(column_width)
+        outp << "|" << std::left << std::setw(column_width)
                     << std::to_string(iInput + 1) + ": " + input_names[iInput]
                     << "|" << std::right << std::setw(column_width)
                     << vals_min[iInput] << "|" << std::right

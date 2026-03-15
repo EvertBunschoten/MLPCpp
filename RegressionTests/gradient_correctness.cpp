@@ -38,9 +38,12 @@ bool GradientCorrectness::JacobianCorrectness() {
     /* Compare approximate and analytical Jacobian values. */
     const double rel_diff = std::abs((Jac_analytical - Jac_FD)/Jac_FD);
     bool passed_test = rel_diff < 1e-6;
-    summary << "Analytical Jacobian: " << Jac_analytical << std::endl;
-    summary << "Approximate Jacobian (central differences): " << Jac_FD << std::endl;
-    summary << "Relative difference: " << rel_diff*100 << "%" << std::endl;
+    if (!passed) {
+        mlp->DisplayNetwork(summary);
+        summary << "Analytical Jacobian: " << Jac_analytical << std::endl;
+        summary << "Approximate Jacobian (central differences): " << Jac_FD << std::endl;
+        summary << "Relative difference: " << rel_diff*100 << "%" << std::endl;
+    }
     delete mlp;
     return passed_test;
 }
@@ -78,11 +81,15 @@ bool GradientCorrectness::HessianCorrectness() {
     const double jac_outp_minus = mlp->GetJacobian(iOut, jIn);
 
     const double Hes_FD = (jac_outp_plus - jac_outp_minus) / (2*delta_inp);
-    const double rel_diff = std::abs((Hes_analytical - Hes_FD)/Hes_FD);
+    const double rel_diff = std::abs((Hes_analytical - Hes_FD)/(Hes_FD+1e-8));
     bool passed_test = rel_diff < 1e-6;
-    summary << "Analytical Hessian: " << Hes_analytical << std::endl;
-    summary << "Approximate Hessian (central differences): " << Hes_FD << std::endl;
-    summary << "Relative difference: " << rel_diff*100 << "%" << std::endl;
+    if (!passed) {
+        mlp->DisplayNetwork(summary);
+        summary << "Analytical Hessian: " << Hes_analytical << std::endl;
+        summary << "Approximate Hessian (central differences): " << Hes_FD << std::endl;
+        summary << "Relative difference: " << rel_diff*100 << "%" << std::endl;
+    }
+    
     delete mlp;
     return passed_test;
 }

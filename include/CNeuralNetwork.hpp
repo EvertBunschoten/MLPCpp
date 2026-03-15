@@ -2,7 +2,7 @@
 * \file CNeuralNetwork.hpp
 * \brief Declaration of the CNeuralNetwork class.
 * \author E.C.Bunschoten
-* \version 2.0.0
+* \version 2.1.0
 *
 * MLPCpp Project Website: https://github.com/EvertBunschoten/MLPCpp
 *
@@ -810,58 +810,58 @@ namespace MLPToolbox {
     /*!
     * \brief Display the network architecture in the terminal.
     */
-    void DisplayNetwork() const {
+    void DisplayNetwork(std::ostream &outp=std::cout) const {
         /*--- Display information on the MLP architecture ---*/
         const int display_width{54};
         const int column_width = int(display_width / 3.0) - 1;
 
         /*--- Input layer information ---*/
-        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+        outp << "+" << std::setfill('-') << std::setw(display_width)
                 << std::right << "+" << std::endl;
-        std::cout << std::setfill(' ');
-        std::cout << "|" << std::left << std::setw(display_width - 1)
+        outp << std::setfill(' ');
+        outp << "|" << std::left << std::setw(display_width - 1)
                 << "Input Layer Information:"
                 << "|" << std::endl;
-        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+        outp << "+" << std::setfill('-') << std::setw(display_width)
                 << std::right << "+" << std::endl;
-        input_scaler->PrintInfo(display_width, input_names);
-        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+        input_scaler->PrintInfo(display_width, input_names, outp);
+        outp << "+" << std::setfill('-') << std::setw(display_width)
                 << std::right << "+" << std::endl;
 
-        std::cout << std::setfill(' ');
-        std::cout << "|" << std::left << std::setw(display_width - 1)
+        outp << std::setfill(' ');
+        outp << "|" << std::left << std::setw(display_width - 1)
                 << "Hidden Layers Information:"
                 << "|" << std::endl;
-        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+        outp << "+" << std::setfill('-') << std::setw(display_width)
                 << std::right << "+" << std::endl;
-        std::cout << std::setfill(' ');
-        std::cout << "|" << std::setw(column_width) << std::left << "Layer index"
+        outp << std::setfill(' ');
+        outp << "|" << std::setw(column_width) << std::left << "Layer index"
                 << "|" << std::setw(column_width) << std::left << "Neuron count"
                 << "|" << std::setw(column_width) << std::left << "Function"
                 << "|" << std::endl;
-        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+        outp << "+" << std::setfill('-') << std::setw(display_width)
                 << std::right << "+" << std::endl;
-        std::cout << std::setfill(' ');
+        outp << std::setfill(' ');
         for (size_t iLayer = 1; iLayer < n_hidden_layers; iLayer++)
-        std::cout << "|" << std::setw(column_width) << std::right << iLayer + 1
+        outp << "|" << std::setw(column_width) << std::right << iLayer + 1
                     << "|" << std::setw(column_width) << std::right
                     << NN[iLayer] << "|"
                     << std::setw(column_width) << std::right
                     << activation_functions[iLayer]->GetName() << "|" << std::endl;
-        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+        outp << "+" << std::setfill('-') << std::setw(display_width)
                 << std::right << "+" << std::endl;
-        std::cout << std::setfill(' ');
+        outp << std::setfill(' ');
 
-        std::cout << "|" << std::left << std::setw(display_width - 1)
+        outp << "|" << std::left << std::setw(display_width - 1)
                 << "Output Layer Information:"
                 << "|" << std::endl;
-        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+        outp << "+" << std::setfill('-') << std::setw(display_width)
                 << std::right << "+" << std::endl;
-        output_scaler->PrintInfo(display_width, output_names);
-        std::cout << "+" << std::setfill('-') << std::setw(display_width)
+        output_scaler->PrintInfo(display_width, output_names, outp);
+        outp << "+" << std::setfill('-') << std::setw(display_width)
                 << std::right << "+" << std::endl;
-        std::cout << std::setfill(' ');
-        std::cout << std::endl;
+        outp << std::setfill(' ');
+        outp << std::endl;
     }
   /*!
    * \brief Get network number of inputs.
