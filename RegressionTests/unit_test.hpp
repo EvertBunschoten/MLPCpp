@@ -29,6 +29,10 @@ class OutputCorrectness : public UnitTest {
 
     /*! \brief Network with same weights and biases should have the same output */
     bool WeightsBiasesTest();
+
+    /*! \brief Passing network input through vector or member-wise should result in the same output. */
+    bool VectorInputOutputs();
+    
     public:
     OutputCorrectness() : UnitTest("Output correctness") {};
     virtual bool RunTest();
