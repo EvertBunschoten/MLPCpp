@@ -226,12 +226,78 @@ bool InputOutputMapping::NullOutputs() {
     delete mlp_1;
     return passed_test;
 }
+
+bool InputOutputMapping::VectorInputOutputs() {
+    /* Define two randomized MLPs */
+    std::vector<std::string> input_names_1 = {"a","b"}, output_names_1 = {"x", "y"},
+                             input_names_2 = {"b","a"}, output_names_2 = {"z"};
+    MLPToolbox::CNeuralNetwork * mlp_1 = CreateRandomNetwork(input_names_1, output_names_1);
+    MLPToolbox::CNeuralNetwork * mlp_2 = CreateRandomNetwork(input_names_2, output_names_2);
+
+    MLPToolbox::CLookUp_ANN mlp_collection;
+    mlp_collection.AddNetwork(mlp_1);
+    mlp_collection.AddNetwork(mlp_2);
+
+    /* Define query variables*/
+    MLPToolbox::CIOMap query_memberwise, query_vector;
+
+    double val_a, val_b, val_x_m, val_y_m, val_z_m, val_null_m, val_x_v, val_y_v, val_z_v,val_null_v;
+    val_a = 0.2;
+    val_b = 0.8;
+
+    /* Specify query input and output variables through vectors */
+    std::vector<std::string> input_vec = {"a", "b"};
+    std::vector<std::string> output_vec = {"x","y","z","null"};
+    std::vector<double*> refs_out_vec = {&val_x_v, &val_y_v, &val_z_v, &val_null_v};
+    query_vector.SetQueryInput(input_vec);
+    query_vector.SetQueryOutput(output_vec);
+
+    /* Specify query variables member-wise. */
+    query_memberwise.AddQueryInput("a", &val_a);
+    query_memberwise.AddQueryInput("b", &val_b);
+    query_memberwise.AddQueryOutput("x", &val_x_m);
+    query_memberwise.AddQueryOutput("y", &val_y_m);
+    query_memberwise.AddQueryOutput("z", &val_z_m);
+    query_memberwise.AddQueryOutput("null", &val_null_m);
+    
+    mlp_collection.PairVariableswithMLPs(query_memberwise);
+    mlp_collection.PairVariableswithMLPs(query_vector);
+    
+    /* Evaluate network output */
+    std::vector<double> vals_in_vec = {val_a, val_b};
+    bool inside_m = mlp_collection.Predict(query_memberwise);
+    bool inside_v = mlp_collection.Predict(query_vector, vals_in_vec, refs_out_vec);
+
+    bool passed_test{true};
+    if (inside_m != inside_v){
+        passed_test = false;
+        summary << "Member-wise and vector-wise query input returns different inclusion.\n";
+    }
+    if (val_x_v != val_x_m && val_y_v != val_y_m && val_z_v != val_z_m) {
+        passed_test = false;
+        summary << "Member-wise and vector-wise query input returns different output:\n";
+        summary << "Member-wise: x:" << val_x_m << " y: " << val_y_m << " z: " << val_z_m << std::endl;
+        summary << "Vector-wise: x:" << val_x_v << " y: " << val_y_v << " z: " << val_z_v << std::endl;
+    }
+    if (val_null_m != 0.0) {
+        passed_test = false;
+        summary << "Member-wise null assignment returns non-zero value: " << val_null_m << std::endl;
+    }
+    if (val_null_v != 0.0) {
+        passed_test = false;
+        summary << "Vector-wise null assignment returns non-zero value: " << val_null_v << std::endl;
+    }
+    delete mlp_1;
+    delete mlp_2;
+    return passed_test;
+}
 bool InputOutputMapping::RunTest() {
     bool test_multiple_inputs = DifferentInputsDifferentOutputs();
     bool test_multiple_outputs = SameInputsDifferentOutputs();
     bool test_mimo = DifferentInputsDifferentOutputs2();
     bool test_null = NullOutputs();
-    
-    passed = (test_multiple_inputs && test_multiple_outputs && test_mimo && test_null);
+    bool test_vectorwise = VectorInputOutputs();
+
+    passed = (test_multiple_inputs && test_multiple_outputs && test_mimo && test_null && test_vectorwise);
     return passed;
 };

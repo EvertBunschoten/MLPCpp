@@ -49,6 +49,9 @@ class InputOutputMapping : public UnitTest {
     /*! \brief Link multiple networks with different inputs and outputs to the same query. */
     bool DifferentInputsDifferentOutputs2();
 
+    /*! \brief Setting query inputs through vector or by reference should result in the same network output. */
+    bool VectorInputOutputs();
+    
     /*! \brief Query containing null variables. */
     bool NullOutputs();
 
