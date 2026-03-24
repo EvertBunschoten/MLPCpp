@@ -660,10 +660,10 @@ class CIOMap {
       if (refs_output.size() != query_output_vals.size()){
         ErrorMessage("Number of outputs in query differs from number of requested outputs.", "CIOMap:operator()");
       }
-      bool within_bounds{false};
+      bool within_bounds{true};
       for (const auto &mapped_network : query_network_maps) {
         SetNetworkInputs(mapped_network, vals_input);
-        if (NetworkInference(mapped_network)) within_bounds=true;
+        if (!NetworkInference(mapped_network)) within_bounds=true;
       }
       SetNullOutputs();
 
