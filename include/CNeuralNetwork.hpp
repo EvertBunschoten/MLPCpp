@@ -792,8 +792,16 @@ namespace MLPToolbox {
         * \param[in] flat_weights - 1D vector containing network weight and bias values.
         */
         void SetWeightsBiases(const std::vector<mlpdouble>& flat_weights) const {
-            size_t k{0};
+            size_t expected_size = 0;
+            for (size_t iLayer=1; iLayer<n_layers; iLayer++)
+                expected_size += NN[iLayer-1] * (NN[iLayer] + 1);
             
+            expected_size += NN[n_hidden_layers];
+
+            if (flat_weights.size() != expected_size)
+                ErrorMessage("Vector size mismatch with network topology.", "CNeuralNetwork::SetWeightsBiases");
+
+            size_t k{0};
             for (size_t iLayer=1; iLayer<n_layers; iLayer++) {
                 auto n_prev = NN[iLayer-1];
                 auto n_cur = NN[iLayer];
