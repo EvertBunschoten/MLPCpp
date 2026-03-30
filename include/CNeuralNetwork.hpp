@@ -792,29 +792,28 @@ namespace MLPToolbox {
         * \param[in] flat_weights - 1D vector containing network weight and bias values.
         */
         void SetWeightsBiases(const std::vector<mlpdouble>& flat_weights) const {
-            size_t k{0};
+            size_t expected_size = 0;
+            for (size_t iLayer=1; iLayer<n_layers; iLayer++)
+                expected_size += NN[iLayer-1] * (NN[iLayer] + 1);
             
+            expected_size += NN[n_hidden_layers];
+
+            if (flat_weights.size() != expected_size)
+                ErrorMessage("Vector size mismatch with network topology.", "CNeuralNetwork::SetWeightsBiases");
+
+            size_t k{0};
             for (size_t iLayer=1; iLayer<n_layers; iLayer++) {
                 auto n_prev = NN[iLayer-1];
                 auto n_cur = NN[iLayer];
                 for (auto jNode=0u; jNode< n_prev; jNode++) {
-                    for (auto iNode=0u; iNode<n_cur; iNode++) {
-                        if (k >= flat_weights.size()) ErrorMessage("Vector size mismatch (too small).", "CNeuralNetwork::SetWeightsBiases");
+                    for (auto iNode=0u; iNode<n_cur; iNode++)
                         SetWeight(iLayer-1, jNode, iNode, flat_weights[k++]);
-                    }
 
-                    if (k >= flat_weights.size()) ErrorMessage("Vector size mismatch (bias too small).", "CNeuralNetwork::SetWeightsBiases");
                     SetBias(iLayer-1, jNode, flat_weights[k++]);
                 }
             }
-            for (auto jNode=0u; jNode<NN[n_hidden_layers]; jNode++) {
-                if (k >= flat_weights.size()) ErrorMessage("Vector size mismatch (output bias too small).", "CNeuralNetwork::SetWeightsBiases");
+            for (auto jNode=0u; jNode<NN[n_hidden_layers]; jNode++)
                 SetBias(n_hidden_layers, jNode, flat_weights[k++]);
-            }
-
-            if (k != flat_weights.size()) {
-                ErrorMessage("Vector size mismatch (too large). Flat vector contains more elements than the network topology requires.", "CNeuralNetwork::SetWeightsBiases");
-            }
         }
     /*!
     * \brief Display the network architecture in the terminal.
