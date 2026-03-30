@@ -798,14 +798,23 @@ namespace MLPToolbox {
                 auto n_prev = NN[iLayer-1];
                 auto n_cur = NN[iLayer];
                 for (auto jNode=0u; jNode< n_prev; jNode++) {
-                    for (auto iNode=0u; iNode<n_cur; iNode++)
+                    for (auto iNode=0u; iNode<n_cur; iNode++) {
+                        if (k >= flat_weights.size()) ErrorMessage("Vector size mismatch (too small).", "CNeuralNetwork::SetWeightsBiases");
                         SetWeight(iLayer-1, jNode, iNode, flat_weights[k++]);
+                    }
 
+                    if (k >= flat_weights.size()) ErrorMessage("Vector size mismatch (bias too small).", "CNeuralNetwork::SetWeightsBiases");
                     SetBias(iLayer-1, jNode, flat_weights[k++]);
                 }
             }
-            for (auto jNode=0u; jNode<NN[n_hidden_layers]; jNode++)
+            for (auto jNode=0u; jNode<NN[n_hidden_layers]; jNode++) {
+                if (k >= flat_weights.size()) ErrorMessage("Vector size mismatch (output bias too small).", "CNeuralNetwork::SetWeightsBiases");
                 SetBias(n_hidden_layers, jNode, flat_weights[k++]);
+            }
+
+            if (k != flat_weights.size()) {
+                ErrorMessage("Vector size mismatch (too large). Flat vector contains more elements than the network topology requires.", "CNeuralNetwork::SetWeightsBiases");
+            }
         }
     /*!
     * \brief Display the network architecture in the terminal.
