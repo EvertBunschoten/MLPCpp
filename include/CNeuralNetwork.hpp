@@ -136,13 +136,13 @@ namespace MLPToolbox {
             /* Nothing done at the input layer. */
             return;
         }else {
-            const size_t prev_layer = iLayer-1;
+            const auto prev_layer = iLayer-1;
             /* Recursive function call to the previous layer. */
             CalcLayerOutputs(prev_layer);
             
             for (auto iNeuron=0u; iNeuron < NN[iLayer]; ++iNeuron){
                 /* Calculate the node input through matrix-vector multiplcation of the weights with the output of the previous layer. */
-                const mlpdouble node_input = WeightsMultiplication(prev_layer, iNeuron, layer_outputs[prev_layer], biases_mat[iLayer][iNeuron]);
+                const auto node_input = WeightsMultiplication(prev_layer, iNeuron, layer_outputs[prev_layer], biases_mat[iLayer][iNeuron]);
 
                 /* Evaluate the activation function output and store in the hidden layer node output. */
                 layer_outputs[iLayer][iNeuron] = activation_functions[iLayer]->operator()(node_input, calc_Jacobian, calc_Hessian);
@@ -150,20 +150,20 @@ namespace MLPToolbox {
                 if (calc_Jacobian) {
                     for (auto iInput=0u; iInput < n_inputs; iInput++){
                         /* Calculate the Jacobian of the node output w.r.t. the network input. */
-                        const mlpdouble psi = WeightsMultiplication(prev_layer, iNeuron, layer_Jacobian[prev_layer][iInput]);
+                        const auto psi = WeightsMultiplication(prev_layer, iNeuron, layer_Jacobian[prev_layer][iInput]);
 
                         /* Calculate the derivative of the activation function. */
-                        const mlpdouble phi_prime = activation_functions[iLayer]->GetJacobian();
+                        const auto phi_prime = activation_functions[iLayer]->GetJacobian();
 
                         layer_Jacobian[iLayer][iInput][iNeuron] = psi * phi_prime;
                         if (calc_Hessian) {
                             for (auto jInput=0u; jInput < n_inputs; jInput++){
                                 /* Calculate the Hessian of the node output w.r.t. the network input. */
-                                const mlpdouble psi_j = (jInput==iInput) ? psi : WeightsMultiplication(prev_layer, iNeuron, layer_Jacobian[prev_layer][jInput]);
+                                const auto psi_j = (jInput==iInput) ? psi : WeightsMultiplication(prev_layer, iNeuron, layer_Jacobian[prev_layer][jInput]);
                                 
                                 /* Calculate the second-order derivative of the activation function. */
-                                const mlpdouble phi_dprime = activation_functions[iLayer]->GetHessian();
-                                const mlpdouble chi = WeightsMultiplication(prev_layer, iNeuron, layer_Hessian[prev_layer][iInput][jInput]);
+                                const auto phi_dprime = activation_functions[iLayer]->GetHessian();
+                                const auto chi = WeightsMultiplication(prev_layer, iNeuron, layer_Hessian[prev_layer][iInput][jInput]);
                                 layer_Hessian[iLayer][iInput][jInput][iNeuron] = phi_dprime * psi_j * psi + phi_prime * chi;
                             }
                         }
@@ -181,8 +181,8 @@ namespace MLPToolbox {
     * \param[in] reader - Pointer to reader class.
     */
     void SizeWeights(const CNeuralNetwork * copy_network=nullptr, const CReadNeuralNetwork * reader=nullptr) {
-        const bool from_reader = (reader != nullptr);       /* Retrieve weight information from reader. */
-        const bool from_copy = (copy_network != nullptr);   /* Copy weight information from reference MLP. */
+        const auto from_reader = (reader != nullptr);       /* Retrieve weight information from reader. */
+        const auto from_copy = (copy_network != nullptr);   /* Copy weight information from reference MLP. */
 
         n_hidden_layers = n_layers - 1;
         n_inputs = NN[0];
@@ -285,7 +285,7 @@ namespace MLPToolbox {
         CNeuralNetwork(const std::string MLP_filename) {
 
             /* Read content of MLP file. */
-            CReadNeuralNetwork reader = CReadNeuralNetwork(MLP_filename);
+            auto reader = CReadNeuralNetwork(MLP_filename);
             reader.ReadMLPFile();
 
             /* Retrieve hidden layer information. */
@@ -369,8 +369,8 @@ namespace MLPToolbox {
             SetInputRegularization(input_reg_method);
         }
 
-        std::string GetInputRegularization() const {return input_scaler->GetTag();}
-        std::string GetOutputRegularization() const {return output_scaler->GetTag();}
+        auto GetInputRegularization() const {return input_scaler->GetTag();}
+        auto GetOutputRegularization() const {return output_scaler->GetTag();}
         /*!
         * \brief Specify method used to scale the network output.
         * \param[in] reg_method_tag - scaling method tag, defaults to "minmax"
@@ -771,7 +771,7 @@ namespace MLPToolbox {
         * \returns - vector of weights and biases.
         */
         std::vector<mlpdouble> GetWeightsBiases() const {
-            std::vector<mlpdouble> flat_weights;
+            auto flat_weights = std::vector<mlpdouble>();
             for (size_t iLayer=1; iLayer<n_layers; iLayer++) {
                 auto n_prev = NN[iLayer-1];
                 auto n_cur = NN[iLayer];
@@ -792,8 +792,8 @@ namespace MLPToolbox {
         * \param[in] flat_weights - 1D vector containing network weight and bias values.
         */
         void SetWeightsBiases(const std::vector<mlpdouble>& flat_weights) const {
-            size_t expected_size = 0;
-            for (size_t iLayer=1; iLayer<n_layers; iLayer++)
+            auto expected_size = size_t(0);
+            for (auto iLayer=size_t(1); iLayer<n_layers; iLayer++)
                 expected_size += NN[iLayer-1] * (NN[iLayer] + 1);
             
             expected_size += NN[n_hidden_layers];
@@ -801,8 +801,8 @@ namespace MLPToolbox {
             if (flat_weights.size() != expected_size)
                 ErrorMessage("Vector size mismatch with network topology.", "CNeuralNetwork::SetWeightsBiases");
 
-            size_t k{0};
-            for (size_t iLayer=1; iLayer<n_layers; iLayer++) {
+            auto k = size_t(0);
+            for (auto iLayer=size_t(1); iLayer<n_layers; iLayer++) {
                 auto n_prev = NN[iLayer-1];
                 auto n_cur = NN[iLayer];
                 for (auto jNode=0u; jNode< n_prev; jNode++) {

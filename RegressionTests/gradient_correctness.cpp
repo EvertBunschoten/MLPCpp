@@ -9,7 +9,7 @@ bool GradientCorrectness::JacobianCorrectness() {
     /* Create randomized network and enable Jacobian calculation */
     std::vector<std::string> input_names = {"a","b","c"};
     std::vector<std::string> output_names = {"x","y","z"};
-    MLPToolbox::CNeuralNetwork * mlp = CreateRandomNetwork(input_names, output_names);
+    auto mlp = CreateRandomNetwork(input_names, output_names);
     mlp->CalcJacobian(true);
 
     /* Calculate the Jacobian of iOut w.r.t. iIn */
@@ -20,23 +20,24 @@ bool GradientCorrectness::JacobianCorrectness() {
     const auto inputs_base = RandomInputs(mlp->GetnInputs());
     mlp->SetInput(inputs_base);
     mlp->Predict();
-    const double Jac_analytical = mlp->GetJacobian(iOut, iIn);
+    const auto Jac_analytical = mlp->GetJacobian(iOut, iIn);
 
     /* Approximate the Jacobian with central finite-differneces. */
-    std::vector<double> inputs_plus = inputs_base,
-                        inputs_minus = inputs_base;
+    auto inputs_plus = inputs_base;
+    auto inputs_minus = inputs_base;
+
     inputs_plus[iIn] += delta_inp;
     inputs_minus[iIn] -= delta_inp;
     mlp->SetInput(inputs_plus);
     mlp->Predict();
-    const double outp_plus = mlp->GetOutput(iOut);
+    const auto outp_plus = mlp->GetOutput(iOut);
     mlp->SetInput(inputs_minus);
     mlp->Predict();
-    const double outp_minus = mlp->GetOutput(iOut);
-    const double Jac_FD = (outp_plus - outp_minus) / (2*delta_inp);
+    const auto outp_minus = mlp->GetOutput(iOut);
+    const auto Jac_FD = (outp_plus - outp_minus) / (2*delta_inp);
 
     /* Compare approximate and analytical Jacobian values. */
-    const double rel_diff = std::abs((Jac_analytical - Jac_FD)/Jac_FD);
+    const auto rel_diff = std::abs((Jac_analytical - Jac_FD)/Jac_FD);
     bool passed_test = rel_diff < 1e-6;
     if (!passed) {
         mlp->DisplayNetwork(summary);
@@ -53,7 +54,7 @@ bool GradientCorrectness::HessianCorrectness() {
     /* Create randomized network and enable Hessian calculation. */
     std::vector<std::string> input_names = {"a","b","c"};
     std::vector<std::string> output_names = {"x","y","z"};
-    MLPToolbox::CNeuralNetwork * mlp = CreateRandomNetwork(input_names, output_names);
+    auto mlp = CreateRandomNetwork(input_names, output_names);
     mlp->CalcJacobian(true);
     mlp->CalcHessian(true);
 
@@ -69,19 +70,20 @@ bool GradientCorrectness::HessianCorrectness() {
     const double Hes_analytical = mlp->GetHessian(iOut, iIn, jIn);
 
     /* Approximate the Hessian with central finite-differences. */
-    std::vector<double> inputs_plus = inputs_base,
-                        inputs_minus = inputs_base;
+    auto inputs_plus = inputs_base;
+    auto inputs_minus = inputs_base;
+
     inputs_plus[iIn] += delta_inp;
     inputs_minus[iIn] -= delta_inp;
     mlp->SetInput(inputs_plus);
     mlp->Predict();
-    const double jac_outp_plus = mlp->GetJacobian(iOut, jIn);
+    const auto jac_outp_plus = mlp->GetJacobian(iOut, jIn);
     mlp->SetInput(inputs_minus);
     mlp->Predict();
-    const double jac_outp_minus = mlp->GetJacobian(iOut, jIn);
+    const auto jac_outp_minus = mlp->GetJacobian(iOut, jIn);
 
-    const double Hes_FD = (jac_outp_plus - jac_outp_minus) / (2*delta_inp);
-    const double rel_diff = std::abs((Hes_analytical - Hes_FD)/(Hes_FD+1e-8));
+    const auto Hes_FD = (jac_outp_plus - jac_outp_minus) / (2*delta_inp);
+    const auto rel_diff = std::abs((Hes_analytical - Hes_FD)/(Hes_FD+1e-8));
     bool passed_test = rel_diff < 1e-6;
     if (!passed) {
         mlp->DisplayNetwork(summary);
@@ -96,8 +98,8 @@ bool GradientCorrectness::HessianCorrectness() {
 
 
 bool GradientCorrectness::RunTest() {
-    bool passed_jac = JacobianCorrectness();
-    bool passed_hes = HessianCorrectness();
+    auto passed_jac = JacobianCorrectness();
+    auto passed_hes = HessianCorrectness();
     passed = (passed_jac && passed_hes);
     return passed;
 }

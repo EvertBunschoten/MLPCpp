@@ -6,9 +6,9 @@ bool InputOutputMapping::DifferentInputsDifferentOutputs() {
 
     /* Create two identical networks with different input and output variable names. */
     std::vector<std::string> input_names_1 = {"a","b","c"}, output_names_1 = {"x", "z"};
-    MLPToolbox::CNeuralNetwork * mlp_1 = CreateRandomNetwork(input_names_1, output_names_1);
+    auto  mlp_1 = CreateRandomNetwork(input_names_1, output_names_1);
 
-    MLPToolbox::CNeuralNetwork * mlp_2 = new MLPToolbox::CNeuralNetwork(*mlp_1);
+    auto mlp_2 = new MLPToolbox::CNeuralNetwork(*mlp_1);
     mlp_2->SetInputName(0, "d");
     mlp_2->SetInputName(1, "e");
     mlp_2->SetInputName(2, "f");

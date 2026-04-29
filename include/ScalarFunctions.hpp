@@ -141,18 +141,18 @@ class StandardScaler : public ScalerFunction {
 
     virtual mlpdouble Normalize(const mlpdouble scalar_dim, const size_t i_scalar) const
     {
-        mlpdouble val_norm = (scalar_dim - vals_mu[i_scalar])/(vals_std[i_scalar]);
+        auto val_norm = (scalar_dim - vals_mu[i_scalar])/(vals_std[i_scalar]);
         return val_norm;
     };
 
     virtual mlpdouble Dimensionalize(const mlpdouble scalar_norm, const size_t i_scalar) const {
-        mlpdouble val_dim = vals_mu[i_scalar] + scalar_norm * vals_std[i_scalar];
+        auto val_dim = vals_mu[i_scalar] + scalar_norm * vals_std[i_scalar];
         return val_dim;
     };
 
     virtual mlpdouble Distance(const std::vector<mlpdouble> scalar_dim) const 
     {
-        mlpdouble val_dist{0};
+        auto val_dist = mlpdouble(0);
         for (auto iDim=0u; iDim<vals_mu.size(); iDim++) {
             val_dist += pow(Normalize(scalar_dim[iDim], iDim), 2);
         }
@@ -161,7 +161,7 @@ class StandardScaler : public ScalerFunction {
 
     virtual mlpdouble Distance(const mlpdouble* scalar_dim) const 
     {
-        mlpdouble val_dist{0};
+        auto val_dist = mlpdouble(0);
         for (auto iDim=0u; iDim<vals_mu.size(); iDim++) {
             val_dist += pow(Normalize(scalar_dim[iDim], iDim), 2);
         }
@@ -252,22 +252,22 @@ class MinMaxScaler :  public ScalerFunction {
     };
     virtual mlpdouble Normalize(const mlpdouble scalar_dim, const size_t i_scalar) const
     {
-        mlpdouble val_norm = (scalar_dim - vals_min[i_scalar])/(vals_max[i_scalar] - vals_min[i_scalar]);
+        auto val_norm = (scalar_dim - vals_min[i_scalar])/(vals_max[i_scalar] - vals_min[i_scalar]);
         return val_norm;
     };
 
     virtual mlpdouble Dimensionalize(const mlpdouble scalar_norm, const size_t i_scalar) const {
-        mlpdouble val_dim = scalar_norm * (vals_max[i_scalar] - vals_min[i_scalar]) + vals_min[i_scalar];
+        auto val_dim = scalar_norm * (vals_max[i_scalar] - vals_min[i_scalar]) + vals_min[i_scalar];
         return val_dim;
     }
 
     virtual mlpdouble Distance(const std::vector<mlpdouble> scalar_dim) const 
     {
         /* Returns positive value if value lies outside range. */
-        mlpdouble val_dist{0};
+        auto val_dist = mlpdouble(0);
         for (auto iDim=0u; iDim<vals_min.size(); iDim++) {
             if ((scalar_dim[iDim] < vals_min[iDim]) || (scalar_dim[iDim] > vals_max[iDim])){
-                mlpdouble norm = Normalize(scalar_dim[iDim], iDim);
+                auto norm = Normalize(scalar_dim[iDim], iDim);
                 val_dist += pow(norm - 0.5, 2);
             }
         }
@@ -276,10 +276,10 @@ class MinMaxScaler :  public ScalerFunction {
 
     virtual mlpdouble Distance(const mlpdouble* scalar_dim) const 
     {
-        mlpdouble val_dist{0};
+        auto val_dist = mlpdouble(0);
         for (auto iDim=0u; iDim<vals_min.size(); iDim++) {
             if ((scalar_dim[iDim] < vals_min[iDim]) || (scalar_dim[iDim] > vals_max[iDim])){
-                mlpdouble norm = Normalize(scalar_dim[iDim], iDim);
+                auto norm = Normalize(scalar_dim[iDim], iDim);
                 val_dist += pow(norm - 0.5, 2);
             }
         }
