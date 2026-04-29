@@ -50,7 +50,8 @@ class ScalerFunction {
     size_t n_scalars{0}; /* Number of variables to scale. */
     std::string tag;     /* Scaling function ID tag. */
     public:
-    ScalerFunction(const size_t n_in) : n_scalars {n_in} {};
+    ScalerFunction() = delete;
+    ScalerFunction(const std::string & tag_in, const size_t n_in) : tag(tag_in), n_scalars(n_in) {};
     virtual ~ScalerFunction() = default;
 
     /*!
@@ -117,15 +118,12 @@ class StandardScaler : public ScalerFunction {
     /*! \brief Scaler function using standard deviation. n = (d - mu)/std */
 
     public: 
-    std::vector<mlpdouble> vals_mu;  /*! Mean values */
-    std::vector<mlpdouble> vals_std; /*! Standard deviation values. */
+    std::vector<mlpdouble> vals_mu={};  /*! Mean values */
+    std::vector<mlpdouble> vals_std={}; /*! Standard deviation values. */
 
-    StandardScaler(const size_t n_in) : ScalerFunction(n_in) {
-        tag = "standard";
-        vals_mu.resize(n_in); 
-        vals_std.resize(n_in);
-        std::fill(vals_mu.begin(), vals_mu.end(), 0.0);
-        std::fill(vals_std.begin(), vals_std.end(), 1.0);
+    StandardScaler(const size_t n_in) : ScalerFunction("standard", n_in) {
+        vals_mu.resize(n_in, 0.0); 
+        vals_std.resize(n_in, 1.0);
     };
     virtual mlpdouble GetScale(const size_t i_scalar) const {return vals_std[i_scalar]; }
     virtual mlpdouble GetOffset(const size_t i_scalar) const {return vals_mu[i_scalar]; }
@@ -228,16 +226,13 @@ class RobustScaler : public StandardScaler {
 class MinMaxScaler :  public ScalerFunction {
     /*! \brief min-max scaler function: n = (d - min)/(max - min). */
 
-    std::vector<mlpdouble> vals_min;
-    std::vector<mlpdouble> vals_max;
+    std::vector<mlpdouble> vals_min={};
+    std::vector<mlpdouble> vals_max={};
     
     public:
-    MinMaxScaler(const size_t n_in) : ScalerFunction(n_in) {
-        tag="minmax";
-        vals_min.resize(n_in); 
-        vals_max.resize(n_in);
-        std::fill(vals_min.begin(), vals_min.end(), 0.0);
-        std::fill(vals_max.begin(), vals_max.end(), 1.0);
+    MinMaxScaler(const size_t n_in) : ScalerFunction("minmax", n_in) {
+        vals_min.resize(n_in, 0.0); 
+        vals_max.resize(n_in, 1.0);
     };
     virtual mlpdouble GetScale(const size_t i_scalar) const {return (vals_max[i_scalar] - vals_min[i_scalar]); }
     virtual mlpdouble GetOffset(const size_t i_scalar) const {return vals_min[i_scalar]; }
