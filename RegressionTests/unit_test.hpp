@@ -29,6 +29,10 @@ class OutputCorrectness : public UnitTest {
 
     /*! \brief Network with same weights and biases should have the same output */
     bool WeightsBiasesTest();
+
+    /*! \brief Passing network input through vector or member-wise should result in the same output. */
+    bool VectorInputOutputs();
+    
     public:
     OutputCorrectness() : UnitTest("Output correctness") {};
     virtual bool RunTest();
@@ -45,6 +49,9 @@ class InputOutputMapping : public UnitTest {
     /*! \brief Link multiple networks with different inputs and outputs to the same query. */
     bool DifferentInputsDifferentOutputs2();
 
+    /*! \brief Setting query inputs through vector or by reference should result in the same network output. */
+    bool VectorInputOutputs();
+    
     /*! \brief Query containing null variables. */
     bool NullOutputs();
 
