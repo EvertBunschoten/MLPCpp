@@ -44,38 +44,39 @@
 namespace MLPToolbox {
 class CReadNeuralNetwork {
 private:
-  std::vector<std::string> input_names, /*!< Input variable names. */
-      output_names;                     /*!< Output variable names. */
+  std::vector<std::string> input_names={}, /*!< Input variable names. */
+      output_names={};                     /*!< Output variable names. */
 
-  std::string filename; /*!< MLP input filename. */
+  std::string filename{"MLP_test.mlp"}; /*!< MLP input filename. */
 
-  unsigned long n_layers; /*!< Network total layer count. */
+  unsigned long n_layers{0}; /*!< Network total layer count. */
 
-  std::vector<unsigned long> n_neurons; /*!<  Neuron count per layer. */
+  std::vector<unsigned long> n_neurons={}; /*!<  Neuron count per layer. */
 
   std::vector<std::vector<std::vector<mlpdouble>>>
-      weights_mat; /*!< Network synapse weights. */
+      weights_mat={}; /*!< Network synapse weights. */
 
   std::vector<std::vector<mlpdouble>>
-      biases_mat; /*!< Bias values per neuron. */
+      biases_mat={}; /*!< Bias values per neuron. */
 
   std::vector<std::string>
-      activation_functions; /*!< Activation function per layer. */
+      activation_functions={}; /*!< Activation function per layer. */
 
   std::vector<std::pair<mlpdouble, mlpdouble>>
-      input_norm,  /*!< Input variable normalization values (min, max). */
-      output_norm; /*!< Output variable normalization values (min, max). */
+      input_norm={},  /*!< Input variable normalization values (min, max). */
+      output_norm={}; /*!< Output variable normalization values (min, max). */
   
 
   ENUM_SCALING_FUNCTIONS input_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX},
                          output_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX};
 public:
+  CReadNeuralNetwork() = delete;
   /*!
    * \brief CReadNeuralNetwork class constructor
    * \param[in] filename_in - .mlp input file name containing network
    * information.
    */
-  CReadNeuralNetwork(const std::string filename_in) { filename = filename_in; }
+  CReadNeuralNetwork(const std::string & filename_in) : filename(filename_in) {}
 
   /*!
    * \brief Read input file and store necessary information

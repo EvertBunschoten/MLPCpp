@@ -48,8 +48,8 @@ class CLookUp_ANN {
    */
 
 private:
-  std::vector<bool> internally_generated;      /*!< whether network is to be dereferenced in destructor. */
-  std::vector<CNeuralNetwork*> NeuralNetworks; /*!< std::vector containing all loaded neural networks. */
+  std::vector<bool> internally_generated={};      /*!< whether network is to be dereferenced in destructor. */
+  std::vector<CNeuralNetwork*> NeuralNetworks={}; /*!< std::vector containing all loaded neural networks. */
 
   /*!
   * \brief Check whether network input and output variables are unique.

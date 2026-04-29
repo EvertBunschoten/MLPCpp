@@ -61,8 +61,8 @@ namespace MLPToolbox {
     mlpdouble ** output_Jacobian {nullptr}; /*!<\brief Jacobian of the network output w.r.t. the network input. */
     mlpdouble *** output_Hessian {nullptr}; /*!<\brief Hessian of the network output w.r.t. the network input. */
 
-    std::vector<std::pair<mlpdouble, mlpdouble>> input_norm,    /*!<\brief Scaling values used to normalize the network input. */
-                                                 output_norm;   /*!<\brief Scaling values used to dimensionalize the network output. */
+    std::vector<std::pair<mlpdouble, mlpdouble>> input_norm={},    /*!<\brief Scaling values used to normalize the network input. */
+                                                 output_norm={};   /*!<\brief Scaling values used to dimensionalize the network output. */
 
     ENUM_SCALING_FUNCTIONS input_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX},   /*!<\brief Scaling method tag used for the network input. */
                            output_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX};  /*!<\brief Scaling method tag used for the network output. */
@@ -76,8 +76,8 @@ namespace MLPToolbox {
              n_inputs{0},   /*!<\brief Number of input nodes. */
              n_outputs{0};  /*!<\brief Number of output nodes. */
 
-    std::vector<std::string> input_names,   /*!<\brief Names of the network input variables. */
-                             output_names;  /*!<\brief Names of the network output variables. */
+    std::vector<std::string> input_names={},   /*!<\brief Names of the network input variables. */
+                             output_names={};  /*!<\brief Names of the network output variables. */
 
     bool calc_Jacobian {false}, /*!<\brief Evaluate the network Jacobian. */
          calc_Hessian {false};  /*!<\brief Evaluate the network Hessian. */
@@ -316,8 +316,7 @@ namespace MLPToolbox {
         * \brief Copy constructor
         * \param[in] copy_network - network from which to copy information.
         */
-        CNeuralNetwork(const CNeuralNetwork & copy_network) {
-            n_layers = copy_network.n_layers;
+        CNeuralNetwork(const CNeuralNetwork & copy_network) : n_layers(copy_network.n_layers) {
             if (n_layers > 1){
                 NN = new size_t[n_layers];
                 std::copy(copy_network.NN, copy_network.NN+n_layers, NN);
@@ -341,12 +340,11 @@ namespace MLPToolbox {
         * \brief Constructor from network architecture.
         * \param[in] NN_input - vector describing number of nodes per layer in the network.
         */
-        CNeuralNetwork(const std::vector<size_t> &NN_input) {
+        CNeuralNetwork(const std::vector<size_t> &NN_input) : n_layers(NN_input.size()) {
             if (std::find(NN_input.begin(), NN_input.end(), 0) != NN_input.end()){
                 ErrorMessage("Number of nodes should be positive", "CNeuralNetwork:CNeuralNetwork");
                 return;
             }
-            n_layers = NN_input.size();
             NN = new size_t[n_layers];
             std::copy(NN_input.begin(), NN_input.end(), NN);
             

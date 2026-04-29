@@ -11,7 +11,7 @@ class UnitTest {
     public:
     std::string GetTag() const {return tag;}
     bool did_pass() const {return passed;}
-    UnitTest(std::string name_in) : tag{name_in} {}
+    UnitTest(const std::string & name_in="test") : tag{name_in} {}
     virtual bool RunTest() = 0;
     void PrintSummary() const {std::cout << "Unit test: " << tag << std::endl;
     std::cout << summary.str() << std::endl;
