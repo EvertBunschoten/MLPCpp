@@ -81,7 +81,7 @@ public:
    * \brief Read input file and store necessary information
    */
   void ReadMLPFile() {
-    std::ifstream file_stream;
+    auto file_stream = std::ifstream();
     file_stream.open(filename.c_str(), std::ifstream::in);
     if (!file_stream.is_open()) {
       throw std::invalid_argument("There is no MLP file called " + filename);
@@ -186,9 +186,9 @@ public:
           if (line.compare("") != 0) {
             std::istringstream input_norm_stream(line);
             input_norm_stream >> word;
-            mlpdouble input_min = stold(word);
+            auto input_min = static_cast<mlpdouble>(stold(word));
             input_norm_stream >> word;
-            mlpdouble input_max = stold(word);
+            auto input_max = static_cast<mlpdouble>(stold(word));
             input_norm[iInput] = std::make_pair(input_min, input_max);
           }
         }
@@ -231,9 +231,9 @@ public:
           if (line.compare("") != 0) {
             std::istringstream output_norm_stream(line);
             output_norm_stream >> word;
-            mlpdouble output_min = stold(word);
+            auto output_min = static_cast<mlpdouble>(stold(word));
             output_norm_stream >> word;
-            mlpdouble output_max = stold(word);
+            auto output_max = static_cast<mlpdouble>(stold(word));
             output_norm[iOutput] = std::make_pair(output_min, output_max);
           }
         }

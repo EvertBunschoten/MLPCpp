@@ -38,11 +38,11 @@ namespace MLPToolbox {
 struct IOMap_Network {
   /*! \brief struct with query information. */
 
-  CNeuralNetwork* MLP; /*! \brief Pointer to network selected for query. */
-  std::vector<std::pair<mlpdouble*, mlpdouble*>> input_map; /*! \brief Link between query input and network input nodes. */
-  std::vector<std::pair<mlpdouble*,mlpdouble*>> output_map; /*! \brief Link between network output nodes and query output. */
-  std::vector<std::pair<const mlpdouble*, const mlpdouble*>> Jacobian_map;  /*! \brief Link between network Jacobians and query Jacobians. */
-  std::vector<std::pair<const mlpdouble*, const mlpdouble*>> Hessian_map;   /*! \brief Link between network Hessians and query Hessians. */
+  CNeuralNetwork* MLP=nullptr; /*! \brief Pointer to network selected for query. */
+  std::vector<std::pair<mlpdouble*, mlpdouble*>> input_map={}; /*! \brief Link between query input and network input nodes. */
+  std::vector<std::pair<mlpdouble*,mlpdouble*>> output_map={}; /*! \brief Link between network output nodes and query output. */
+  std::vector<std::pair<const mlpdouble*, const mlpdouble*>> Jacobian_map={};  /*! \brief Link between network Jacobians and query Jacobians. */
+  std::vector<std::pair<const mlpdouble*, const mlpdouble*>> Hessian_map={};   /*! \brief Link between network Hessians and query Hessians. */
   bool evaluate_Jacobian {false}; /*! \brief Evaluate Jacobians while evaluating the network output. */
   bool evaluate_Hessian {false};  /*! \brief Evaluate Hessians while evaluating the network output. */
 };
@@ -67,7 +67,7 @@ class CIOMap {
     * \param[in] is_input - check query input or output variables.
     */
     void CheckUniqueQueryVars(const bool is_input=true) const {
-      std::vector<std::string> query_duplicates, query_vars_copy;
+      auto query_vars_copy = std::vector<std::string>();
       const auto query_vars = is_input ? query_input : query_output;
       for (auto q : query_vars) {
         if(!CheckNull(q.first)) query_vars_copy.push_back(q.first);
@@ -86,12 +86,12 @@ class CIOMap {
     * \brief Check if there are shared variables between query input and output variables.
     */
     void CheckSharedVars() const {
-      std::vector<std::string> query_input_vars, query_output_vars;
+      auto query_input_vars = std::vector<std::string>();
+      auto query_output_vars = std::vector<std::string>();
       for (auto q_in : query_input) query_input_vars.push_back(q_in.first);
       for (auto q_out : query_output) query_output_vars.push_back(q_out.first);
 
-      std::vector<std::string> shared_vars;
-      shared_vars.clear();
+      auto shared_vars = std::vector<std::string>();
       for (auto q : query_output_vars) {
         auto f = std::find(query_input_vars.begin(), query_input_vars.end(), q);
         if (f != query_input_vars.end())
@@ -111,7 +111,8 @@ class CIOMap {
     void CheckJacobianQuery() const {
 
       /* Gather unique Jacobian enumerator and denominator variables from the query. */
-      std::vector<std::string> query_Jacobian_y_vars={}, query_Jacobian_x_vars={};
+      auto query_Jacobian_y_vars = std::vector<std::string>();
+      auto query_Jacobian_x_vars = std::vector<std::string>();
       for (const auto &q_in : query_Jacobian){
         query_Jacobian_y_vars.push_back(q_in.first.first);
         query_Jacobian_x_vars.push_back(q_in.first.second);
@@ -149,7 +150,8 @@ class CIOMap {
     void CheckHessianQuery() const {
 
       /* Gather unique Hessian enumerator and denominator variables from the query. */
-      std::vector<std::string> query_Hessian_y_vars={}, query_Hessian_x_vars={};
+      auto query_Hessian_y_vars = std::vector<std::string>();
+      auto query_Hessian_x_vars = std::vector<std::string>();
       for (const auto &q_in : query_Hessian){
         query_Hessian_y_vars.push_back(q_in.first.first);
         query_Hessian_x_vars.push_back(q_in.first.second.first);
@@ -187,11 +189,11 @@ class CIOMap {
     */
     void CheckJacobianNetworks() const { 
 
-      std::vector<std::pair<std::string, std::string>> incompatible_jacobians={};
+      auto incompatible_jacobians = std::vector<std::pair<std::string, std::string>>();
       for (auto J_q : query_Jacobian) {
         bool compatible_jac{false};
-        std::string name_enumerator = J_q.first.first;
-        std::string name_denominator = J_q.first.second;
+        const auto name_enumerator = J_q.first.first;
+        const auto name_denominator = J_q.first.second;
         
         for (auto M : query_network_maps) {
           auto input_vars = M.MLP->GetInputVars();
@@ -220,12 +222,12 @@ class CIOMap {
     */
     void CheckHessianNetworks() const { 
 
-      std::vector<std::pair<std::string, std::pair<std::string, std::string>>> incompatible_hessians={};
+      auto incompatible_hessians = std::vector<std::pair<std::string, std::pair<std::string, std::string>>>();
       for (auto H_q : query_Hessian) {
         bool compatible_hes{false};
-        std::string name_enumerator = H_q.first.first;
-        std::string name_denominator_1 = H_q.first.second.first;
-        std::string name_denominator_2 = H_q.first.second.second;
+        const auto name_enumerator = H_q.first.first;
+        const auto name_denominator_1 = H_q.first.second.first;
+        const auto name_denominator_2 = H_q.first.second.second;
 
         for (auto M : query_network_maps) {
           auto input_vars = M.MLP->GetInputVars();
@@ -275,7 +277,7 @@ class CIOMap {
     * \param[in] mapped_network - query struct
     */
     bool NetworkInference(const IOMap_Network &mapped_network) const { 
-      bool inside = mapped_network.MLP->CheckInputInclusion();
+      auto inside = mapped_network.MLP->CheckInputInclusion();
       if (inside){
         mapped_network.MLP->CalcJacobian(mapped_network.evaluate_Jacobian);
         mapped_network.MLP->CalcHessian(mapped_network.evaluate_Hessian);
@@ -293,8 +295,8 @@ class CIOMap {
     * \returns - if network input variables are in the query input and if at least one network output variable is in the query.
     */
     bool CheckNetworkVariables(const CNeuralNetwork  *network_to_check) {
-        std::vector<std::string> network_inputs = network_to_check->GetInputVars();
-        const std::vector<std::string> network_outputs = network_to_check->GetOutputVars();
+        auto network_inputs = network_to_check->GetInputVars();
+        const auto network_outputs = network_to_check->GetOutputVars();
         bool network_compatible{false};
         /* Check whether network all input variables are contained in query input. */
         for (auto q_in : query_input) {
@@ -306,7 +308,7 @@ class CIOMap {
         if (network_compatible) {
             /* Check if at least one network output is contained in the query output*/
             bool found_output{false};
-            for (std::string var_out : network_outputs) {
+            for (const auto & var_out : network_outputs) {
                 auto loc = std::find_if(query_output.begin(), query_output.end(), [var_out](std::pair<std::string, mlpdouble*>q) {return q.first==var_out;});
                 if (loc != query_output.end()) found_output = true;
             }
@@ -415,18 +417,18 @@ class CIOMap {
         const auto network_output_vars = mapped_network.MLP->GetOutputVars(), 
                    network_input_vars = mapped_network.MLP->GetInputVars();
         for (const auto &q : query_Hessian) {
-          const std::string varname_enumerator = q.first.first,
-                            varname_demominator_1 = q.first.second.first, 
-                            varname_demominator_2 = q.first.second.second;
+          const auto varname_enumerator = q.first.first;
+          const auto varname_denominator_1 = q.first.second.first;
+          const auto varname_denominator_2 = q.first.second.second;
           const auto ref_output_Hessian = q.second;
 
           auto loc_enumerator = std::find(network_output_vars.begin(), network_output_vars.end(), varname_enumerator);
           if (loc_enumerator != network_output_vars.end()) {
             const auto iOutput = std::distance(network_output_vars.begin(), loc_enumerator);
-            auto loc_demoninator_1 = std::find(network_input_vars.begin(), network_input_vars.end(), varname_demominator_1);
+            auto loc_demoninator_1 = std::find(network_input_vars.begin(), network_input_vars.end(), varname_denominator_1);
             if (loc_demoninator_1 != network_input_vars.end()) {
               const auto iInput = std::distance(network_input_vars.begin(), loc_demoninator_1);
-              auto loc_denominator_2 = std::find(network_input_vars.begin(), network_input_vars.end(), varname_demominator_2);
+              auto loc_denominator_2 = std::find(network_input_vars.begin(), network_input_vars.end(), varname_denominator_2);
               if (loc_denominator_2 != network_input_vars.end()) {
                 const auto jInput = std::distance(network_input_vars.begin(), loc_denominator_2);
                 const auto ref_network_Hessian = mapped_network.MLP->Hessian(iOutput, iInput, jInput);
@@ -474,7 +476,7 @@ class CIOMap {
     */
     void SetQueryInput(const std::vector<std::string> &varnames) {
       query_input.clear();
-      for (auto var : varnames)
+      for (const auto & var : varnames)
         query_input.push_back(std::make_pair(var, nullptr));
     }
 
@@ -499,7 +501,7 @@ class CIOMap {
     * \param[in] varname - query input variable name.
     * \param[in] ref_input - pointer to query input variable.
     */
-    void AddQueryInput(const std::string varname, mlpdouble* ref_input=nullptr) {
+    void AddQueryInput(const std::string & varname, mlpdouble* ref_input=nullptr) {
       query_input.push_back(std::make_pair(varname, ref_input));
     }
     
@@ -508,7 +510,7 @@ class CIOMap {
     * \param[in] varname - query output variable name.
     * \param[in] ref_output - pointer to query output variable.
     */
-    void AddQueryOutput(const std::string varname, mlpdouble* ref_output=nullptr) {
+    void AddQueryOutput(const std::string & varname, mlpdouble* ref_output=nullptr) {
       query_output.push_back(std::make_pair(varname, ref_output));
     }
 
@@ -518,7 +520,7 @@ class CIOMap {
     * \param[in] varname_input - input variable for which to calculate Jacobian.
     * \param[in] ref_output - pointer to Jacobian output.
     */
-    void AddQueryJacobian(const std::string varname_output, const std::string varname_input, mlpdouble*ref_output) {
+    void AddQueryJacobian(const std::string & varname_output, const std::string & varname_input, mlpdouble*ref_output) {
       query_Jacobian.push_back(std::make_pair(std::make_pair(varname_output, varname_input),ref_output));
     }
 
@@ -529,7 +531,7 @@ class CIOMap {
     * \param[in] varname_input_2 - second input variable for which to calculate Hessian.
     * \param[in] ref_output - pointer to Hessian output.
     */
-    void AddQueryHessian(const std::string varname_output, const std::string varname_input_1, const std::string varname_input_2, mlpdouble*ref_output) {
+    void AddQueryHessian(const std::string & varname_output, const std::string & varname_input_1, const std::string & varname_input_2, mlpdouble*ref_output) {
       query_Hessian.push_back(std::make_pair(std::make_pair(varname_output, std::make_pair(varname_input_1, varname_input_2)),ref_output));
     }
 
@@ -543,7 +545,9 @@ class CIOMap {
         CompatibilityChecks();
 
         /* Collect query input and output variables without null */
-        std::vector<std::string> query_vars_out = {}, query_vars_in = {};
+        auto query_vars_out = std::vector<std::string>();
+        auto query_vars_in = std::vector<std::string>();
+        
         bool null_in_query{false};
         for (auto q_in : query_input) query_vars_in.push_back(q_in.first);
         for (auto q_out : query_output) {
@@ -561,7 +565,7 @@ class CIOMap {
         for (auto network_to_check : networks_to_check) {
           bool compatible_input{false},
                compatible_output{false};
-          std::vector<std::string> network_input_vars = network_to_check->GetInputVars();
+          auto network_input_vars = network_to_check->GetInputVars();
           /* Check if the set of network input variables is a sub-set of the set of the query input variables */
           for (auto q_in : query_vars_in) {
             auto f = std::find(network_input_vars.begin(), network_input_vars.end(), q_in);
@@ -575,7 +579,7 @@ class CIOMap {
           if (compatible_input) {
             /* Check if any of the query output variables are in the set of network output variables . */
             compatible_output = false;
-            std::vector<std::string> network_output_vars = network_to_check->GetOutputVars();
+            const auto network_output_vars = network_to_check->GetOutputVars();
             for (auto q_out : query_vars_out) {
               auto f = std::find(network_output_vars.begin(), network_output_vars.end(), q_out);
               if (f != network_output_vars.end()){
@@ -717,7 +721,7 @@ class CIOMap {
       for (const auto &mapped_network : query_network_maps) {
         auto network_input_names = mapped_network.MLP->GetInputVars();
         auto loc = std::find(network_input_names.begin(), network_input_names.end(), varname);
-        size_t iInput = std::distance(network_input_names.begin(), loc);
+        auto iInput = std::distance(network_input_names.begin(), loc);
         auto input_norm = mapped_network.MLP->GetInputNorm(iInput);
         val_limit_1 += input_norm.first;
         val_limit_2 += input_norm.second;

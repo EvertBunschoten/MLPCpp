@@ -48,8 +48,8 @@ class CLookUp_ANN {
    */
 
 private:
-  std::vector<bool> internally_generated;      /*!< whether network is to be dereferenced in destructor. */
-  std::vector<CNeuralNetwork*> NeuralNetworks; /*!< std::vector containing all loaded neural networks. */
+  std::vector<bool> internally_generated={};      /*!< whether network is to be dereferenced in destructor. */
+  std::vector<CNeuralNetwork*> NeuralNetworks={}; /*!< std::vector containing all loaded neural networks. */
 
   /*!
   * \brief Check whether network input and output variables are unique.
@@ -84,7 +84,7 @@ public:
               const std::string *input_filenames) {
     /*--- Generate an MLP for every filename provided ---*/
     for (auto i_MLP = 0u; i_MLP < n_inputs; i_MLP++) {
-      MLPToolbox::CNeuralNetwork * mlp = new MLPToolbox::CNeuralNetwork(input_filenames[i_MLP]);
+      auto mlp = new MLPToolbox::CNeuralNetwork(input_filenames[i_MLP]);
       CheckUniqueInputsOutputs(mlp);
       NeuralNetworks.push_back(mlp);
       internally_generated.push_back(true);
@@ -97,12 +97,11 @@ public:
    * \param[in] input_filenames - String array containing MLP input file names.
    */
   CLookUp_ANN(const std::vector<std::string> &input_filenames) {
-    NeuralNetworks.resize(input_filenames.size());
-    internally_generated.resize(input_filenames.size());
+    NeuralNetworks.resize(input_filenames.size(),nullptr);
+    internally_generated.resize(input_filenames.size(),true);
     for (auto i_MLP=0u; i_MLP<input_filenames.size(); i_MLP++) {
       NeuralNetworks[i_MLP] = new MLPToolbox::CNeuralNetwork(input_filenames[i_MLP]);
       CheckUniqueInputsOutputs(NeuralNetworks[i_MLP]);
-      internally_generated[i_MLP] = true;
     }
   }
 
@@ -175,7 +174,7 @@ public:
    * \brief Get number of loaded ANNs
    * \return number of loaded ANNs
    */
-  std::size_t GetNANNs() const { return NeuralNetworks.size(); }
+  size_t GetNANNs() const { return NeuralNetworks.size(); }
 
   /*!
    * \brief Display architectural information on the loaded MLPs
@@ -200,7 +199,7 @@ public:
     for (auto MLP : NeuralNetworks) MLP->DisplayNetwork();
   }
 
-  std::vector<mlpdouble> GetWeightsBiases(size_t i_network=0) const {
+  auto GetWeightsBiases(size_t i_network=0) const {
     return NeuralNetworks[i_network]->GetWeightsBiases();
   }
 

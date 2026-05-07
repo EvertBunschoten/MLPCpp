@@ -122,7 +122,7 @@ class Elu final: public ActivationFunctionBase {
                     Hessian = 0.0;
                 output = x;
             } else {
-                mlpdouble exp_x = exp(x);
+                const auto exp_x = exp(x);
                 if (calc_Jacobian)
                     Jacobian = exp_x;
                 if (calc_Hessian)
@@ -138,7 +138,7 @@ class Sigmoid final: public ActivationFunctionBase {
     public:
         Sigmoid() {name="Sigmoid", tag="sigmoid";}
         virtual mlpdouble operator() (const mlpdouble x,const bool calc_Jacobian=false, const bool calc_Hessian=false) {
-            const mlpdouble exp_x = exp(x);
+            const auto exp_x = exp(x);
             output = exp_x / (1 + exp_x);
             if (calc_Jacobian) {
                 Jacobian = exp_x / pow(1 + exp_x, 2);
@@ -185,7 +185,7 @@ class Swish final: public ActivationFunctionBase {
     public:
     Swish() {name="Swish", tag="swish"; }
     virtual mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
-        const mlpdouble exp_x = exp(x);
+        const auto exp_x = exp(x);
         output = x * exp_x/ (1 + exp_x);
         if (calc_Jacobian) {
             Jacobian = exp_x * (x + exp_x + 1) / pow(exp_x + 1, 2);
@@ -200,7 +200,7 @@ class Tanh final: public ActivationFunctionBase {
     public:
     Tanh() {name="Tanh", tag="tanh";}
     virtual mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
-        const mlpdouble tnh = tanh(x);
+        const auto tnh = tanh(x);
         output = tnh;
         if (calc_Jacobian){
             Jacobian = pow(cosh(x), -2);
@@ -231,7 +231,7 @@ class SeLu final: public ActivationFunctionBase {
                 }
             }
         } else {
-            const mlpdouble exp_x = exp(x);
+            const auto exp_x = exp(x);
             output = lambda * alpha * (exp_x - 1);
             if (calc_Jacobian){
                 Jacobian = output + lambda * alpha;
