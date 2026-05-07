@@ -6,17 +6,17 @@
 #include "unit_test.hpp"
 
 bool OutputCorrectness::CopyConstructorTest() {
-    MLPToolbox::CNeuralNetwork * mlp = CreateRandomNetwork();
+    auto mlp = CreateRandomNetwork();
     
-    std::vector<double> network_inputs = RandomInputs(mlp->GetnInputs());
+    auto network_inputs = RandomInputs(mlp->GetnInputs());
     mlp->Predict(network_inputs);
 
-    double network_output_ref = mlp->GetOutput(0);
+    const auto network_output_ref = mlp->GetOutput(0);
 
-    MLPToolbox::CNeuralNetwork mlp_copy = MLPToolbox::CNeuralNetwork(*mlp);
+    auto mlp_copy = MLPToolbox::CNeuralNetwork(*mlp);
     mlp_copy.Predict(network_inputs);
     
-    double network_output_copy = mlp_copy.GetOutput(0);
+    const double network_output_copy = mlp_copy.GetOutput(0);
 
     delete mlp;
     bool passed = (network_output_ref == network_output_copy);
@@ -26,17 +26,17 @@ bool OutputCorrectness::CopyConstructorTest() {
 }
 
 bool OutputCorrectness::FileWriterReaderTest() {
-    MLPToolbox::CNeuralNetwork * mlp = CreateRandomNetwork();
+    auto mlp = CreateRandomNetwork();
     std::string file_out_name = "mlp_test.mlp";
     mlp->WriteNeuralNetwork(file_out_name);
 
-    MLPToolbox::CNeuralNetwork mlp_from_file = MLPToolbox::CNeuralNetwork(file_out_name);
+    auto mlp_from_file = MLPToolbox::CNeuralNetwork(file_out_name);
 
-    std::vector<double> network_inputs = RandomInputs(mlp->GetnInputs());
+    auto network_inputs = RandomInputs(mlp->GetnInputs());
     mlp->Predict(network_inputs);
-    double outp_ref = mlp->GetOutput(0);
+    const auto outp_ref = mlp->GetOutput(0);
     mlp_from_file.Predict(network_inputs);
-    double outp_read = mlp_from_file.GetOutput(0);
+    const auto outp_read = mlp_from_file.GetOutput(0);
     delete mlp;
     bool passed = (outp_ref == outp_read);
     if (!passed)
@@ -46,17 +46,17 @@ bool OutputCorrectness::FileWriterReaderTest() {
 }
 
 bool OutputCorrectness::WeightsBiasesTest() {
-    MLPToolbox::CNeuralNetwork * mlp = CreateRandomNetwork();
+    auto mlp = CreateRandomNetwork();
     auto weightsbiases = mlp->GetWeightsBiases();
-    MLPToolbox::CNeuralNetwork mlp_copy = MLPToolbox::CNeuralNetwork(*mlp);
+    auto mlp_copy = MLPToolbox::CNeuralNetwork(*mlp);
     mlp_copy.RandomWeights();
 
     mlp_copy.SetWeightsBiases(weightsbiases);
-    std::vector<double> network_inputs = RandomInputs(mlp->GetnInputs());
+    auto network_inputs = RandomInputs(mlp->GetnInputs());
     mlp->Predict(network_inputs);
-    double outp_ref = mlp->GetOutput(0);
+    const auto outp_ref = mlp->GetOutput(0);
     mlp_copy.Predict(network_inputs);
-    double outp_copy = mlp_copy.GetOutput(0);
+    const auto outp_copy = mlp_copy.GetOutput(0);
 
     delete mlp;
     bool passed = (outp_ref == outp_copy);
@@ -68,12 +68,12 @@ bool OutputCorrectness::WeightsBiasesTest() {
 bool OutputCorrectness::VectorInputOutputs() {
 
     /* Create randomized network and a vector with random inputs. */
-    MLPToolbox::CNeuralNetwork * mlp = CreateRandomNetwork();
-    std::vector<double> network_inputs_vec = RandomInputs(mlp->GetnInputs());
+    auto mlp = CreateRandomNetwork();
+    auto network_inputs_vec = RandomInputs(mlp->GetnInputs());
     
     mlp->Predict(network_inputs_vec);
 
-    const double output_ref = mlp->GetOutput(0);
+    const auto output_ref = mlp->GetOutput(0);
 
     /* Reset network output */
     mlp->Predict(RandomInputs(mlp->GetnInputs()));
@@ -84,7 +84,7 @@ bool OutputCorrectness::VectorInputOutputs() {
 
     mlp->Predict();
 
-    const double output_p = mlp->GetOutput(0);
+    const auto output_p = mlp->GetOutput(0);
 
     /* Outputs from vector and piece-wise input should be the same. */
     bool passed_test = (output_ref == output_p);
