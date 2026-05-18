@@ -56,7 +56,10 @@ class ActivationFunctionBase{
     public:
 
     ActivationFunctionBase() = delete;
-    ActivationFunctionBase(const std::string & name_in, const std::string & tag_in) : name(name_in), tag(tag_in) {};
+    ActivationFunctionBase(const std::string & name_in) : name(name_in) {
+        tag = name_in;
+        std::transform(tag.begin(), tag.end(), tag.begin(), [](unsigned char c){ return std::tolower(c);});
+    }
 
     virtual ~ActivationFunctionBase() = default;
 
@@ -103,7 +106,7 @@ class ActivationFunctionBase{
 class Lin final: public ActivationFunctionBase {
     /*! \brief Linear activation function (output = input), used for input and output layer.*/
     public:
-        Lin() : ActivationFunctionBase("Linear", "linear") {}
+        Lin() : ActivationFunctionBase("Linear") {}
         mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) override {
             output = x;
             if (calc_Jacobian) Jacobian = 1.0;
@@ -115,7 +118,7 @@ class Lin final: public ActivationFunctionBase {
 class Elu final: public ActivationFunctionBase {
     /*! \brief Exponential linear unit function. */
     public:
-        Elu() : ActivationFunctionBase("Elu", "elu") {}
+        Elu() : ActivationFunctionBase("Elu") {}
         mlpdouble operator() (const mlpdouble x,const bool calc_Jacobian=false, const bool calc_Hessian=false) override {
             if (x > 0) {
                 if (calc_Jacobian)
@@ -138,7 +141,7 @@ class Elu final: public ActivationFunctionBase {
 class Sigmoid final: public ActivationFunctionBase {
     /*! \brief Sigmoid activation function. */
     public:
-        Sigmoid() : ActivationFunctionBase("Sigmoid", "sigmoid") {}
+        Sigmoid() : ActivationFunctionBase("Sigmoid") {}
         virtual mlpdouble operator() (const mlpdouble x,const bool calc_Jacobian=false, const bool calc_Hessian=false) {
             const mlpdouble exp_x = exp(x);
             output = exp_x / (1 + exp_x);
@@ -156,7 +159,7 @@ class Sigmoid final: public ActivationFunctionBase {
 class Exponential final: public ActivationFunctionBase {
     /*! \brief Exponential function. */
     public:
-    Exponential() : ActivationFunctionBase("Exponential", "exponential") {}
+    Exponential() : ActivationFunctionBase("Exponential") {}
     virtual mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
         output = exp(x);
         if (calc_Jacobian) Jacobian = output;
@@ -168,7 +171,7 @@ class Exponential final: public ActivationFunctionBase {
 class Relu final: public ActivationFunctionBase {
     /*! \brief Rectified linear unit activation function. */
     public:
-    Relu() : ActivationFunctionBase("ReLu", "relu") {}
+    Relu() : ActivationFunctionBase("ReLu") {}
     virtual mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
         if (x > 0) {
             output = x;
@@ -185,7 +188,7 @@ class Relu final: public ActivationFunctionBase {
 class Swish final: public ActivationFunctionBase {
     /*! \brief Swish or sigmoid linear unit activation function. */
     public:
-    Swish() : ActivationFunctionBase("Swish", "swish") {}
+    Swish() : ActivationFunctionBase("Swish") {}
     virtual mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
         const mlpdouble exp_x = exp(x);
         output = x * exp_x/ (1 + exp_x);
@@ -200,7 +203,7 @@ class Swish final: public ActivationFunctionBase {
 
 class Tanh final: public ActivationFunctionBase {
     public:
-    Tanh() : ActivationFunctionBase("Tanh", "tanh") {}
+    Tanh() : ActivationFunctionBase("Tanh") {}
     virtual mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
         const mlpdouble tnh = tanh(x);
         output = tnh;
@@ -222,7 +225,7 @@ class SeLu final: public ActivationFunctionBase {
         const mlpdouble lambda {1.05070098};
         const mlpdouble alpha {1.67326324};
     public:
-    SeLu() : ActivationFunctionBase("SeLu", "selu") {}
+    SeLu() : ActivationFunctionBase("SeLu") {}
     virtual mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
         if (x > 0) {
             output = lambda * x;
@@ -251,7 +254,7 @@ class GeLu final: public ActivationFunctionBase {
     private:
     const mlpdouble gelu_c{0.5*sqrt(2)}, pi_sqrt{sqrt(2/M_PI)};
     public:
-    GeLu() : ActivationFunctionBase("GeLu", "gelu") {}
+    GeLu() : ActivationFunctionBase("GeLu") {}
     virtual mlpdouble operator() (const mlpdouble x, const bool calc_Jacobian=false, const bool calc_Hessian=false) {
         output = 0.5 * x * (1 + erf(x / sqrt(2)));
         if (calc_Jacobian) {
