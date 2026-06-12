@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/mlpcpp_codi_nn_test.dir/UnitTests/test_codi_neuralnetwork.cpp.o -o mlpcpp_codi_nn_test  /root/SU2/build/SU2_CFD/src/libSU2core_AD.a 
