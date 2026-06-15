@@ -1,7 +1,0 @@
-/root/SU2/subprojects/MLPCpp/build/CMakeFiles/test.dir
-/root/SU2/subprojects/MLPCpp/build/CMakeFiles/edit_cache.dir
-/root/SU2/subprojects/MLPCpp/build/CMakeFiles/rebuild_cache.dir
-/root/SU2/subprojects/MLPCpp/build/UnitTests/CMakeFiles/test_adam.dir
-/root/SU2/subprojects/MLPCpp/build/UnitTests/CMakeFiles/test.dir
-/root/SU2/subprojects/MLPCpp/build/UnitTests/CMakeFiles/edit_cache.dir
-/root/SU2/subprojects/MLPCpp/build/UnitTests/CMakeFiles/rebuild_cache.dir
