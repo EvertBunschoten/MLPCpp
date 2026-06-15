@@ -20,14 +20,11 @@ struct AnnealerConfig {
     // EMA decay coefficient
     double alpha = 0.9;
 
-    // Initial value for all lambdas
     double lambda_init = 1.0;
 
-    // Hard clamp applied after every EMA update.
     double lambda_min = 1e-4;
     double lambda_max = 1e+4;
 
-    // Number of data-fit terms M (boundary, IC, etc.).
     std::size_t n_data_terms = 1;
 };
 
@@ -118,12 +115,10 @@ public:
         return lambda_[i];
     }
 
-    // Full λ vector
     const std::vector<double>& lambdas() const noexcept {
         return lambda_;
     }
 
-    // Instantaneous λ̂ᵢ (before EMA smoothing) — for logging.
     double get_lambda_hat(std::size_t i) const {
         assert(i < cfg_.n_data_terms);
         return lambda_hat_[i];
@@ -141,21 +136,10 @@ public:
     }
 
 
-    void print_state(std::ostream& os = std::cout) const {
-        os << "  [GradAnnealer] step=" << step_
-           << "  α=" << cfg_.alpha << "\n";
-        for (std::size_t i = 0; i < cfg_.n_data_terms; ++i) {
-            os << "    term[" << i << "]"
-               << "  λ=" << std::scientific << std::setprecision(4)
-               << lambda_[i]
-               << "  λ̂=" << lambda_hat_[i] << "\n";
-        }
-    }
-
 private:
     AnnealerConfig      cfg_;
-    std::vector<double> lambda_;       // EMA-smoothed weights (Algorithm 1, Eq. 18)
-    std::vector<double> lambda_hat_;   // instantaneous estimate (Eq. 17)
+    std::vector<double> lambda_;       
+    std::vector<double> lambda_hat_;   
     std::size_t         step_;
 };
 
