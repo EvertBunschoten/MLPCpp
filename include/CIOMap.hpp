@@ -38,11 +38,11 @@ namespace MLPToolbox {
 struct IOMap_Network {
   /*! \brief struct with query information. */
 
-  CNeuralNetwork* MLP; /*! \brief Pointer to network selected for query. */
-  std::vector<std::pair<mlpdouble*, mlpdouble*>> input_map; /*! \brief Link between query input and network input nodes. */
-  std::vector<std::pair<mlpdouble*,mlpdouble*>> output_map; /*! \brief Link between network output nodes and query output. */
-  std::vector<std::pair<const mlpdouble*, const mlpdouble*>> Jacobian_map;  /*! \brief Link between network Jacobians and query Jacobians. */
-  std::vector<std::pair<const mlpdouble*, const mlpdouble*>> Hessian_map;   /*! \brief Link between network Hessians and query Hessians. */
+  CNeuralNetwork* MLP = nullptr; /*! \brief Pointer to network selected for query. */
+  std::vector<std::pair<mlpdouble*, mlpdouble*>> input_map = {}; /*! \brief Link between query input and network input nodes. */
+  std::vector<std::pair<mlpdouble*,mlpdouble*>> output_map = {}; /*! \brief Link between network output nodes and query output. */
+  std::vector<std::pair<const mlpdouble*, const mlpdouble*>> Jacobian_map = {};  /*! \brief Link between network Jacobians and query Jacobians. */
+  std::vector<std::pair<const mlpdouble*, const mlpdouble*>> Hessian_map = {};   /*! \brief Link between network Hessians and query Hessians. */
   bool evaluate_Jacobian {false}; /*! \brief Evaluate Jacobians while evaluating the network output. */
   bool evaluate_Hessian {false};  /*! \brief Evaluate Hessians while evaluating the network output. */
 };
@@ -50,16 +50,16 @@ struct IOMap_Network {
 class CIOMap {
     /*! \brief Class used to pair look-up variables with network outputs. */
     private: 
-    std::vector<std::pair<std::string, mlpdouble*>> query_input;  
-    std::vector<std::pair<std::string, mlpdouble*>> query_output;
+    std::vector<std::pair<std::string, mlpdouble*>> query_input = {};  
+    std::vector<std::pair<std::string, mlpdouble*>> query_output = {};
     
-    std::vector<IOMap_Network> query_network_maps; /*! \brief Query information per network. */
+    std::vector<IOMap_Network> query_network_maps = {}; /*! \brief Query information per network. */
 
-    std::vector<std::pair<std::pair<std::string, std::string>, mlpdouble*>> query_Jacobian; /*! \brief Jacobians to be evaluated. */
-    std::vector<std::pair<std::pair<std::string, std::pair<std::string, std::string>>, mlpdouble*>> query_Hessian; /*! \brief Hessians to be evaluated. */
+    std::vector<std::pair<std::pair<std::string, std::string>, mlpdouble*>> query_Jacobian = {}; /*! \brief Jacobians to be evaluated. */
+    std::vector<std::pair<std::pair<std::string, std::pair<std::string, std::string>>, mlpdouble*>> query_Hessian = {}; /*! \brief Hessians to be evaluated. */
 
-    std::vector<mlpdouble> query_output_vals; /*! \brief Network outputs corresponding to query. */
-    std::vector<mlpdouble*> null_outputs;     /*! \brief Pointers to outputs that should return zero. */
+    std::vector<mlpdouble> query_output_vals = {}; /*! \brief Network outputs corresponding to query. */
+    std::vector<mlpdouble*> null_outputs = {};     /*! \brief Pointers to outputs that should return zero. */
 
     
     /*!
