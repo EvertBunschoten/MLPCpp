@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <string>
 #include <iostream>
+#include <cassert>
 
 
 //  AnnealerConfig
@@ -78,9 +79,7 @@ public:
 
 
 
-    void update(const GradStats& grad_ref,
-                const std::vector<GradStats>& grad_data)
-    {
+    void update(const GradStats& grad_ref, const std::vector<GradStats>& grad_data) {
         assert(grad_data.size() == cfg_.n_data_terms);
 
         ++step_;
@@ -96,14 +95,11 @@ public:
                 lambda_hat_[i] = ref_max / data_mean;
             }
 
-            // EMA update (Eq. 18)
-            lambda_[i] = (1.0 - cfg_.alpha) * lambda_[i]
-                       +         cfg_.alpha  * lambda_hat_[i];
+            // EMA update
+            lambda_[i] = (1.0 - cfg_.alpha) * lambda_[i] + cfg_.alpha  * lambda_hat_[i];
 
             // Hard clamp
-            lambda_[i] = std::clamp(lambda_[i],
-                                    cfg_.lambda_min,
-                                    cfg_.lambda_max);
+            lambda_[i] = std::clamp(lambda_[i], cfg_.lambda_min, cfg_.lambda_max);
         }
     }
 
