@@ -2,8 +2,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Locate roots relative to this directory (UnitTests)
-set(SU2_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
-set(MLPCPP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
+set(CODI_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../externals/codi" CACHE PATH "Path to the CoDi library")
+set(CCATCH_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../externals/catch2" CACHE PATH "Path to the Catch2 library")
+set(MLPCPP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." CACHE PATH "Path to the MLP-C++ root directory")
 
 # Define the test executables
 add_executable(test_adam CAdam_tests.cpp)
@@ -17,9 +18,8 @@ add_executable(test_demo_case ../TestCase/demo_case.cpp)
 # Common include directories for all tests in this subproject
 set(TEST_INCLUDE_DIRS
     ${MLPCPP_ROOT}/include
-    ${SU2_ROOT}/Common/include
-    ${SU2_ROOT}/externals/codi/include
-    ${SU2_ROOT}/externals/catch2 
+    ${CODI_PATH}/include
+    ${CCATCH_PATH}
 )
 
 target_include_directories(test_adam PRIVATE ${TEST_INCLUDE_DIRS})
