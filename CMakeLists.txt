@@ -11,3 +11,7 @@ project(${project_name})
 set(APP_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 include_directories(${APP_INCLUDE_DIRS})
+
+# enable testing & add unit tests dir
+enable_testing()
+add_subdirectory(UnitTests)  
