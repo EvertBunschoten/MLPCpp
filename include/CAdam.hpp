@@ -19,14 +19,30 @@ public:
       beta1(beta1),
       beta2(beta2),
       eps(epsilon),
-      t(0)
-    {}
+      timeStep(0)
+    {
+        if (lr < 0.0) {
+            throw std::invalid_argument("CAdam: learning_rate must be >= 0");
+        }
+        
+        if (beta1 < 0.0 || beta1 >= 1.0) {
+            throw std::invalid_argument("CAdam: beta1 must be in the range [0, 1)");
+        }
+        
+        if (beta2 < 0.0 || beta2 >= 1.0) {
+            throw std::invalid_argument("CAdam: beta2 must be in the range [0, 1)");
+        }
+        
+        if (eps <= 0.0) {
+            throw std::invalid_argument("CAdam: epsilon must be > 0");
+        }
+    }
 
     // Initialization
     void initialize(std::size_t size) {
-        m.assign(size, 0);
-        v.assign(size, 0);
-        t = 0;
+        firstMoment_.assign(size, 0);
+        secondMoment_.assign(size, 0);
+        timeStep = 0;
     }
 
     // Optimization step
@@ -37,33 +53,33 @@ public:
             throw std::runtime_error("CAdam: params and grads size mismatch");
         }
 
-        if (m.size() != params.size()) {
+        if (firstMoment_.size() != params.size()) {
             initialize(params.size());
         }
 
-        t++;
+        timeStep++;
 
         for (std::size_t i = 0; i < params.size(); ++i) {
             // First moment
-            m[i] = beta1 * m[i] + (1.0 - beta1) * grads[i];
+            firstMoment_[i] = beta1 * firstMoment_[i] + (1.0 - beta1) * grads[i];
 
             // Second moment
-            v[i] = beta2 * v[i] + (1.0 - beta2) * grads[i] * grads[i];
+            secondMoment_[i] = beta2 * secondMoment_[i] + (1.0 - beta2) * grads[i] * grads[i];
 
             // Bias correction
-            mlpdouble m_hat = m[i] / (1.0 - std::pow(beta1, t));
-            mlpdouble v_hat = v[i] / (1.0 - std::pow(beta2, t));
+            mlpdouble firstMoment_hat = firstMoment_[i] / (1.0 - std::pow(beta1, timeStep));
+            mlpdouble secondMoment_hat = secondMoment_[i] / (1.0 - std::pow(beta2, timeStep));
 
             // Update
-            params[i] -= lr * m_hat / (std::sqrt(v_hat) + eps);
+            params[i] -= lr * firstMoment_hat / (std::sqrt(secondMoment_hat) + eps);
         }
     }
 
     // Reset
     void reset() {
-        m.clear();
-        v.clear();
-        t = 0;
+        firstMoment_.clear();
+        secondMoment_.clear();
+        timeStep = 0;
     }
 
 
@@ -72,12 +88,12 @@ public:
     mlpdouble getBeta1() const { return beta1; }
     mlpdouble getBeta2() const { return beta2; }
     mlpdouble getEpsilon() const { return eps; }
-    std::size_t getTimeStep() const { return t; }
+    std::size_t getTimeStep() const { return timeStep; }
 
-    const std::vector<mlpdouble>& getFirstMoment() const { return m; }
-    const std::vector<mlpdouble>& getSecondMoment() const { return v; }
+    const std::vector<mlpdouble>& getFirstMoment() const { return firstMoment_; }
+    const std::vector<mlpdouble>& getSecondMoment() const { return secondMoment_; }
 
-    std::size_t getStateSize() const { return m.size(); }
+    std::size_t getNumberOfVariables() const { return firstMoment_.size(); }
 
     
 
@@ -87,7 +103,7 @@ private:
     mlpdouble beta2;
     mlpdouble eps;
 
-    std::vector<mlpdouble> m;   // first moment
-    std::vector<mlpdouble> v;   // second moment
-    std::size_t t;              // timestep
+    std::vector<mlpdouble> firstMoment_;   // first moment
+    std::vector<mlpdouble> secondMoment_;   // second moment
+    std::size_t timeStep;              // timestep
 };

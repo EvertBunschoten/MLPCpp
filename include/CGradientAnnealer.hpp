@@ -36,15 +36,15 @@ struct GradStats {
     double mean_abs;  
 
     // compute stats from a flat gradient vector.
-    static GradStats from_grads(const std::vector<double>& g) {
-        if (g.empty()) return {0.0, 0.0};
-        double mx = 0.0, sum = 0.0;
-        for (double gi : g) {
-            double ag = std::abs(gi);
-            if (ag > mx) mx = ag;
-            sum += ag;
+    static GradStats from_grads(const std::vector<double>& grads) {
+        if (grads.empty()) return {0.0, 0.0};
+        double max = 0.0, sum = 0.0;
+        for (double grad : grads) {
+            double abs_grad = std::abs(grad);
+            if (abs_grad > max) max = abs_grad;
+            sum += abs_grad;
         }
-        return { mx, sum / static_cast<double>(g.size()) };
+        return { max, sum / static_cast<double>(grads.size()) };
     }
 };
 
@@ -59,7 +59,7 @@ public:
         : cfg_(cfg)
         , lambda_(cfg.n_data_terms, cfg.lambda_init)
         , lambda_hat_(cfg.n_data_terms, cfg.lambda_init)
-        , step_(0)
+        , timeStep_(0)
     {
         if (cfg.n_data_terms == 0)
             throw std::invalid_argument(
@@ -82,7 +82,7 @@ public:
     void update(const GradStats& grad_ref, const std::vector<GradStats>& grad_data) {
         assert(grad_data.size() == cfg_.n_data_terms);
 
-        ++step_;
+        ++timeStep_;
 
         const double ref_max = grad_ref.max_abs;
 
@@ -120,13 +120,13 @@ public:
         return lambda_hat_[i];
     }
 
-    std::size_t step() const noexcept { return step_; }
+    std::size_t step() const noexcept { return timeStep_; }
     std::size_t n_data_terms() const noexcept { return cfg_.n_data_terms; }
     const AnnealerConfig& config() const noexcept { return cfg_; }
 
     // Reset EMA state
     void reset() noexcept {
-        step_ = 0;
+        timeStep_ = 0;
         std::fill(lambda_.begin(), lambda_.end(), cfg_.lambda_init);
         std::fill(lambda_hat_.begin(), lambda_hat_.end(), cfg_.lambda_init);
     }
@@ -136,6 +136,6 @@ private:
     AnnealerConfig      cfg_;
     std::vector<double> lambda_;       
     std::vector<double> lambda_hat_;   
-    std::size_t         step_;
+    std::size_t         timeStep_;
 };
 
