@@ -271,7 +271,7 @@ namespace MLPToolbox {
     * \param[in] bias - node bias value, defaults to 0.0
     * \returns - innder product between array and weights.
     */
-    const mlpdouble WeightsMultiplication(const size_t iLayer, const size_t iNeuron, const mlpdouble*array_in, const mlpdouble bias=0.0) const {
+    mlpdouble WeightsMultiplication(const size_t iLayer, const size_t iNeuron, const mlpdouble*array_in, const mlpdouble bias=0.0) const {
         return std::inner_product(weights_mat[iLayer][iNeuron], weights_mat[iLayer][iNeuron] + NN[iLayer], array_in, bias);
     }
     
@@ -690,49 +690,8 @@ namespace MLPToolbox {
         * \param[in] iLayer - layer index
         * \param[in] name_activation_function - activation function tag
         */
-        void SetActivationFunction(const size_t iLayer, const std::string name_activation_function="linear") {
-            /* Check if activation function tag is valid */
-            const auto it = activation_function_map.find(name_activation_function);
-            if (it == activation_function_map.end()) {
-                std::string msg = "Activation function not supported (" + name_activation_function + ")";
-                ErrorMessage(msg, "CNeuralNetwork:SetActivationFunction");
-            }
-            
-            const auto i_phi = it->second;
-            ActivationFunctionBase * function_out;
-            switch (i_phi)
-            {
-            case ENUM_ACTIVATION_FUNCTION::LINEAR:
-                function_out = new Lin();
-                break;
-            case ENUM_ACTIVATION_FUNCTION::ELU:
-                function_out = new Elu();
-                break;
-            case ENUM_ACTIVATION_FUNCTION::EXPONENTIAL:
-                function_out = new Exponential();
-                break;
-            case ENUM_ACTIVATION_FUNCTION::RELU:
-                function_out = new Relu();
-                break;
-            case ENUM_ACTIVATION_FUNCTION::SWISH:
-                function_out = new Swish();
-                break;
-            case ENUM_ACTIVATION_FUNCTION::TANH:
-                function_out = new Tanh();
-                break;
-            case ENUM_ACTIVATION_FUNCTION::SIGMOID:
-                function_out = new Sigmoid();
-                break;
-            case ENUM_ACTIVATION_FUNCTION::SELU:
-                function_out = new SeLu();
-                break;
-            case ENUM_ACTIVATION_FUNCTION::GELU:
-                function_out = new GeLu();
-                break;
-            default:
-                function_out = new Lin();
-                break;
-            }
+        void SetActivationFunction(const size_t iLayer, const std::string &name_activation_function="linear") const {
+            ActivationFunctionBase * function_out = getActivationFunction(name_activation_function);
             if (activation_functions[iLayer] != nullptr){
                 delete activation_functions[iLayer];
             }
