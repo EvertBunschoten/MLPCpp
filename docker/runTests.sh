@@ -72,4 +72,4 @@ make
 # cmake --build build 
 # ./build/run_unit_tests
 # fi 
-ctest --output-on-failure --error-exitcode=1
+ctest --output-on-failure
