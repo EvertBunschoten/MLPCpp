@@ -319,13 +319,26 @@ static const std::map<std::string, ENUM_ACTIVATION_FUNCTION>
         {"tanh", ENUM_ACTIVATION_FUNCTION::TANH},
         {"exponential", ENUM_ACTIVATION_FUNCTION::EXPONENTIAL}};
 
+class UnknownActivationFunctionException : public std::exception {
+private:
+  std::string function_name;
+
+public:
+  UnknownActivationFunctionException(const std::string &f) noexcept
+      : function_name{f} {};
+  ~UnknownActivationFunctionException() noexcept = default;
+  virtual const char *what() const noexcept {
+    std::string msg =
+        "Activation function not recognized (" + function_name + ")";
+    return msg.c_str();
+  }
+};
+
 static ActivationFunctionBase *
 RetrieveActivationFunction(const std::string &function_name) {
   const auto it = activation_function_map.find(function_name);
   if (it == activation_function_map.end()) {
-    std::string msg =
-        "Activation function not supported (" + function_name + ")";
-    ErrorMessage(msg, "CNeuralNetwork:SetActivationFunction");
+    throw UnknownActivationFunctionException(function_name);
   }
 
   const auto i_phi = it->second;

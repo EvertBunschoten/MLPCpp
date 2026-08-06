@@ -362,12 +362,26 @@ RetrieveScalerFunction(const ENUM_SCALING_FUNCTIONS i_scaler,
   return scaler;
 };
 
+class UnknownScalerFunctionException : public std::exception {
+private:
+  std::string function_name;
+
+public:
+  UnknownScalerFunctionException(const std::string &f) noexcept
+      : function_name{f} {};
+  ~UnknownScalerFunctionException() noexcept = default;
+  virtual const char *what() const noexcept {
+    std::string msg = "Scaler function not recognized (" + function_name + ")";
+    return msg.c_str();
+  }
+};
+
 static ScalerFunction *
 RetrieveScalerFunction(const std::string &tag_scaler_function,
                        const size_t n_scalers) {
   const auto it = scaling_map.find(tag_scaler_function);
   if (it == scaling_map.end())
-    throw std::exception();
+    throw UnknownScalerFunctionException(tag_scaler_function);
   return RetrieveScalerFunction(it->second, n_scalers);
 };
 

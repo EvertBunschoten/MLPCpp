@@ -91,3 +91,10 @@ TEST_CASE("Hessian", "[CActivationFunction]") {
     REQUIRE_EQUAL_TOL(d2ydx2_a, d2ydx2_fd, 1e-5);
   }
 }
+
+TEST_CASE("Unknown activation function", "[CActivationFunction]") {
+  std::string unknown_function_name{"wrong_tag"};
+  REQUIRE_THROWS_AS(
+      MLPToolbox::RetrieveActivationFunction(unknown_function_name),
+      MLPToolbox::UnknownActivationFunctionException);
+}
