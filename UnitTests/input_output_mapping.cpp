@@ -4,9 +4,6 @@
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
-#define REQUIRE_EQUAL_TOL(a, b, tol)                                           \
-  REQUIRE_THAT(static_cast<double>(a),                                         \
-               Catch::Matchers::WithinAbs(static_cast<double>(b), tol))
 
 TEST_CASE("Different queries, same network", "[CIOMap]") {
   /*! \brief Different queries with the same network should return the same

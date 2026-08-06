@@ -4,6 +4,10 @@
 #include <vector>
 #pragma once
 
+#define REQUIRE_EQUAL_TOL(a, b, tol)                                           \
+  REQUIRE_THAT(static_cast<double>(a),                                         \
+               Catch::Matchers::WithinAbs(static_cast<double>(b), tol))
+
 /*!
  * \brief Create a vector with random values for the network input.
  * \param[in] n_inp - number of network input nodes.
