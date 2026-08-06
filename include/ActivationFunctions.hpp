@@ -265,4 +265,76 @@ class GeLu final: public ActivationFunctionBase {
         return output;
     }
 };
+
+enum class ENUM_ACTIVATION_FUNCTION {
+    NONE = 0,
+    LINEAR = 1,
+    RELU = 2,
+    ELU = 3,
+    GELU = 4,
+    SELU = 5,
+    SIGMOID = 6,
+    SWISH = 7,
+    TANH = 8,
+    EXPONENTIAL = 9
+};
+  
+static const std::map<std::string, ENUM_ACTIVATION_FUNCTION> activation_function_map{
+        {"none", ENUM_ACTIVATION_FUNCTION::NONE},
+        {"linear", ENUM_ACTIVATION_FUNCTION::LINEAR},
+        {"elu", ENUM_ACTIVATION_FUNCTION::ELU},
+        {"relu", ENUM_ACTIVATION_FUNCTION::RELU},
+        {"gelu", ENUM_ACTIVATION_FUNCTION::GELU},
+        {"selu", ENUM_ACTIVATION_FUNCTION::SELU},
+        {"sigmoid", ENUM_ACTIVATION_FUNCTION::SIGMOID},
+        {"swish", ENUM_ACTIVATION_FUNCTION::SWISH},
+        {"tanh", ENUM_ACTIVATION_FUNCTION::TANH},
+        {"exponential", ENUM_ACTIVATION_FUNCTION::EXPONENTIAL}};
+
+
+static ActivationFunctionBase* RetrieveActivationFunction(const std::string & function_name)
+{
+  const auto it = activation_function_map.find(function_name);
+  if (it == activation_function_map.end()) {
+      std::string msg = "Activation function not supported (" + function_name + ")";
+      ErrorMessage(msg, "CNeuralNetwork:SetActivationFunction");
+  }
+  
+  const auto i_phi = it->second;
+  ActivationFunctionBase * function_out;
+  switch (i_phi)
+  {
+  case ENUM_ACTIVATION_FUNCTION::LINEAR:
+      function_out = new Lin();
+      break;
+  case ENUM_ACTIVATION_FUNCTION::ELU:
+      function_out = new Elu();
+      break;
+  case ENUM_ACTIVATION_FUNCTION::EXPONENTIAL:
+      function_out = new Exponential();
+      break;
+  case ENUM_ACTIVATION_FUNCTION::RELU:
+      function_out = new Relu();
+      break;
+  case ENUM_ACTIVATION_FUNCTION::SWISH:
+      function_out = new Swish();
+      break;
+  case ENUM_ACTIVATION_FUNCTION::TANH:
+      function_out = new Tanh();
+      break;
+  case ENUM_ACTIVATION_FUNCTION::SIGMOID:
+      function_out = new Sigmoid();
+      break;
+  case ENUM_ACTIVATION_FUNCTION::SELU:
+      function_out = new SeLu();
+      break;
+  case ENUM_ACTIVATION_FUNCTION::GELU:
+      function_out = new GeLu();
+      break;
+  default:
+      function_out = new Lin();
+      break;
+  }
+  return function_out;
+}
 }
