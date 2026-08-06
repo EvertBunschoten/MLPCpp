@@ -294,7 +294,7 @@ TEST_CASE("Input-output accessors through vectors", "[CIOMap]") {
     bool inside_m = mlp_collection.Predict(query_memberwise);
     bool inside_v = mlp_collection.Predict(query_vector, vals_in_vec, refs_out_vec);
 
-    REQUIRE(val_x_v==-3.0);
+    REQUIRE(val_x_v==val_x_m);
     REQUIRE(val_y_v==val_y_m);
     REQUIRE(val_z_v==val_z_m);
 
