@@ -5,15 +5,37 @@ on:
     branches:
       - 'develop'
       - 'main'
+      - 'feature_regression_tests'
   pull_request:
     branches:
       - 'develop'
       - 'main'
 
 jobs:
+  run_unittests:
+    name: Run unit tests in container
+    runs-on: ubuntu-latest 
+    steps:
+      - name: Pre Cleanup
+        uses: docker://ghcr.io/evertbunschoten/mlpcpp_test:latest
+        with:
+          entrypoint: /bin/rm 
+          args: -rf src/
+
+      - name: Run regression tests
+        uses: docker://ghcr.io/evertbunschoten/mlpcpp_test:latest
+        with:
+          args: -b ${{ github.ref }} -U
+      
+      - name: Post Cleanup
+        uses: docker://ghcr.io/evertbunschoten/mlpcpp_test:latest
+        with:
+          entrypoint: /bin/rm 
+          args: -rf src/
 
   run_regression:
-    name: Run tests in container
+
+    name: Run regression tests in container
     runs-on: ubuntu-latest
     steps:
       - name: Pre Cleanup
@@ -25,7 +47,7 @@ jobs:
       - name: Run regression tests
         uses: docker://ghcr.io/evertbunschoten/mlpcpp_test:latest
         with:
-          args: -b ${{ github.ref }}
+          args: -b ${{ github.ref }} -R
       
       - name: Post Cleanup
         uses: docker://ghcr.io/evertbunschoten/mlpcpp_test:latest
