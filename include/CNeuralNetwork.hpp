@@ -41,9 +41,33 @@
 #include "ActivationFunctions.hpp"
 #include "CReadNeuralNetwork.hpp"
 #include "ScalarFunctions.hpp"
-#include "option_maps.hpp"
 
 namespace MLPToolbox {
+class ShouldBePositiveException : public std::exception {
+private:
+  std::string header_msg;
+
+public:
+  ShouldBePositiveException(const std::string &msg) noexcept
+      : header_msg{msg} {};
+  ~ShouldBePositiveException() noexcept = default;
+  virtual const char *what() const noexcept {
+    std::string msg = header_msg + " should be positive.";
+    return msg.c_str();
+  }
+};
+
+class WeightsMisMatchException : public std::exception {
+
+public:
+  WeightsMisMatchException() noexcept = default;
+  ~WeightsMisMatchException() noexcept = default;
+  virtual const char *what() const noexcept {
+    std::string msg = "Vector size mismatch with network topology.";
+    return msg.c_str();
+  }
+};
+
 class CNeuralNetwork {
 private:
   size_t n_layers{0},     /*!< \brief Total number of layers in the network. */
@@ -408,9 +432,7 @@ public:
   CNeuralNetwork(const std::vector<size_t> &NN_input)
       : n_layers(NN_input.size()) {
     if (std::find(NN_input.begin(), NN_input.end(), 0) != NN_input.end()) {
-      ErrorMessage("Number of nodes should be positive",
-                   "CNeuralNetwork:CNeuralNetwork");
-      return;
+      throw ShouldBePositiveException("Number of nodes in the layers");
     }
     NN = new size_t[n_layers];
     std::copy(NN_input.begin(), NN_input.end(), NN);
@@ -827,8 +849,7 @@ public:
     expected_size += NN[n_hidden_layers];
 
     if (flat_weights.size() != expected_size)
-      ErrorMessage("Vector size mismatch with network topology.",
-                   "CNeuralNetwork::SetWeightsBiases");
+      throw WeightsMisMatchException();
 
     size_t k{0};
     for (size_t iLayer = 1; iLayer < n_layers; iLayer++) {

@@ -38,7 +38,6 @@
 #include "ActivationFunctions.hpp"
 #include "CNeuralNetwork.hpp"
 #include "ScalarFunctions.hpp"
-#include "option_maps.hpp"
 #include "variable_def.hpp"
 
 namespace MLPToolbox {
@@ -152,6 +151,7 @@ public:
           getline(file_stream, line);
           std::istringstream activation_stream(line);
           activation_stream >> word;
+          RetrieveActivationEnum(word);
           activation_functions[iLayer] = word;
         }
       }
@@ -170,12 +170,7 @@ public:
         getline(file_stream, line);
         std::istringstream input_norm_stream(line);
         input_norm_stream >> word;
-        const auto it = scaling_map.find(word);
-        if (it == scaling_map.end())
-          ErrorMessage("Input scaler function not recognized (" + word + ")",
-                       "CReadNeuralNetwork:ReadMLPFile");
-        else
-          input_reg_method = it->second;
+        input_reg_method = RetrieveScalerEnum(word);
       }
 
       /* In case input normalization is applied, read upper and lower input
@@ -217,12 +212,7 @@ public:
         getline(file_stream, line);
         std::istringstream output_norm_stream(line);
         output_norm_stream >> word;
-        const auto it = scaling_map.find(word);
-        if (it == scaling_map.end())
-          ErrorMessage("Output scaler function not recognized (" + word + ")",
-                       "CReadNeuralNetwork:ReadMLPFile");
-        else
-          output_reg_method = it->second;
+        output_reg_method = RetrieveScalerEnum(word);
       }
 
       /* In case output normalization is applied, read upper and lower output

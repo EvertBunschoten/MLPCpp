@@ -27,7 +27,6 @@
 * SOFTWARE.
 */
 #pragma once
-#include "option_maps.hpp"
 #include "variable_def.hpp"
 #include <algorithm>
 #include <cmath>
@@ -334,14 +333,17 @@ public:
   }
 };
 
+static ENUM_ACTIVATION_FUNCTION
+RetrieveActivationEnum(const std::string &tag_function) {
+  const auto it = activation_function_map.find(tag_function);
+  if (it == activation_function_map.end())
+    throw UnknownActivationFunctionException(tag_function);
+  return it->second;
+};
+
 static ActivationFunctionBase *
 RetrieveActivationFunction(const std::string &function_name) {
-  const auto it = activation_function_map.find(function_name);
-  if (it == activation_function_map.end()) {
-    throw UnknownActivationFunctionException(function_name);
-  }
-
-  const auto i_phi = it->second;
+  const auto i_phi = RetrieveActivationEnum(function_name);
   ActivationFunctionBase *function_out;
   switch (i_phi) {
   case ENUM_ACTIVATION_FUNCTION::LINEAR:

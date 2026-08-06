@@ -40,6 +40,22 @@
 #include "CNeuralNetwork.hpp"
 #include "CReadNeuralNetwork.hpp"
 namespace MLPToolbox {
+class DuplicatesAmongNetworksException : public std::exception {
+private:
+  const CNeuralNetwork *mlp_with_duplicates;
+
+public:
+  DuplicatesAmongNetworksException(
+      const CNeuralNetwork *problematic_mlp) noexcept
+      : mlp_with_duplicates{problematic_mlp} {};
+  ~DuplicatesAmongNetworksException() noexcept = default;
+  virtual const char *what() const noexcept {
+    std::string msg =
+        "Network input variables or output variables contain duplicates:";
+    mlp_with_duplicates->DisplayNetwork(std::cerr);
+    return msg.c_str();
+  }
+};
 
 class CLookUp_ANN {
   /*!
@@ -72,12 +88,7 @@ private:
         network_outputs.end();
 
     if (!unique_outputs || !unique_inputs) {
-      std::cerr << "Network contains duplicate input or output variables: "
-                << std::endl;
-      network_to_check->DisplayNetwork(std::cerr);
-      ErrorMessage(
-          "Network input variables or output variables contain duplicates",
-          "CLookUp_ANN::CheckUniqueInputsOutputs");
+      throw DuplicatesAmongNetworksException(network_to_check);
     }
   }
 

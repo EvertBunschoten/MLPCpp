@@ -28,7 +28,6 @@
 */
 
 #pragma once
-#include "option_maps.hpp"
 #include "variable_def.hpp"
 #include <algorithm>
 #include <cmath>
@@ -119,6 +118,16 @@ public:
   std::string GetTag() const { return tag; }
 };
 
+class NegativeStdException : public std::exception {
+public:
+  NegativeStdException() noexcept = default;
+  ~NegativeStdException() noexcept = default;
+  virtual const char *what() const noexcept {
+    std::string msg = "Standard deviation scaling value should be positive.";
+    return msg.c_str();
+  }
+};
+
 class StandardScaler : public ScalerFunction {
   /*! \brief Scaler function using standard deviation. n = (d - mu)/std */
 
@@ -140,8 +149,7 @@ public:
   virtual void SetScaling(const size_t i_in, const mlpdouble val_mu = 0.0,
                           const mlpdouble val_std = 1.0) {
     if (val_std < 0) {
-      ErrorMessage("Standard deviation value should be positive.",
-                   "StandardScaler:SetScaling");
+      throw NegativeStdException();
     }
     vals_mu[i_in] = val_mu;
     vals_std[i_in] = val_std;
@@ -236,6 +244,17 @@ public:
   };
 };
 
+class IllDefinedBoundsException : public std::exception {
+public:
+  IllDefinedBoundsException() noexcept = default;
+  ~IllDefinedBoundsException() noexcept = default;
+  virtual const char *what() const noexcept {
+    std::string msg =
+        "Maximum scaling value should be higher than minimum scaling value";
+    return msg.c_str();
+  }
+};
+
 class MinMaxScaler : public ScalerFunction {
   /*! \brief min-max scaler function: n = (d - min)/(max - min). */
 
@@ -257,9 +276,7 @@ public:
   virtual void SetScaling(const size_t i_in, const mlpdouble min = 0,
                           const mlpdouble max = 1) {
     if (min >= max)
-      ErrorMessage(
-          "Maximum scaling value should be higher than minimum scaling value",
-          "MinMaxScaler:SetScaling");
+      throw IllDefinedBoundsException();
 
     vals_min[i_in] = min;
     vals_max[i_in] = max;
@@ -376,13 +393,19 @@ public:
   }
 };
 
-static ScalerFunction *
-RetrieveScalerFunction(const std::string &tag_scaler_function,
-                       const size_t n_scalers) {
+static ENUM_SCALING_FUNCTIONS
+RetrieveScalerEnum(const std::string &tag_scaler_function) {
   const auto it = scaling_map.find(tag_scaler_function);
   if (it == scaling_map.end())
     throw UnknownScalerFunctionException(tag_scaler_function);
-  return RetrieveScalerFunction(it->second, n_scalers);
+  return it->second;
+};
+
+static ScalerFunction *
+RetrieveScalerFunction(const std::string &tag_scaler_function,
+                       const size_t n_scalers) {
+  const auto scalerEnum = RetrieveScalerEnum(tag_scaler_function);
+  return RetrieveScalerFunction(scalerEnum, n_scalers);
 };
 
 } // namespace MLPToolbox
