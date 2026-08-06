@@ -15,13 +15,20 @@ FetchContent_Declare(
   GIT_TAG        v3.8.1 # or a later release
 )
 
+FetchContent_Declare(
+  CoDiPack
+  GIT_REPOSITORY https://github.com/SciCompKL/CoDiPack
+)
+
 FetchContent_MakeAvailable(Catch2)
+FetchContent_MakeAvailable(CoDiPack)
 
 add_executable(test_gradients gradient_correctness.cpp)
 add_executable(test_input_output_mapping input_output_mapping.cpp)
 add_executable(test_activation_functions activation_function_tests.cpp)
 add_executable(neural_network_tests CNeuralNetwork_unittests.cpp)
 add_executable(test_scaler_functions scaler_function_tests.cpp)
+add_executable(test_automatic_differentiation ad_tests.cpp)
 
 set(TEST_INCLUDE_DIRS
     ${MLPCPP_ROOT}/include
@@ -32,12 +39,14 @@ target_include_directories(test_input_output_mapping PRIVATE ${TEST_INCLUDE_DIRS
 target_include_directories(test_activation_functions PRIVATE ${TEST_INCLUDE_DIRS})
 target_include_directories(neural_network_tests PRIVATE ${TEST_INCLUDE_DIRS})
 target_include_directories(test_scaler_functions PRIVATE ${TEST_INCLUDE_DIRS})
+target_include_directories(test_automatic_differentiation PRIVATE ${TEST_INCLUDE_DIRS})
 
 target_link_libraries(test_gradients PRIVATE Catch2::Catch2WithMain)
 target_link_libraries(test_input_output_mapping PRIVATE Catch2::Catch2WithMain)
 target_link_libraries(test_activation_functions PRIVATE Catch2::Catch2WithMain)
 target_link_libraries(neural_network_tests PRIVATE Catch2::Catch2WithMain)
 target_link_libraries(test_scaler_functions PRIVATE Catch2::Catch2WithMain)
+target_link_libraries(test_automatic_differentiation PRIVATE Catch2::Catch2WithMain PRIVATE CoDiPack)
 
 # Register with CTest
 include(CTest)
@@ -46,3 +55,4 @@ add_test(NAME test_input_output_mapping COMMAND test_input_output_mapping)
 add_test(NAME test_activation_functions COMMAND test_activation_functions)
 add_test(NAME neural_network_tests COMMAND neural_network_tests)
 add_test(NAME test_scaler_functions COMMAND test_scaler_functions)
+add_test(NAME test_automatic_differentiation COMMAND test_automatic_differentiation)
