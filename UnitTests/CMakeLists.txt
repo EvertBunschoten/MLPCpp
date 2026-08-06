@@ -20,6 +20,7 @@ FetchContent_MakeAvailable(Catch2)
 add_executable(test_gradients gradient_correctness.cpp)
 add_executable(test_input_output_mapping input_output_mapping.cpp)
 add_executable(test_activation_functions activation_function_tests.cpp)
+add_executable(neural_network_tests CNeuralNetwork_unittests.cpp)
 
 set(TEST_INCLUDE_DIRS
     ${MLPCPP_ROOT}/include
@@ -28,11 +29,16 @@ set(TEST_INCLUDE_DIRS
 target_include_directories(test_gradients PRIVATE ${TEST_INCLUDE_DIRS})
 target_include_directories(test_input_output_mapping PRIVATE ${TEST_INCLUDE_DIRS})
 target_include_directories(test_activation_functions PRIVATE ${TEST_INCLUDE_DIRS})
+target_include_directories(neural_network_tests PRIVATE ${TEST_INCLUDE_DIRS})
+
 target_link_libraries(test_gradients PRIVATE Catch2::Catch2WithMain)
 target_link_libraries(test_input_output_mapping PRIVATE Catch2::Catch2WithMain)
 target_link_libraries(test_activation_functions PRIVATE Catch2::Catch2WithMain)
+target_link_libraries(neural_network_tests PRIVATE Catch2::Catch2WithMain)
+
 # Register with CTest
 include(CTest)
 add_test(NAME test_gradients COMMAND test_gradients)
 add_test(NAME test_input_output_mapping COMMAND test_input_output_mapping)
 add_test(NAME test_activation_functions COMMAND test_activation_functions)
+add_test(NAME neural_network_tests COMMAND neural_network_tests)
