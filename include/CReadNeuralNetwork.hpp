@@ -37,6 +37,8 @@
 
 #include "variable_def.hpp"
 #include "option_maps.hpp"
+#include "ScalarFunctions.hpp"
+#include "ActivationFunctions.hpp"
 #include "CNeuralNetwork.hpp"
 
 

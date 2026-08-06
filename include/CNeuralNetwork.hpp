@@ -359,12 +359,9 @@ namespace MLPToolbox {
         * \param[in] reg_method_tag - scaling method tag, defaults to "minmax"
         */
         void SetInputRegularization(const std::string reg_method_tag="minmax") {
-            const auto it = scaling_map.find(reg_method_tag);
-            if (it == scaling_map.end())
-                ErrorMessage("Scaler function not recognized (" + reg_method_tag + ")", "CNeuralNetwork:SetInputRegularization");
-            else
-                input_reg_method = it->second;
-            SetInputRegularization(input_reg_method);
+            if (input_scaler != nullptr) delete input_scaler;
+            input_scaler = RetrieveScalerFunction(reg_method_tag, n_inputs);
+            input_reg_method = scaling_map.find(reg_method_tag)->second;
         }
 
         std::string GetInputRegularization() const {return input_scaler->GetTag();}
@@ -374,12 +371,9 @@ namespace MLPToolbox {
         * \param[in] reg_method_tag - scaling method tag, defaults to "minmax"
         */
         void SetOutputRegularization(const std::string reg_method_tag="minmax") {
-            const auto it = scaling_map.find(reg_method_tag);
-            if (it == scaling_map.end())
-                ErrorMessage("Scaler function not recognized (" + reg_method_tag + ")", "CNeuralNetwork:SetOutputRegularization");
-            else
-                output_reg_method = it->second;
-            SetOutputRegularization(output_reg_method);
+            if (output_scaler != nullptr) delete output_scaler;
+            output_scaler = RetrieveScalerFunction(reg_method_tag, n_outputs);
+            output_reg_method = scaling_map.find(reg_method_tag)->second;
         }
         
         /*!
@@ -388,22 +382,9 @@ namespace MLPToolbox {
         */
         void SetInputRegularization(const ENUM_SCALING_FUNCTIONS reg_method_input) {
             if (input_scaler != nullptr) delete input_scaler;
-          switch (reg_method_input)
-          {
-          
-          case ENUM_SCALING_FUNCTIONS::STANDARD:
-            input_scaler = new StandardScaler(n_inputs);
-            break;
-          case ENUM_SCALING_FUNCTIONS::ROBUST:
-            input_scaler = new RobustScaler(n_inputs);
-            break;
-          case ENUM_SCALING_FUNCTIONS::MINMAX:
-          default:
-            input_scaler = new MinMaxScaler(n_inputs);
-            break;
-          };
-          input_reg_method = reg_method_input;
-          return;
+            input_scaler = RetrieveScalerFunction(reg_method_input, n_inputs);
+            input_reg_method = reg_method_input;
+            return;
         }
 
         /*!
@@ -412,20 +393,7 @@ namespace MLPToolbox {
         */
         void SetOutputRegularization(const ENUM_SCALING_FUNCTIONS reg_method_input) {
           if (output_scaler != nullptr) delete output_scaler;
-          switch (reg_method_input)
-          {
-          
-          case ENUM_SCALING_FUNCTIONS::STANDARD:
-            output_scaler = new StandardScaler(n_outputs);
-            break;
-          case ENUM_SCALING_FUNCTIONS::ROBUST:
-            output_scaler = new RobustScaler(n_outputs);
-            break;
-          case ENUM_SCALING_FUNCTIONS::MINMAX:
-          default:
-            output_scaler = new MinMaxScaler(n_outputs);
-            break;
-          };
+          output_scaler = RetrieveScalerFunction(reg_method_input, n_outputs);
           output_reg_method = reg_method_input;
           return;
         }
@@ -690,53 +658,11 @@ namespace MLPToolbox {
         * \param[in] iLayer - layer index
         * \param[in] name_activation_function - activation function tag
         */
-        void SetActivationFunction(const size_t iLayer, const std::string name_activation_function="linear") {
-            /* Check if activation function tag is valid */
-            const auto it = activation_function_map.find(name_activation_function);
-            if (it == activation_function_map.end()) {
-                std::string msg = "Activation function not supported (" + name_activation_function + ")";
-                ErrorMessage(msg, "CNeuralNetwork:SetActivationFunction");
-            }
-            
-            const auto i_phi = it->second;
-            ActivationFunctionBase * function_out;
-            switch (i_phi)
-            {
-            case ENUM_ACTIVATION_FUNCTION::LINEAR:
-                function_out = new Lin();
-                break;
-            case ENUM_ACTIVATION_FUNCTION::ELU:
-                function_out = new Elu();
-                break;
-            case ENUM_ACTIVATION_FUNCTION::EXPONENTIAL:
-                function_out = new Exponential();
-                break;
-            case ENUM_ACTIVATION_FUNCTION::RELU:
-                function_out = new Relu();
-                break;
-            case ENUM_ACTIVATION_FUNCTION::SWISH:
-                function_out = new Swish();
-                break;
-            case ENUM_ACTIVATION_FUNCTION::TANH:
-                function_out = new Tanh();
-                break;
-            case ENUM_ACTIVATION_FUNCTION::SIGMOID:
-                function_out = new Sigmoid();
-                break;
-            case ENUM_ACTIVATION_FUNCTION::SELU:
-                function_out = new SeLu();
-                break;
-            case ENUM_ACTIVATION_FUNCTION::GELU:
-                function_out = new GeLu();
-                break;
-            default:
-                function_out = new Lin();
-                break;
-            }
+        void SetActivationFunction(const size_t iLayer, const std::string & name_activation_function="linear") {
             if (activation_functions[iLayer] != nullptr){
                 delete activation_functions[iLayer];
             }
-            activation_functions[iLayer] = function_out;
+            activation_functions[iLayer] = RetrieveActivationFunction(name_activation_function);
         }
 
         /*!
