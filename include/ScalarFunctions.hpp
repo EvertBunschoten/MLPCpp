@@ -307,4 +307,43 @@ class MinMaxScaler :  public ScalerFunction {
                     << std::endl;
     };
 };
+
+enum class ENUM_SCALING_FUNCTIONS {
+MINMAX = 0,
+STANDARD = 1,
+ROBUST = 2,
+};
+
+
+static const std::map<std::string, ENUM_SCALING_FUNCTIONS> scaling_map{
+    {"minmax", ENUM_SCALING_FUNCTIONS::MINMAX},
+    {"standard", ENUM_SCALING_FUNCTIONS::STANDARD},
+    {"robust", ENUM_SCALING_FUNCTIONS::ROBUST},
+};
+
+static ScalerFunction * RetrieveScalerFunction(const ENUM_SCALING_FUNCTIONS i_scaler, const size_t n_scalers) {
+    ScalerFunction * scaler;
+    switch (i_scaler)
+    {
+    case ENUM_SCALING_FUNCTIONS::STANDARD:
+        scaler = new StandardScaler(n_scalers);
+    break;
+    case ENUM_SCALING_FUNCTIONS::ROBUST:
+        scaler = new RobustScaler(n_scalers);
+    break;
+    case ENUM_SCALING_FUNCTIONS::MINMAX:
+    default:
+        scaler = new MinMaxScaler(n_scalers);
+    break;
+    };
+    return scaler;
+};
+
+static ScalerFunction * RetrieveScalerFunction(const std::string & tag_scaler_function, const size_t n_scalers) {
+    const auto it = scaling_map.find(tag_scaler_function);
+    if (it == scaling_map.end())
+        throw std::exception();
+    return RetrieveScalerFunction(it->second, n_scalers);
+};
+
 }
