@@ -1,5 +1,11 @@
 name: Code Style
 on:
+  push:
+    branches:
+      - 'develop'
+      - 'main'
+      - 'feature_regression_tests'
+
   pull_request:
     paths:
       - "**.[ch]pp"

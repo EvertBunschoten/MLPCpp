@@ -27,6 +27,7 @@
 * SOFTWARE.
 */
 #pragma once
+#include <iostream>
 #include <iomanip>
 #include <map>
 #include <string>
