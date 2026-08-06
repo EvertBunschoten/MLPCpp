@@ -41,6 +41,9 @@ TEST_CASE("Standard scaler test", "[ScalerFunction]") {
 }
 
 TEST_CASE("Normalization and de-normalization", "[ScalerFunction]") {
+  /*! \brief For all scaler functions, check if de-normalized output equals the
+   * original input. */
+
   size_t n_inputs{3};
 
   for (auto scalerfunction : MLPToolbox::scaling_map) {
