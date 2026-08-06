@@ -56,6 +56,9 @@ TEST_CASE("Different queries, same network", "[CIOMap]") {
     }  
 
     REQUIRE(val_out_1 == val_out_2);
+
+    delete mlp_1;
+    delete mlp_2;
 }
 
 TEST_CASE("Same networks in query", "[CIOMap]") {
@@ -109,6 +112,8 @@ TEST_CASE("Same networks in query", "[CIOMap]") {
     }  
 
     REQUIRE(val_out_1==val_out_2);
+    delete mlp_1;
+    delete mlp_2;
 }
 
 TEST_CASE("Query with multiple networks", "[CIOMap]") {
@@ -156,6 +161,8 @@ TEST_CASE("Query with multiple networks", "[CIOMap]") {
     REQUIRE(val_out_2==mlp_1->GetOutput(1));
     REQUIRE(val_out_1==mlp_2->GetOutput(0));
     REQUIRE(val_out_2==mlp_2->GetOutput(1));
+    delete mlp_1;
+    delete mlp_2;
 }
 
 TEST_CASE("Null queries", "[CIOMap]") {
@@ -192,6 +199,57 @@ TEST_CASE("Null queries", "[CIOMap]") {
     REQUIRE(val_out_3==0.0);
     REQUIRE(val_out_4==0.0);
     REQUIRE(val_out_5==0.0);
+    delete mlp_1;
+}
+
+TEST_CASE("Jacobian and Hessian queries", "[CIOMap]") {
+    std::vector<std::string> input_names_1 = {"a","b"}, output_names_1 = {"x", "y"};
+    std::vector<std::string> input_names_2 = {"c","d"}, output_names_2 = {"z", "q"};
+    MLPToolbox::CNeuralNetwork * mlp_1 = CreateRandomNetwork(input_names_1, output_names_1);
+    MLPToolbox::CNeuralNetwork * mlp_2 = CreateRandomNetwork(input_names_2, output_names_2);
+    
+    MLPToolbox::CLookUp_ANN mlp_collection;
+    mlp_collection.AddNetwork(mlp_1);
+    mlp_collection.AddNetwork(mlp_2);
+
+    double val_a, val_b, val_c, val_d;
+    double val_x, val_y, val_z, val_q;
+    double val_dxda, val_dzdc, val_d2ydb2, val_d2qdcdd;
+
+    MLPToolbox::CIOMap derivative_query;
+    derivative_query.AddQueryInput("a", &val_a);
+    derivative_query.AddQueryInput("b", &val_b);
+    derivative_query.AddQueryInput("c", &val_c);
+    derivative_query.AddQueryInput("d", &val_d);
+
+    derivative_query.AddQueryOutput("x", &val_x);
+    derivative_query.AddQueryOutput("y", &val_y);
+    derivative_query.AddQueryOutput("z", &val_z);
+    derivative_query.AddQueryOutput("q", &val_q);
+
+    derivative_query.AddQueryJacobian("x", "a", &val_dxda);
+    derivative_query.AddQueryJacobian("z", "c", &val_dzdc);
+
+    derivative_query.AddQueryHessian("y","b","b", &val_d2ydb2);
+    derivative_query.AddQueryHessian("q","c","d", &val_d2qdcdd);
+    
+    mlp_collection.PairVariableswithMLPs(derivative_query);
+
+    auto vals_input = RandomInputs(4);
+    val_a = vals_input[0];
+    val_b = vals_input[1];
+    val_c = vals_input[2];
+    val_d = vals_input[3];
+
+    mlp_collection.Predict(derivative_query);
+
+    REQUIRE(val_dxda==mlp_1->GetJacobian(0, 0));
+    REQUIRE(val_dzdc==mlp_2->GetJacobian(0, 0));
+    REQUIRE(val_d2ydb2==mlp_1->GetHessian(1, 1, 1));
+    REQUIRE(val_d2qdcdd==mlp_2->GetHessian(1, 0, 1));
+
+    delete mlp_1;
+    delete mlp_2;
 }
 
 TEST_CASE("Input-output accessors through vectors", "[CIOMap]") {
@@ -238,9 +296,12 @@ TEST_CASE("Input-output accessors through vectors", "[CIOMap]") {
     REQUIRE(val_x_v==val_x_m);
     REQUIRE(val_y_v==val_y_m);
     REQUIRE(val_z_v==val_z_m);
+
+    delete mlp_1;
+    delete mlp_2;
 }
 
-TEST_CASE("Ill-defined queries", "[CIOMap]") {
+TEST_CASE("Ill-defined queries for look-up", "[CIOMap]") {
     /*! \brief impossible queries should return errors */
     std::vector<std::string> input_names_1 = {"a","b"}, output_names_1 = {"x", "y"};
     MLPToolbox::CNeuralNetwork * mlp_1 = CreateRandomNetwork(input_names_1, output_names_1);
@@ -311,4 +372,60 @@ TEST_CASE("Ill-defined queries", "[CIOMap]") {
     insufficient_hessian.AddQueryHessian("x", "a","b", nullptr);
     REQUIRE_THROWS_AS(mlp_collection.PairVariableswithMLPs(insufficient_hessian), MLPToolbox::InsufficientHessianException);
     }
+    delete mlp_1;
+}
+
+TEST_CASE("Ill-defined queries for Jacobians and Hessians", "[CIOMap]") {
+    std::vector<std::string> input_names_1 = {"a","b"}, output_names_1 = {"x", "y"};
+    MLPToolbox::CNeuralNetwork * mlp_1 = CreateRandomNetwork(input_names_1, output_names_1);
+    std::vector<std::string> input_names_2 = {"c","d"}, output_names_2 = {"z", "q"};
+    MLPToolbox::CNeuralNetwork * mlp_2 = CreateRandomNetwork(input_names_2, output_names_2);
+
+    MLPToolbox::CLookUp_ANN mlp_collection;
+    mlp_collection.AddNetwork(mlp_1);
+    mlp_collection.AddNetwork(mlp_2);
+
+
+    {
+    MLPToolbox::CIOMap insufficient_jacobian;
+    insufficient_jacobian.AddQueryInput("a");
+    insufficient_jacobian.AddQueryInput("b");
+    insufficient_jacobian.AddQueryOutput("y");
+    insufficient_jacobian.AddQueryJacobian("x", "a", nullptr);
+    REQUIRE_THROWS_AS(mlp_collection.PairVariableswithMLPs(insufficient_jacobian), MLPToolbox::InsufficientJacobianException);
+    }
+    {
+    MLPToolbox::CIOMap insufficient_hessian;
+    insufficient_hessian.AddQueryInput("a");
+    insufficient_hessian.AddQueryInput("b");
+    insufficient_hessian.AddQueryOutput("y");
+    insufficient_hessian.AddQueryHessian("x", "a","b", nullptr);
+    REQUIRE_THROWS_AS(mlp_collection.PairVariableswithMLPs(insufficient_hessian), MLPToolbox::InsufficientHessianException);
+    }
+
+    {
+        MLPToolbox::CIOMap illdefined_jacobian;
+        illdefined_jacobian.AddQueryInput("a");
+        illdefined_jacobian.AddQueryInput("b");
+        illdefined_jacobian.AddQueryInput("c");
+        illdefined_jacobian.AddQueryInput("d");
+        illdefined_jacobian.AddQueryOutput("x");
+        illdefined_jacobian.AddQueryOutput("z");
+        illdefined_jacobian.AddQueryJacobian("z", "a", nullptr);
+        REQUIRE_THROWS_AS(mlp_collection.PairVariableswithMLPs(illdefined_jacobian), MLPToolbox::JacobianNotSupportedException);
+    }
+
+    {
+        MLPToolbox::CIOMap illdefined_hessian;
+        illdefined_hessian.AddQueryInput("a");
+        illdefined_hessian.AddQueryInput("b");
+        illdefined_hessian.AddQueryInput("c");
+        illdefined_hessian.AddQueryInput("d");
+        illdefined_hessian.AddQueryOutput("x");
+        illdefined_hessian.AddQueryOutput("z");
+        illdefined_hessian.AddQueryHessian("z", "c","b", nullptr);
+        REQUIRE_THROWS_AS(mlp_collection.PairVariableswithMLPs(illdefined_hessian), MLPToolbox::HessianNotSupportedException);
+    }
+    delete mlp_1;
+    delete mlp_2;
 }

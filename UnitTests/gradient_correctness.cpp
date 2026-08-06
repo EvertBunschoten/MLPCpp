@@ -42,7 +42,7 @@ TEST_CASE("Jacobian correctness", "[CNeuralNetwork]") {
     const double Jac_FD = (outp_plus - outp_minus) / (2*delta_inp);
 
     REQUIRE_EQUAL_TOL(Jac_analytical, Jac_FD, 1e-6);
-    //REQUIRE_THAT(Jac_analytical, WithinAbs(Jac_FD, 1e-6));
+    delete mlp;
 }
 
 TEST_CASE("Hessian correctness", "[CNeuralNetwork]") {
@@ -79,4 +79,10 @@ TEST_CASE("Hessian correctness", "[CNeuralNetwork]") {
     const double Hes_FD = (jac_outp_plus - jac_outp_minus) / (2*delta_inp);
 
     REQUIRE_EQUAL_TOL(Hes_analytical, Hes_FD, 1e-6);
+
+    /* Check if cross terms of the Hessian are the same */
+    for (auto iInput = 0; iInput < mlp->GetnInputs(); iInput++) {
+        REQUIRE_EQUAL_TOL(mlp->GetHessian(iOut, iInput, jIn),mlp->GetHessian(iOut, jIn, iInput),1e-6);
+    }
+    delete mlp;
 }
