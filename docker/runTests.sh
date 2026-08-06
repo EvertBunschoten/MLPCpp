@@ -25,11 +25,11 @@ if [ "$#" -ne 0 ]; then
         case "$1" in
             -R)
                     regression=true
-                    shift 2
+                    shift 1
                 ;;
             -U)
                     unittest=true 
-                    shift 2
+                    shift 1
                 ;;
             -b)
                     branch=$2
