@@ -13,7 +13,7 @@
                Catch::Matchers::WithinAbs(static_cast<double>(b), tol))
 
 TEST_CASE("Copy constructor", "[CNeuralNetwork]") {
-    MLPToolbox::CNeuralNetwork *mlp = CreateRandomNetwork();
+  MLPToolbox::CNeuralNetwork *mlp = CreateRandomNetwork();
 
   std::vector<double> network_inputs = RandomInputs(mlp->GetnInputs());
   mlp->Predict(network_inputs);
@@ -25,13 +25,12 @@ TEST_CASE("Copy constructor", "[CNeuralNetwork]") {
 
   const auto network_output_copy = mlp_copy.GetOutput(0);
 
-  REQUIRE(network_output_ref==network_output_copy);
+  REQUIRE(network_output_ref == network_output_copy);
   delete mlp;
 };
 
-
 TEST_CASE("File writer test", "[CNeuralNetwork]") {
-    MLPToolbox::CNeuralNetwork *mlp = CreateRandomNetwork();
+  MLPToolbox::CNeuralNetwork *mlp = CreateRandomNetwork();
   std::string file_out_name = "mlp_test.mlp";
   mlp->WriteNeuralNetwork(file_out_name);
 
@@ -44,13 +43,12 @@ TEST_CASE("File writer test", "[CNeuralNetwork]") {
   mlp_from_file.Predict(network_inputs);
   const auto outp_read = mlp_from_file.GetOutput(0);
 
-  REQUIRE(outp_ref==outp_read);
+  REQUIRE(outp_ref == outp_read);
   delete mlp;
 };
 
-
 TEST_CASE("Flattened weights and biases", "[CNeuralNetwork]") {
-    MLPToolbox::CNeuralNetwork *mlp = CreateRandomNetwork();
+  MLPToolbox::CNeuralNetwork *mlp = CreateRandomNetwork();
   auto weightsbiases = mlp->GetWeightsBiases();
   MLPToolbox::CNeuralNetwork mlp_copy = MLPToolbox::CNeuralNetwork(*mlp);
   mlp_copy.RandomWeights();
@@ -62,7 +60,7 @@ TEST_CASE("Flattened weights and biases", "[CNeuralNetwork]") {
   mlp_copy.Predict(network_inputs);
   const auto outp_copy = mlp_copy.GetOutput(0);
 
-  REQUIRE(outp_ref==outp_copy);
+  REQUIRE(outp_ref == outp_copy);
 
   delete mlp;
 };
@@ -89,16 +87,18 @@ TEST_CASE("Vector-wise and member-wise input", "[CNeuralNetwork]") {
   REQUIRE(output_ref == output_p);
 };
 
-TEST_CASE("Ill-defined networks", "[CNeuralNetworks]") {
-    {
-    std::vector<size_t> bad_architecture= {3, 4, 0, 10};
-    REQUIRE_THROWS_AS(MLPToolbox::CNeuralNetwork(bad_architecture), MLPToolbox::ShouldBePositiveException);
-    }
+TEST_CASE("Ill-defined networks", "[CNeuralNetworks]"){
+    {std::vector<size_t> bad_architecture = {3, 4, 0, 10};
+REQUIRE_THROWS_AS(MLPToolbox::CNeuralNetwork(bad_architecture),
+                  MLPToolbox::ShouldBePositiveException);
+}
 
-    {
-        MLPToolbox::CNeuralNetwork *mlp = CreateRandomNetwork();
-        auto weights_biases = mlp->GetWeightsBiases();
-        weights_biases.push_back(1.0);
-        REQUIRE_THROWS_AS(mlp->SetWeightsBiases(weights_biases), MLPToolbox::WeightsMisMatchException);
-    }
-};
+{
+  MLPToolbox::CNeuralNetwork *mlp = CreateRandomNetwork();
+  auto weights_biases = mlp->GetWeightsBiases();
+  weights_biases.push_back(1.0);
+  REQUIRE_THROWS_AS(mlp->SetWeightsBiases(weights_biases),
+                    MLPToolbox::WeightsMisMatchException);
+}
+}
+;
