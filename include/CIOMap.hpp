@@ -33,8 +33,11 @@ operations.
 #include <vector>
 #include <set>
 #include "CNeuralNetwork.hpp"
+#include "CExceptions.hpp"
+
 namespace MLPToolbox {
-  
+
+
 struct IOMap_Network {
   /*! \brief struct with query information. */
 
@@ -75,10 +78,7 @@ class CIOMap {
       std::sort(query_vars_copy.begin(), query_vars_copy.end());
       const auto duplicate = std::adjacent_find(query_vars_copy.begin(), query_vars_copy.end());
       if (duplicate != query_vars_copy.end()) {
-        std::string msg = "Query contains duplicate ";
-        msg += is_input ? "inputs:":"outputs:";
-        msg += *duplicate;
-        ErrorMessage(msg, "CIOMap::CheckQueryVars");
+        throw DuplicatesInQueryException(is_input, *duplicate);
       }
     }
 
@@ -98,9 +98,9 @@ class CIOMap {
           shared_vars.push_back(*f);
       }
       if (!shared_vars.empty()) {
-        std::string msg = "Query has shared variables between input and output: ";
-        for (auto q : shared_vars) msg += (q + " ");
-        ErrorMessage(msg, "CIOMap::CheckSharedVars");
+        std::string msg = "";
+        for (auto q : shared_vars) msg += (q + ", ");
+        throw SharedInputsOutputsException(msg);
       }
       
     }
@@ -133,13 +133,11 @@ class CIOMap {
           unique_Jac_x_vars.erase(f_x);
       }
 
-      if (!unique_Jac_y_vars.empty() || !unique_Jac_x_vars.empty()) {
-        std::string msg = "Jacobian enumerator variables not included in query: ";
-        for (auto s : unique_Jac_y_vars) msg += (s + " ");
-        msg += "\n";
-        msg += "Jacobian denominator  variables not included in query: ";
-        for (auto s : unique_Jac_x_vars) msg += (s + " ");
-        ErrorMessage(msg, "CIOMap::CheckJacobianQuery");
+      if ((!unique_Jac_y_vars.empty()) || (!unique_Jac_x_vars.empty())) {
+        std::string missing_enumerators = "", missing_denominators="";
+        for (auto s : unique_Jac_y_vars) missing_enumerators += (s + " ");
+        for (auto s : unique_Jac_x_vars) missing_denominators += (s + " ");
+        throw InsufficientJacobianException(missing_enumerators,missing_denominators);
       }
     }
 
@@ -173,12 +171,10 @@ class CIOMap {
       }
 
       if (!unique_Hes_y_vars.empty() || !unique_Hes_x_vars.empty()) {
-        std::string msg = "Hessian enumerator variables not included in query: ";
-        for (auto s : unique_Hes_y_vars) msg += (s + " ");
-        msg += "\n";
-        msg += "Hessian denominator variables not included in query: ";
-        for (auto s : unique_Hes_x_vars) msg += (s + " ");
-        ErrorMessage(msg, "CIOMap::CheckHessianQuery");
+         std::string missing_enumerators = "", missing_denominators="";
+        for (auto s : unique_Hes_y_vars) missing_enumerators += (s + " ");
+        for (auto s : unique_Hes_x_vars) missing_denominators += (s + " ");
+        throw InsufficientHessianException(missing_enumerators,missing_denominators);
       }
     }
 
@@ -208,10 +204,10 @@ class CIOMap {
       }
 
       if (!incompatible_jacobians.empty()) {
-        std::string msg = "The following Jacobian queries were not supported by the networks:\n";
+        std::vector<std::string> impossible_jacobians = {};
         for (auto J : incompatible_jacobians)
-          msg += ("d" + J.first + "/d"+J.second+"\n");
-        ErrorMessage(msg, "CIOMap::CheckJacobianNetworks");
+          impossible_jacobians.push_back("d"+J.first+"/d"+J.second);
+        throw JacobianNotSupportedException(impossible_jacobians);
       }
     }
 
@@ -244,10 +240,10 @@ class CIOMap {
       }
 
       if (!incompatible_hessians.empty()) {
-        std::string msg = "The following Hessian queries were not supported by the networks:\n";
+        std::vector<std::string> msg = {};
         for (auto H : incompatible_hessians)
-          msg += ("d2" + H.first + "/d"+H.second.first + "d"+H.second.second+"\n");
-        ErrorMessage(msg, "CIOMap::CheckHessianNetworks");
+          msg.push_back(("d2" + H.first + "/d"+H.second.first + "d"+H.second.second));
+        throw HessianNotSupportedException(msg);
       }
     }
     /*!
@@ -613,13 +609,13 @@ class CIOMap {
             std::string msg = "The following query output variables are not present in the network output variables: ";
             for (auto v_out : remaining_query_vars_out)
               msg += (v_out + " ");
-            ErrorMessage(msg, "CIOMap::FindNetworksForQuery");
+            throw QueryOutputNotFoundException();
           }
           if (!remaining_query_vars_in.empty() && !null_in_query) {
             std::string msg = "The following query input variables are not present in the network input variables: ";
             for (auto v_out : remaining_query_vars_in)
               msg += (v_out + " ");
-            ErrorMessage(msg, "CIOMap::FindNetworksForQuery");
+            throw QueryInputNotFoundException();
           }
         }
 
@@ -658,7 +654,7 @@ class CIOMap {
     bool operator()(const std::vector<mlpdouble> &vals_input,const std::vector<mlpdouble*> &refs_output) const 
     {
       if (refs_output.size() != query_output_vals.size()){
-        ErrorMessage("Number of outputs in query differs from number of requested outputs.", "CIOMap:operator()");
+        throw IncompatibleOutputVectorException();
       }
       bool within_bounds{true};
       for (const auto &mapped_network : query_network_maps) {
@@ -727,6 +723,9 @@ class CIOMap {
       return std::make_pair(val_limit_1, val_limit_2);
     }
 };
+
+
+
 } // namespace MLPToolbox
 
 
