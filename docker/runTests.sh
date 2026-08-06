@@ -28,7 +28,7 @@ if [ "$#" -ne 0 ]; then
                     shift 1
                 ;;
             -U)
-                    unittest=true 
+                    unittest=true
                     shift 1
                 ;;
             -b)
@@ -57,19 +57,19 @@ git config --add remote.origin.fetch '+refs/heads/*:refs/remotes/origin/refs/hea
 git fetch origin
 git checkout $branch
 
-# if [ "$unittest" = true ]; then 
-cd UnitTests 
-cmake -B build 
+# if [ "$unittest" = true ]; then
+cd UnitTests
+cmake -B build
 cd build
 make
 
 
 
-# if [ "$regressiontest" = true ]; then 
+# if [ "$regressiontest" = true ]; then
 
-# cd RegressionTests 
+# cd RegressionTests
 # cmake -B build
-# cmake --build build 
+# cmake --build build
 # ./build/run_unit_tests
-# fi 
+# fi
 ctest --output-on-failure

@@ -27,17 +27,19 @@
 * SOFTWARE.
 */
 #pragma once
-#include <string>
-#include <map>
 #include <iomanip>
+#include <map>
+#include <string>
 
-
-static void ErrorMessage(const std::string ErrorMsg, const std::string FunctionName) {
+static void ErrorMessage(const std::string ErrorMsg,
+                         const std::string FunctionName) {
   std::cerr << std::endl << std::endl;
   std::cerr << "Error in \"" << FunctionName << "\": " << std::endl;
-  std::cerr << "+" << std::setfill('-') << std::setw(54) << std::right << "+" << std::endl;
+  std::cerr << "+" << std::setfill('-') << std::setw(54) << std::right << "+"
+            << std::endl;
   std::cerr << ErrorMsg << std::endl;
-  std::cerr << "+" << std::setfill('-') << std::setw(54) << std::right << "+" << std::endl;
+  std::cerr << "+" << std::setfill('-') << std::setw(54) << std::right << "+"
+            << std::endl;
   std::cerr << std::endl << std::endl;
   exit(EXIT_FAILURE);
-} 
+}

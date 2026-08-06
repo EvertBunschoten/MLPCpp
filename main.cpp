@@ -27,10 +27,10 @@ code.
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
 */
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
-#include <fstream>
 /*--- Include the look-up MLP class ---*/
 #include "include/CLookUp_ANN.hpp"
 #include <chrono>
@@ -52,7 +52,8 @@ int main() {
   MLPToolbox::CLookUp_ANN ANN_test =
       MLPToolbox::CLookUp_ANN(nMLPs, input_filenames);
 
-  double val_u, val_v, val_y, val_dydu, val_dydv, val_d2ydu2, val_d2ydudv, val_d2ydv2;
+  double val_u, val_v, val_y, val_dydu, val_dydv, val_d2ydu2, val_d2ydudv,
+      val_d2ydv2;
   /*--- Generate the input-output map and pair the loaded MLP's with the input
    * and output variables of the lookup operation ---*/
   MLPToolbox::CIOMap iomap = MLPToolbox::CIOMap();
@@ -65,7 +66,7 @@ int main() {
   iomap.AddQueryHessian("y", "u", "u", &val_d2ydu2);
   iomap.AddQueryHessian("y", "u", "v", &val_d2ydudv);
   iomap.AddQueryHessian("y", "v", "v", &val_d2ydv2);
-  
+
   MLPToolbox::CIOMap iomap_output_only = MLPToolbox::CIOMap();
   iomap_output_only.AddQueryInput("u", &val_u);
   iomap_output_only.AddQueryInput("v", &val_v);
@@ -88,8 +89,8 @@ int main() {
   getline(input_data_file, line);
   output_data_file << line << endl;
 
-  cout << "Derivative finite-differences, Analytical derivative"<<endl;
-  
+  cout << "Derivative finite-differences, Analytical derivative" << endl;
+
   while (getline(input_data_file, line)) {
     stringstream line_stream(line);
     line_stream >> val_u;
@@ -97,9 +98,8 @@ int main() {
 
     ANN_test.Predict(iomap);
 
-    output_data_file << scientific << val_u << "\t"
-                     << scientific << val_v << "\t"
-                     << scientific << val_y << endl;
+    output_data_file << scientific << val_u << "\t" << scientific << val_v
+                     << "\t" << scientific << val_y << endl;
 
     /* Validate gradient computation */
     double delta_CV = 1e-5;
@@ -108,13 +108,12 @@ int main() {
     ANN_test.Predict(iomap_output_only);
 
     val_output_p = val_y;
-    val_u -= 2*delta_CV;
+    val_u -= 2 * delta_CV;
     ANN_test.Predict(iomap_output_only);
     val_output_m = val_y;
-    double dy_du_fd = (val_output_p - val_output_m) / (2*delta_CV);
+    double dy_du_fd = (val_output_p - val_output_m) / (2 * delta_CV);
     cout << scientific << val_dydu << "\t" << scientific << dy_du_fd << endl;
   }
   input_data_file.close();
   output_data_file.close();
-  
 }
