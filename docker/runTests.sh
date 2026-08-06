@@ -16,7 +16,7 @@ testscript=""
 mlpcppb=""
 workdir=$PWD
 regression=false
-unittest = false
+unittest=false
 export CCACHE_DIR=$workdir/ccache
 
 if [ "$#" -ne 0 ]; then
