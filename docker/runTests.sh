@@ -62,7 +62,7 @@ cd UnitTests
 cmake -B build 
 cd build
 make
-ctest --output-on-failure
+ctest --output-on-failure --error-exitcode=1
 fi 
 
 if [ "$regressiontest" = true ]; then 
