@@ -1,5 +1,5 @@
 ---
-title: MLPCpp, a C++ library for multi-layer perceptrons 
+title: MLPCpp, a C++ library for multi-layer perceptrons
 ---
 
 # Multi-Layer Perceptrons in C++
@@ -9,16 +9,16 @@ The tools in this library is designed for the **inference of deep, dense, feed-f
 
 The library supports the inference of multi-faceted queries, making it an effective tool for effortlessly processing the input and output of multiple networks.
 
-Another key feature of MLPCpp is the **calculation of the Jacobian and Hessian** of the network output without the use of algorithmic differentiation. This feature makes MLPCpp an effective tool in physics-informed machine learning applications. 
+Another key feature of MLPCpp is the **calculation of the Jacobian and Hessian** of the network output without the use of algorithmic differentiation. This feature makes MLPCpp an effective tool in physics-informed machine learning applications.
 
-MLPCpp is **differentiable**, supporting usage in adjoint-based simulation codes such as SU2 and eventually, also network training. To clarify: MLPCpp **does not yet** support training. That is an ongoing project. 
+MLPCpp is **differentiable**, supporting usage in adjoint-based simulation codes such as SU2 and eventually, also network training. To clarify: MLPCpp **does not yet** support training. That is an ongoing project.
 
 # Set-up and use
 Accessing the tools within MLPCpp is as simple as including the header files in your project and calling its functions and classes through the ```MLPToolbox``` namespace.
 
 # Inference
-The main functionality of MLPCpp is the inference of MLPs. Networks can be initialized by loading them from an ASCII file or can be initated with randomized weights within the C++ environment. 
-Networks trained through external tools like TensorFlow can be translated into a corretly formatted MLPCpp input file using [this function](src/Tensorflow_Translation.py). 
+The main functionality of MLPCpp is the inference of MLPs. Networks can be initialized by loading them from an ASCII file or can be initated with randomized weights within the C++ environment.
+Networks trained through external tools like TensorFlow can be translated into a corretly formatted MLPCpp input file using [this function](src/Tensorflow_Translation.py).
 
 The process of network inference goes as follows. First, the network input is **scaled** at the input layer. MLPCpp supports three linear scaling methods:
 1. [Min-max scaling](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMaxScaler.html#sklearn.preprocessing.MinMaxScaler)
@@ -36,20 +36,20 @@ The output value of the nodes in the hidden layers is calculated with $y_i = \ps
 8. Gaussian linear unit (gelu)
 9. Exponential (y = exp(x))
 
-The network output is retrieved by applying **inverse scaling** to the output of the nodes in the final layer of the network using the earlier mentioned scaling methods. 
+The network output is retrieved by applying **inverse scaling** to the output of the nodes in the final layer of the network using the earlier mentioned scaling methods.
 
 # Jacobians and Hessians
 MLPCpp supports the evaluation of the network Jacobian and Hessian without the use of algorithmic differentiation, making it an attractive tool for physics-informed applications.
-The Jacobian and Hessian of the network output are calculated **analytically**, making the method very efficient and not prone to truncation errors. 
+The Jacobian and Hessian of the network output are calculated **analytically**, making the method very efficient and not prone to truncation errors.
 
 # Queries
-Another key functionality of MLPCpp is the setup of **inference queries**. These queries allow users to **retrieve specific outputs** from **multiple networks** without having to interface with the network directly. 
+Another key functionality of MLPCpp is the setup of **inference queries**. These queries allow users to **retrieve specific outputs** from **multiple networks** without having to interface with the network directly.
 This powerful feature makes it easy to retrieve information from multiple networks without much bookkeeping and modification of the source code. Inference queries also support the retrieval of network Jacobian and Hessian information.
 
 
 # Integrations
-MLPCpp is currently used as a sub-module of the open-source CFD code [SU2](https://github.com/su2code/SU2.git) for data-driven fluid models used for the simulation of reacting and non-ideal compressible fluid flows (NICFD). Tutorials for these applications can be found [here](https://su2code.github.io/tutorials/Inc_Combustion/). 
-The training MLPs for the regression of fluid properties in combustion and NICFD applications can be done with the [SU2 DataMiner](https://github.com/su2code/SU2_DataMiner.git) software library. SU2 DataMiner can be used to generate training data, train MLPs for the regression of fluid properties, and writing the network weights and biases to the ASCII file format supported by MLPCpp. 
+MLPCpp is currently used as a sub-module of the open-source CFD code [SU2](https://github.com/su2code/SU2.git) for data-driven fluid models used for the simulation of reacting and non-ideal compressible fluid flows (NICFD). Tutorials for these applications can be found [here](https://su2code.github.io/tutorials/Inc_Combustion/).
+The training MLPs for the regression of fluid properties in combustion and NICFD applications can be done with the [SU2 DataMiner](https://github.com/su2code/SU2_DataMiner.git) software library. SU2 DataMiner can be used to generate training data, train MLPs for the regression of fluid properties, and writing the network weights and biases to the ASCII file format supported by MLPCpp.
 
 # Test Case
 
