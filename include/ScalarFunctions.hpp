@@ -28,283 +28,384 @@
 */
 
 #pragma once
-#include <vector>
-#include <iostream>
-#include <iomanip>
-#include <numeric>
+#include "variable_def.hpp"
 #include <algorithm>
-#include <random>
-#include <limits>
 #include <cmath>
 #include <cstdlib>
-#include <string>
+#include <iomanip>
+#include <iostream>
+#include <limits>
 #include <map>
-#include "variable_def.hpp"
-#include "option_maps.hpp"
+#include <numeric>
+#include <random>
+#include <string>
+#include <vector>
 
 namespace MLPToolbox {
 
 class ScalerFunction {
-    /*! \brief Base class for scaler functions. */
-    protected:
-    size_t n_scalars{0}; /* Number of variables to scale. */
-    std::string tag;     /* Scaling function ID tag. */
-    public:
-    ScalerFunction() = delete;
-    ScalerFunction(const std::string & tag_in, const size_t n_in) : tag(tag_in), n_scalars(n_in) {};
-    virtual ~ScalerFunction() = default;
+  /*! \brief Base class for scaler functions. */
+protected:
+  size_t n_scalars; /* Number of variables to scale. */
+  std::string tag;  /* Scaling function ID tag. */
+public:
+  ScalerFunction() = delete;
+  ScalerFunction(const std::string &tag_in, const size_t n_in)
+      : n_scalars(n_in), tag(tag_in){};
+  virtual ~ScalerFunction() = default;
 
-    /*!
-    * \brief Normalize network input.
-    * \param[in] scalar_dim - Unscaled network input.
-    * \param[in] i_scalar - Network input index.
-    * \returns - Normalized network input.
-    */
-    virtual mlpdouble Normalize(const mlpdouble scalar_dim, const size_t i_scalar) const =0;
+  /*!
+   * \brief Normalize network input.
+   * \param[in] scalar_dim - Unscaled network input.
+   * \param[in] i_scalar - Network input index.
+   * \returns - Normalized network input.
+   */
+  virtual mlpdouble Normalize(const mlpdouble scalar_dim,
+                              const size_t i_scalar) const = 0;
 
-    /*!
-    * \brief Unscale network output
-    * \param[in] scalar_norm - Scaled network output.
-    * \param[in] i_scalar - Network output index.
-    * \returns - Unscaled network output.
-    */
-    virtual mlpdouble Dimensionalize(const mlpdouble scalar_norm, const size_t i_scalar) const =0;
+  /*!
+   * \brief Unscale network output
+   * \param[in] scalar_norm - Scaled network output.
+   * \param[in] i_scalar - Network output index.
+   * \returns - Unscaled network output.
+   */
+  virtual mlpdouble Dimensionalize(const mlpdouble scalar_norm,
+                                   const size_t i_scalar) const = 0;
 
-    /*!
-    * \brief Calculate normalized distance from feature range
-    * \param[in] inputs - Unscaled network inputs
-    * \returns - Normalized distance.
-    */
-    virtual mlpdouble Distance(const std::vector<mlpdouble> inputs) const = 0;
-    virtual mlpdouble Distance(const mlpdouble* inputs) const = 0;
+  /*!
+   * \brief Calculate normalized distance from feature range
+   * \param[in] inputs - Unscaled network inputs
+   * \returns - Normalized distance.
+   */
+  virtual mlpdouble Distance(const std::vector<mlpdouble> inputs) const = 0;
+  virtual mlpdouble Distance(const mlpdouble *inputs) const = 0;
 
-    /*!
-    * \brief Set linear scaling values.
-    * \param[in] i_scalar - node index.
-    * \param[in] val_1 - first linear scaling value.
-    * \param[in] val_2 - second linear scaling value.
-    */
-    virtual void SetScaling(const size_t i_scalar, const mlpdouble val_1, const mlpdouble val_2) =0;
+  /*!
+   * \brief Set linear scaling values.
+   * \param[in] i_scalar - node index.
+   * \param[in] val_1 - first linear scaling value.
+   * \param[in] val_2 - second linear scaling value.
+   */
+  virtual void SetScaling(const size_t i_scalar, const mlpdouble val_1,
+                          const mlpdouble val_2) = 0;
 
-    /*!
-    * \brief Return data multiplication factor.
-    * \param[in] i_scalar - node index.
-    */
-    virtual mlpdouble GetScale(const size_t i_scalar) const =0;
+  /*!
+   * \brief Return data multiplication factor.
+   * \param[in] i_scalar - node index.
+   */
+  virtual mlpdouble GetScale(const size_t i_scalar) const = 0;
 
-    /*!
-    * \brief Return data offset.
-    * \param[in] i_scalar - node index.
-    */
-    virtual mlpdouble GetOffset(const size_t i_scaler) const = 0;
+  /*!
+   * \brief Return data offset.
+   * \param[in] i_scalar - node index.
+   */
+  virtual mlpdouble GetOffset(const size_t i_scaler) const = 0;
 
-    /*!
-    * \brief Display scaler function information in the terminal.
-    * \param[in] display_width - maximum column width.
-    * \param[in] input_names - names of input/output variables.
-    * \param[in] outp - output stream.
-    */
-    virtual void PrintInfo(const int display_width, const std::vector<std::string>& input_names, std::ostream &outp=std::cout) const =0;
+  /*!
+   * \brief Display scaler function information in the terminal.
+   * \param[in] display_width - maximum column width.
+   * \param[in] input_names - names of input/output variables.
+   * \param[in] outp - output stream.
+   */
+  virtual void PrintInfo(const int display_width,
+                         const std::vector<std::string> &input_names,
+                         std::ostream &outp = std::cout) const = 0;
 
-    /*!
-    * \brief Get scaler function ID tag.
-    * \returns - tag name.
-    */
-    std::string GetTag() const {return tag;}
+  /*!
+   * \brief Get scaler function ID tag.
+   * \returns - tag name.
+   */
+  std::string GetTag() const { return tag; }
 };
 
+class NegativeStdException : public std::exception {
+public:
+  NegativeStdException() noexcept = default;
+  ~NegativeStdException() noexcept = default;
+  virtual const char *what() const noexcept {
+    std::string msg = "Standard deviation scaling value should be positive.";
+    return msg.c_str();
+  }
+};
 
 class StandardScaler : public ScalerFunction {
-    /*! \brief Scaler function using standard deviation. n = (d - mu)/std */
+  /*! \brief Scaler function using standard deviation. n = (d - mu)/std */
 
-    public: 
-    std::vector<mlpdouble> vals_mu={};  /*! Mean values */
-    std::vector<mlpdouble> vals_std={}; /*! Standard deviation values. */
+public:
+  std::vector<mlpdouble> vals_mu = {};  /*! Mean values */
+  std::vector<mlpdouble> vals_std = {}; /*! Standard deviation values. */
 
-    StandardScaler(const size_t n_in) : ScalerFunction("standard", n_in) {
-        vals_mu.resize(n_in, 0.0); 
-        vals_std.resize(n_in, 1.0);
-    };
-    virtual mlpdouble GetScale(const size_t i_scalar) const {return vals_std[i_scalar]; }
-    virtual mlpdouble GetOffset(const size_t i_scalar) const {return vals_mu[i_scalar]; }
-    
-    virtual void SetScaling(const size_t i_in, const mlpdouble val_mu=0.0, const mlpdouble val_std=1.0) 
-    {
-        if (val_std < 0) {
-            ErrorMessage("Standard deviation value should be positive.", "StandardScaler:SetScaling");
-        }
-        vals_mu[i_in] = val_mu;
-        vals_std[i_in] = val_std;
+  StandardScaler(const size_t n_in) : ScalerFunction("standard", n_in) {
+    vals_mu.resize(n_in, 0.0);
+    vals_std.resize(n_in, 1.0);
+  };
+  virtual mlpdouble GetScale(const size_t i_scalar) const {
+    return vals_std[i_scalar];
+  }
+  virtual mlpdouble GetOffset(const size_t i_scalar) const {
+    return vals_mu[i_scalar];
+  }
+
+  virtual void SetScaling(const size_t i_in, const mlpdouble val_mu = 0.0,
+                          const mlpdouble val_std = 1.0) {
+    if (val_std < 0) {
+      throw NegativeStdException();
     }
+    vals_mu[i_in] = val_mu;
+    vals_std[i_in] = val_std;
+  }
 
-    virtual mlpdouble Normalize(const mlpdouble scalar_dim, const size_t i_scalar) const
-    {
-        mlpdouble val_norm = (scalar_dim - vals_mu[i_scalar])/(vals_std[i_scalar]);
-        return val_norm;
-    };
+  virtual mlpdouble Normalize(const mlpdouble scalar_dim,
+                              const size_t i_scalar) const {
+    mlpdouble val_norm =
+        (scalar_dim - vals_mu[i_scalar]) / (vals_std[i_scalar]);
+    return val_norm;
+  };
 
-    virtual mlpdouble Dimensionalize(const mlpdouble scalar_norm, const size_t i_scalar) const {
-        mlpdouble val_dim = vals_mu[i_scalar] + scalar_norm * vals_std[i_scalar];
-        return val_dim;
-    };
+  virtual mlpdouble Dimensionalize(const mlpdouble scalar_norm,
+                                   const size_t i_scalar) const {
+    mlpdouble val_dim = vals_mu[i_scalar] + scalar_norm * vals_std[i_scalar];
+    return val_dim;
+  };
 
-    virtual mlpdouble Distance(const std::vector<mlpdouble> scalar_dim) const 
-    {
-        mlpdouble val_dist{0};
-        for (auto iDim=0u; iDim<vals_mu.size(); iDim++) {
-            val_dist += pow(Normalize(scalar_dim[iDim], iDim), 2);
-        }
-        return val_dist;
-    };
+  virtual mlpdouble Distance(const std::vector<mlpdouble> scalar_dim) const {
+    mlpdouble val_dist{0};
+    for (auto iDim = 0u; iDim < vals_mu.size(); iDim++) {
+      val_dist += pow(Normalize(scalar_dim[iDim], iDim), 2);
+    }
+    return val_dist;
+  };
 
-    virtual mlpdouble Distance(const mlpdouble* scalar_dim) const 
-    {
-        mlpdouble val_dist{0};
-        for (auto iDim=0u; iDim<vals_mu.size(); iDim++) {
-            val_dist += pow(Normalize(scalar_dim[iDim], iDim), 2);
-        }
-        return val_dist;
-    };
-    virtual void PrintInfo(const int display_width, const std::vector<std::string> &input_names, std::ostream &outp=std::cout) const {
-        const int column_width = int(display_width / 3.0) - 1;
-        outp << "|" << std::setfill(' ') << std::left << std::setw(display_width - 1)
-                << "Standard scaling" 
-                << "|" << std::endl;outp << "+" << std::setfill('-') << std::setw(display_width)
-                << std::right << "+" << std::endl;
-        outp << std::setfill(' ');
-        outp << "|" << std::left << std::setw(column_width)
-                << "Variable:";
-        outp << "|" << std::left << std::setw(column_width) << "Mean"
-                << "|" << std::left << std::setw(column_width) << "Std"
-                << "|" << std::endl;      
-        outp << "+" << std::setfill('-') << std::setw(display_width)
-                << std::right << "+" << std::endl;
-        outp << std::setfill(' ');
+  virtual mlpdouble Distance(const mlpdouble *scalar_dim) const {
+    mlpdouble val_dist{0};
+    for (auto iDim = 0u; iDim < vals_mu.size(); iDim++) {
+      val_dist += pow(Normalize(scalar_dim[iDim], iDim), 2);
+    }
+    return val_dist;
+  };
+  virtual void PrintInfo(const int display_width,
+                         const std::vector<std::string> &input_names,
+                         std::ostream &outp = std::cout) const {
+    const int column_width = int(display_width / 3.0) - 1;
+    outp << "|" << std::setfill(' ') << std::left
+         << std::setw(display_width - 1) << "Standard scaling"
+         << "|" << std::endl;
+    outp << "+" << std::setfill('-') << std::setw(display_width) << std::right
+         << "+" << std::endl;
+    outp << std::setfill(' ');
+    outp << "|" << std::left << std::setw(column_width) << "Variable:";
+    outp << "|" << std::left << std::setw(column_width) << "Mean"
+         << "|" << std::left << std::setw(column_width) << "Std"
+         << "|" << std::endl;
+    outp << "+" << std::setfill('-') << std::setw(display_width) << std::right
+         << "+" << std::endl;
+    outp << std::setfill(' ');
 
-        /*--- Hidden layer information ---*/
-        for (auto iInput = 0u; iInput < vals_mu.size(); iInput++)
-        outp << "|" << std::left << std::setw(column_width)
-                    << std::to_string(iInput + 1) + ": " + input_names[iInput]
-                    << "|" << std::right << std::setw(column_width)
-                    << vals_mu[iInput] << "|" << std::right
-                    << std::setw(column_width) << vals_std[iInput] << "|"
-                    << std::endl;
-    };
+    /*--- Hidden layer information ---*/
+    for (auto iInput = 0u; iInput < vals_mu.size(); iInput++)
+      outp << "|" << std::left << std::setw(column_width)
+           << std::to_string(iInput + 1) + ": " + input_names[iInput] << "|"
+           << std::right << std::setw(column_width) << vals_mu[iInput] << "|"
+           << std::right << std::setw(column_width) << vals_std[iInput] << "|"
+           << std::endl;
+  };
 };
 
 class RobustScaler : public StandardScaler {
-    /*! \brief Inter-quantile range scaling. Similar to standard scaling, but using inter-quantile range rather than standard deviation. */
-    public:
-    RobustScaler(const size_t n_in) : StandardScaler(n_in) {tag = "robust";};
-    virtual void PrintInfo(const int display_width, const std::vector<std::string> &input_names, std::ostream &outp=std::cout) const {
-        const int column_width = int(display_width / 3.0) - 1;
-        outp << "|" << std::setfill(' ') << std::left << std::setw(display_width - 1)
-                << "Inter-quantile range scaling" 
-                << "|" << std::endl;outp << "+" << std::setfill('-') << std::setw(display_width)
-                << std::right << "+" << std::endl;
-        outp << std::setfill(' ');
-        outp << "|" << std::left << std::setw(column_width)
-                << "Variable:";
-        outp << "|" << std::left << std::setw(column_width) << "Mean"
-                << "|" << std::left << std::setw(column_width) << "IQ range"
-                << "|" << std::endl;      
-        outp << "+" << std::setfill('-') << std::setw(display_width)
-                << std::right << "+" << std::endl;
-        outp << std::setfill(' ');
+  /*! \brief Inter-quantile range scaling. Similar to standard scaling, but
+   * using inter-quantile range rather than standard deviation. */
+public:
+  RobustScaler(const size_t n_in) : StandardScaler(n_in) { tag = "robust"; };
+  virtual void PrintInfo(const int display_width,
+                         const std::vector<std::string> &input_names,
+                         std::ostream &outp = std::cout) const {
+    const int column_width = int(display_width / 3.0) - 1;
+    outp << "|" << std::setfill(' ') << std::left
+         << std::setw(display_width - 1) << "Inter-quantile range scaling"
+         << "|" << std::endl;
+    outp << "+" << std::setfill('-') << std::setw(display_width) << std::right
+         << "+" << std::endl;
+    outp << std::setfill(' ');
+    outp << "|" << std::left << std::setw(column_width) << "Variable:";
+    outp << "|" << std::left << std::setw(column_width) << "Mean"
+         << "|" << std::left << std::setw(column_width) << "IQ range"
+         << "|" << std::endl;
+    outp << "+" << std::setfill('-') << std::setw(display_width) << std::right
+         << "+" << std::endl;
+    outp << std::setfill(' ');
 
-        /*--- Hidden layer information ---*/
-        for (auto iInput = 0u; iInput < vals_mu.size(); iInput++)
-        outp << "|" << std::left << std::setw(column_width)
-                    << std::to_string(iInput + 1) + ": " + input_names[iInput]
-                    << "|" << std::right << std::setw(column_width)
-                    << vals_mu[iInput] << "|" << std::right
-                    << std::setw(column_width) << vals_std[iInput] << "|"
-                    << std::endl;
-    };
+    /*--- Hidden layer information ---*/
+    for (auto iInput = 0u; iInput < vals_mu.size(); iInput++)
+      outp << "|" << std::left << std::setw(column_width)
+           << std::to_string(iInput + 1) + ": " + input_names[iInput] << "|"
+           << std::right << std::setw(column_width) << vals_mu[iInput] << "|"
+           << std::right << std::setw(column_width) << vals_std[iInput] << "|"
+           << std::endl;
+  };
 };
 
-class MinMaxScaler :  public ScalerFunction {
-    /*! \brief min-max scaler function: n = (d - min)/(max - min). */
+class IllDefinedBoundsException : public std::exception {
+public:
+  IllDefinedBoundsException() noexcept = default;
+  ~IllDefinedBoundsException() noexcept = default;
+  virtual const char *what() const noexcept {
+    std::string msg =
+        "Maximum scaling value should be higher than minimum scaling value";
+    return msg.c_str();
+  }
+};
 
-    std::vector<mlpdouble> vals_min={};
-    std::vector<mlpdouble> vals_max={};
-    
-    public:
-    MinMaxScaler(const size_t n_in) : ScalerFunction("minmax", n_in) {
-        vals_min.resize(n_in, 0.0); 
-        vals_max.resize(n_in, 1.0);
-    };
-    virtual mlpdouble GetScale(const size_t i_scalar) const {return (vals_max[i_scalar] - vals_min[i_scalar]); }
-    virtual mlpdouble GetOffset(const size_t i_scalar) const {return vals_min[i_scalar]; }
-    
-    virtual void SetScaling(const size_t i_in, const mlpdouble min=0, const mlpdouble max=1)
-    {
-        if (min >= max) 
-            ErrorMessage("Maximum scaling value should be higher than minimum scaling value", "MinMaxScaler:SetScaling");
-            
-        vals_min[i_in] = min;
-        vals_max[i_in] = max;
-    };
-    virtual mlpdouble Normalize(const mlpdouble scalar_dim, const size_t i_scalar) const
-    {
-        mlpdouble val_norm = (scalar_dim - vals_min[i_scalar])/(vals_max[i_scalar] - vals_min[i_scalar]);
-        return val_norm;
-    };
+class MinMaxScaler : public ScalerFunction {
+  /*! \brief min-max scaler function: n = (d - min)/(max - min). */
 
-    virtual mlpdouble Dimensionalize(const mlpdouble scalar_norm, const size_t i_scalar) const {
-        mlpdouble val_dim = scalar_norm * (vals_max[i_scalar] - vals_min[i_scalar]) + vals_min[i_scalar];
-        return val_dim;
+  std::vector<mlpdouble> vals_min = {};
+  std::vector<mlpdouble> vals_max = {};
+
+public:
+  MinMaxScaler(const size_t n_in) : ScalerFunction("minmax", n_in) {
+    vals_min.resize(n_in, 0.0);
+    vals_max.resize(n_in, 1.0);
+  };
+  virtual mlpdouble GetScale(const size_t i_scalar) const {
+    return (vals_max[i_scalar] - vals_min[i_scalar]);
+  }
+  virtual mlpdouble GetOffset(const size_t i_scalar) const {
+    return vals_min[i_scalar];
+  }
+
+  virtual void SetScaling(const size_t i_in, const mlpdouble min = 0,
+                          const mlpdouble max = 1) {
+    if (min >= max)
+      throw IllDefinedBoundsException();
+
+    vals_min[i_in] = min;
+    vals_max[i_in] = max;
+  };
+  virtual mlpdouble Normalize(const mlpdouble scalar_dim,
+                              const size_t i_scalar) const {
+    mlpdouble val_norm = (scalar_dim - vals_min[i_scalar]) /
+                         (vals_max[i_scalar] - vals_min[i_scalar]);
+    return val_norm;
+  };
+
+  virtual mlpdouble Dimensionalize(const mlpdouble scalar_norm,
+                                   const size_t i_scalar) const {
+    mlpdouble val_dim =
+        scalar_norm * (vals_max[i_scalar] - vals_min[i_scalar]) +
+        vals_min[i_scalar];
+    return val_dim;
+  }
+
+  virtual mlpdouble Distance(const std::vector<mlpdouble> scalar_dim) const {
+    /* Returns positive value if value lies outside range. */
+    mlpdouble val_dist{0};
+    for (auto iDim = 0u; iDim < vals_min.size(); iDim++) {
+      if ((scalar_dim[iDim] < vals_min[iDim]) ||
+          (scalar_dim[iDim] > vals_max[iDim])) {
+        mlpdouble norm = Normalize(scalar_dim[iDim], iDim);
+        val_dist += pow(norm - 0.5, 2);
+      }
     }
+    return val_dist;
+  };
 
-    virtual mlpdouble Distance(const std::vector<mlpdouble> scalar_dim) const 
-    {
-        /* Returns positive value if value lies outside range. */
-        mlpdouble val_dist{0};
-        for (auto iDim=0u; iDim<vals_min.size(); iDim++) {
-            if ((scalar_dim[iDim] < vals_min[iDim]) || (scalar_dim[iDim] > vals_max[iDim])){
-                mlpdouble norm = Normalize(scalar_dim[iDim], iDim);
-                val_dist += pow(norm - 0.5, 2);
-            }
-        }
-        return val_dist;
-    };
+  virtual mlpdouble Distance(const mlpdouble *scalar_dim) const {
+    mlpdouble val_dist{0};
+    for (auto iDim = 0u; iDim < vals_min.size(); iDim++) {
+      if ((scalar_dim[iDim] < vals_min[iDim]) ||
+          (scalar_dim[iDim] > vals_max[iDim])) {
+        mlpdouble norm = Normalize(scalar_dim[iDim], iDim);
+        val_dist += pow(norm - 0.5, 2);
+      }
+    }
+    return val_dist;
+  };
+  virtual void PrintInfo(const int display_width,
+                         const std::vector<std::string> &input_names,
+                         std::ostream &outp = std::cout) const {
+    const int column_width = int(display_width / 3.0) - 1;
+    outp << "|" << std::setfill(' ') << std::left
+         << std::setw(display_width - 1) << "Min-max scaling"
+         << "|" << std::endl;
+    outp << "+" << std::setfill('-') << std::setw(display_width) << std::right
+         << "+" << std::endl;
+    outp << std::setfill(' ');
+    outp << "|" << std::left << std::setw(column_width) << "Variable:";
+    outp << "|" << std::left << std::setw(column_width) << "min"
+         << "|" << std::left << std::setw(column_width) << "max"
+         << "|" << std::endl;
+    outp << "+" << std::setfill('-') << std::setw(display_width) << std::right
+         << "+" << std::endl;
+    outp << std::setfill(' ');
 
-    virtual mlpdouble Distance(const mlpdouble* scalar_dim) const 
-    {
-        mlpdouble val_dist{0};
-        for (auto iDim=0u; iDim<vals_min.size(); iDim++) {
-            if ((scalar_dim[iDim] < vals_min[iDim]) || (scalar_dim[iDim] > vals_max[iDim])){
-                mlpdouble norm = Normalize(scalar_dim[iDim], iDim);
-                val_dist += pow(norm - 0.5, 2);
-            }
-        }
-        return val_dist;
-    };
-    virtual void PrintInfo(const int display_width, const std::vector<std::string> &input_names, std::ostream &outp=std::cout) const {
-        const int column_width = int(display_width / 3.0) - 1;
-        outp << "|" << std::setfill(' ') << std::left << std::setw(display_width - 1)
-                << "Min-max scaling" 
-                << "|" << std::endl;
-        outp << "+" << std::setfill('-') << std::setw(display_width)
-                << std::right << "+" << std::endl;
-        outp << std::setfill(' ');
-        outp << "|" << std::left << std::setw(column_width)
-                << "Variable:";
-        outp << "|" << std::left << std::setw(column_width) << "min"
-                << "|" << std::left << std::setw(column_width) << "max"
-                << "|" << std::endl;      
-        outp << "+" << std::setfill('-') << std::setw(display_width)
-                << std::right << "+" << std::endl;
-        outp << std::setfill(' ');
-
-        /*--- Hidden layer information ---*/
-        for (auto iInput = 0u; iInput < vals_min.size(); iInput++)
-        outp << "|" << std::left << std::setw(column_width)
-                    << std::to_string(iInput + 1) + ": " + input_names[iInput]
-                    << "|" << std::right << std::setw(column_width)
-                    << vals_min[iInput] << "|" << std::right
-                    << std::setw(column_width) << vals_max[iInput] << "|"
-                    << std::endl;
-    };
+    /*--- Hidden layer information ---*/
+    for (auto iInput = 0u; iInput < vals_min.size(); iInput++)
+      outp << "|" << std::left << std::setw(column_width)
+           << std::to_string(iInput + 1) + ": " + input_names[iInput] << "|"
+           << std::right << std::setw(column_width) << vals_min[iInput] << "|"
+           << std::right << std::setw(column_width) << vals_max[iInput] << "|"
+           << std::endl;
+  };
 };
-}
+
+enum class ENUM_SCALING_FUNCTIONS {
+  MINMAX = 0,
+  STANDARD = 1,
+  ROBUST = 2,
+};
+
+static const std::map<std::string, ENUM_SCALING_FUNCTIONS> scaling_map{
+    {"minmax", ENUM_SCALING_FUNCTIONS::MINMAX},
+    {"standard", ENUM_SCALING_FUNCTIONS::STANDARD},
+    {"robust", ENUM_SCALING_FUNCTIONS::ROBUST},
+};
+
+static ScalerFunction *
+RetrieveScalerFunction(const ENUM_SCALING_FUNCTIONS i_scaler,
+                       const size_t n_scalers) {
+  ScalerFunction *scaler;
+  switch (i_scaler) {
+  case ENUM_SCALING_FUNCTIONS::STANDARD:
+    scaler = new StandardScaler(n_scalers);
+    break;
+  case ENUM_SCALING_FUNCTIONS::ROBUST:
+    scaler = new RobustScaler(n_scalers);
+    break;
+  case ENUM_SCALING_FUNCTIONS::MINMAX:
+  default:
+    scaler = new MinMaxScaler(n_scalers);
+    break;
+  };
+  return scaler;
+};
+
+class UnknownScalerFunctionException : public std::exception {
+private:
+  std::string function_name;
+
+public:
+  UnknownScalerFunctionException(const std::string &f) noexcept
+      : function_name{f} {};
+  ~UnknownScalerFunctionException() noexcept = default;
+  virtual const char *what() const noexcept {
+    std::string msg = "Scaler function not recognized (" + function_name + ")";
+    return msg.c_str();
+  }
+};
+
+static ENUM_SCALING_FUNCTIONS
+RetrieveScalerEnum(const std::string &tag_scaler_function) {
+  const auto it = scaling_map.find(tag_scaler_function);
+  if (it == scaling_map.end())
+    throw UnknownScalerFunctionException(tag_scaler_function);
+  return it->second;
+};
+
+static ScalerFunction *
+RetrieveScalerFunction(const std::string &tag_scaler_function,
+                       const size_t n_scalers) {
+  const auto scalerEnum = RetrieveScalerEnum(tag_scaler_function);
+  return RetrieveScalerFunction(scalerEnum, n_scalers);
+};
+
+} // namespace MLPToolbox

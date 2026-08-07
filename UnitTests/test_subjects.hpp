@@ -1,77 +1,12 @@
-#include "../include/CLookUp_ANN.hpp"
+#include "../include/CNeuralNetwork.hpp"
+#include "../include/ScalarFunctions.hpp"
 #include <string>
 #include <vector>
-
 #pragma once
-// class UnitTest {
-//     protected:
-//     std::string tag;    /*! \brief Display tag */
-//     bool passed{false}; /*! \brief Test is passed */
-//     std::stringstream summary;  /*! \brief Message displayed when failed */
-//     public:
-//     std::string GetTag() const {return tag;}
-//     bool did_pass() const {return passed;}
-//     UnitTest(const std::string & name_in="test") : tag{name_in} {}
-//     virtual bool RunTest() = 0;
-//     void PrintSummary() const {std::cout << "Unit test: " << tag <<
-//     std::endl; std::cout << summary.str() << std::endl;
-//     }
-// };
 
-// class OutputCorrectness : public UnitTest {
-//     private:
-//     /*! \brief Check whether copy constructor works correctly */
-//     bool CopyConstructorTest();
-
-//     /*! \brief Network read from a written file should be the same */
-//     bool FileWriterReaderTest();
-
-//     /*! \brief Network with same weights and biases should have the same
-//     output */ bool WeightsBiasesTest();
-
-//     /*! \brief Passing network input through vector or member-wise should
-//     result in the same output. */ bool VectorInputOutputs();
-
-//     public:
-//     OutputCorrectness() : UnitTest("Output correctness") {};
-//     virtual bool RunTest();
-// };
-
-// class InputOutputMapping : public UnitTest {
-//     private:
-//     /*! \brief Link networks with different inputs and different outputs to
-//     query. */ bool DifferentInputsDifferentOutputs();
-
-//     /*! \brief Link networks with same input and different output to query.*/
-//     bool SameInputsDifferentOutputs();
-
-//     /*! \brief Link multiple networks with different inputs and outputs to
-//     the same query. */ bool DifferentInputsDifferentOutputs2();
-
-//     /*! \brief Setting query inputs through vector or by reference should
-//     result in the same network output. */ bool VectorInputOutputs();
-
-//     /*! \brief Query containing null variables. */
-//     bool NullOutputs();
-
-//     public:
-//     InputOutputMapping() : UnitTest("Input-output mapping") {};
-//     virtual bool RunTest();
-// };
-
-// class GradientCorrectness : public UnitTest {
-//     private:
-//     const double delta_inp{1e-6}; /* Input step size for finite-differneces.
-//     */
-//     /*! \brief Determine whether Jacobians are correctly evaluated. */
-//     bool JacobianCorrectness();
-
-//     /*! \brief Determine whether Hessians are correctly evaluated. */
-//     bool HessianCorrectness();
-//     public:
-//     GradientCorrectness() : UnitTest("Gradient correctness") {};
-//     virtual bool RunTest();
-// };
+#define REQUIRE_EQUAL_TOL(a, b, tol)                                           \
+  REQUIRE_THAT(static_cast<double>(a),                                         \
+               Catch::Matchers::WithinAbs(static_cast<double>(b), tol))
 
 /*!
  * \brief Create a vector with random values for the network input.
@@ -119,8 +54,8 @@ static MLPToolbox::CNeuralNetwork *CreateRandomNetwork(
   NN[0] = n_inp;
   NN[NN.size() - 1] = n_outp;
   mlp = new MLPToolbox::CNeuralNetwork(NN);
-  mlp->SetInputRegularization(ENUM_SCALING_FUNCTIONS::MINMAX);
-  mlp->SetOutputRegularization(ENUM_SCALING_FUNCTIONS::MINMAX);
+  mlp->SetInputRegularization(MLPToolbox::ENUM_SCALING_FUNCTIONS::MINMAX);
+  mlp->SetOutputRegularization(MLPToolbox::ENUM_SCALING_FUNCTIONS::MINMAX);
 
   for (auto iInput = 0u; iInput < n_inp; iInput++)
     mlp->SetInputName(iInput, input_names[iInput]);
