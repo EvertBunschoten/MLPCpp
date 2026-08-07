@@ -1,3 +1,4 @@
+/*! \brief Unit tests for the CNeuralNetwork class methods. */
 #include "../include/CNeuralNetwork.hpp"
 #include "test_subjects.hpp"
 #include <iostream>
@@ -10,6 +11,7 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 TEST_CASE("Copy constructor", "[CNeuralNetwork]") {
+  /*! \brief Ensure that the copy constructor works properly. */
   MLPToolbox::CNeuralNetwork *mlp = CreateRandomNetwork();
 
   std::vector<double> network_inputs = RandomInputs(mlp->GetnInputs());
@@ -27,6 +29,8 @@ TEST_CASE("Copy constructor", "[CNeuralNetwork]") {
 };
 
 TEST_CASE("File writer test", "[CNeuralNetwork]") {
+  /*! \brief Ensure that all information necessary to define networks is written
+   * to and read from the .mlp ASCII file. */
   MLPToolbox::CNeuralNetwork *mlp = CreateRandomNetwork();
   std::string file_out_name = "mlp_test.mlp";
   mlp->WriteNeuralNetwork(file_out_name);
@@ -45,6 +49,8 @@ TEST_CASE("File writer test", "[CNeuralNetwork]") {
 };
 
 TEST_CASE("Flattened weights and biases", "[CNeuralNetwork]") {
+  /*! \brief Ensure that networks initialized from the same set of weights and
+   * biases return the same output. */
   MLPToolbox::CNeuralNetwork *mlp = CreateRandomNetwork();
   auto weightsbiases = mlp->GetWeightsBiases();
   MLPToolbox::CNeuralNetwork mlp_copy = MLPToolbox::CNeuralNetwork(*mlp);
@@ -63,6 +69,8 @@ TEST_CASE("Flattened weights and biases", "[CNeuralNetwork]") {
 };
 
 TEST_CASE("Vector-wise and member-wise input", "[CNeuralNetwork]") {
+  /*! \brief Specifying the network input member-wise or through vectors should
+   * return the same output. */
   MLPToolbox::CNeuralNetwork *mlp = CreateRandomNetwork();
   auto network_inputs_vec = RandomInputs(mlp->GetnInputs());
 
@@ -85,6 +93,8 @@ TEST_CASE("Vector-wise and member-wise input", "[CNeuralNetwork]") {
 };
 
 TEST_CASE("Ill-defined networks", "[CNeuralNetworks]"){
+    /*! \brief Specifying a hidden layer with zero nodes should return an error.
+     */
     {std::vector<size_t> bad_architecture = {3, 4, 0, 10};
 REQUIRE_THROWS_AS(MLPToolbox::CNeuralNetwork(bad_architecture),
                   MLPToolbox::ShouldBePositiveException);

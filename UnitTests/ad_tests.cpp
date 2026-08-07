@@ -1,3 +1,4 @@
+/*! \brief Unit tests for differentiability of the CNeuralNetwork class. */
 #include "codi.hpp"
 #define MLP_CUSTOM_TYPE codi::RealReverse;
 

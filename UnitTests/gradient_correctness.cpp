@@ -1,3 +1,5 @@
+/*! \brief Unit tests that evaluate whether Jacobians and Hessians are correctly
+ * calculated. */
 #include "../include/CNeuralNetwork.hpp"
 #include "test_subjects.hpp"
 #include <iostream>
@@ -8,19 +10,21 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 TEST_CASE("Jacobian correctness", "[CNeuralNetwork]") {
-  /* Create randomized network and enable Jacobian calculation */
+  /*! \brief Compare analytically evaluated Jacobian with Jacobian calculated
+   * through finite-difference approximation. */
+
   std::vector<std::string> input_names = {"a", "b", "c"};
   std::vector<std::string> output_names = {"x", "y", "z"};
-  const double delta_inp{1e-6};
   MLPToolbox::CNeuralNetwork *mlp =
       CreateRandomNetwork(input_names, output_names);
   mlp->CalcJacobian(true);
 
-  /* Calculate the Jacobian of iOut w.r.t. iIn */
+  /* Select random input and output components for which to evaluate the
+   * Jacobian */
   const size_t iIn = (rand() % mlp->GetnInputs());
   const size_t iOut = (rand() % mlp->GetnOutputs());
 
-  /* Evaluate the Jacobian analytically. */
+  /* Analytically evaluate the Jacobian. */
   const auto inputs_base = RandomInputs(mlp->GetnInputs());
   mlp->SetInput(inputs_base);
   mlp->Predict();
@@ -28,6 +32,7 @@ TEST_CASE("Jacobian correctness", "[CNeuralNetwork]") {
 
   /* Approximate the Jacobian with central finite-differneces. */
   std::vector<double> inputs_plus = inputs_base, inputs_minus = inputs_base;
+  const double delta_inp{1e-6};
   inputs_plus[iIn] += delta_inp;
   inputs_minus[iIn] -= delta_inp;
   mlp->SetInput(inputs_plus);
@@ -43,9 +48,11 @@ TEST_CASE("Jacobian correctness", "[CNeuralNetwork]") {
 }
 
 TEST_CASE("Hessian correctness", "[CNeuralNetwork]") {
+  /*! \brief Compare analytically evaluated Hessian with Hessian calculated
+   * through finite-difference approximation. */
+
   std::vector<std::string> input_names = {"a", "b", "c"};
   std::vector<std::string> output_names = {"x", "y", "z"};
-  const double delta_inp{1e-6};
   MLPToolbox::CNeuralNetwork *mlp =
       CreateRandomNetwork(input_names, output_names);
   mlp->CalcJacobian(true);
@@ -56,7 +63,7 @@ TEST_CASE("Hessian correctness", "[CNeuralNetwork]") {
   const size_t jIn = (rand() % mlp->GetnInputs());
   const size_t iOut = (rand() % mlp->GetnOutputs());
 
-  /* Evaluate the Hessian analytically. */
+  /* Analytically evaluate the Hessian. */
   const auto inputs_base = RandomInputs(mlp->GetnInputs());
   mlp->SetInput(inputs_base);
   mlp->Predict();
@@ -64,6 +71,7 @@ TEST_CASE("Hessian correctness", "[CNeuralNetwork]") {
 
   /* Approximate the Hessian with central finite-differences. */
   std::vector<double> inputs_plus = inputs_base, inputs_minus = inputs_base;
+  const double delta_inp{1e-6};
   inputs_plus[iIn] += delta_inp;
   inputs_minus[iIn] -= delta_inp;
   mlp->SetInput(inputs_plus);
@@ -72,7 +80,6 @@ TEST_CASE("Hessian correctness", "[CNeuralNetwork]") {
   mlp->SetInput(inputs_minus);
   mlp->Predict();
   const double jac_outp_minus = mlp->GetJacobian(iOut, jIn);
-
   const double Hes_FD = (jac_outp_plus - jac_outp_minus) / (2 * delta_inp);
 
   REQUIRE_EQUAL_TOL(Hes_analytical, Hes_FD, 1e-6);

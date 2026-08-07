@@ -1,3 +1,4 @@
+/*! \brief Unit tests for the inference query functions. */
 #include "../include/CLookUp_ANN.hpp"
 #include "test_subjects.hpp"
 
@@ -219,6 +220,7 @@ TEST_CASE("Null queries", "[CIOMap]") {
 }
 
 TEST_CASE("Jacobian and Hessian queries", "[CIOMap]") {
+  /*! \brief Inference queries for the network Jacobian and Hessian. */
   std::vector<std::string> input_names_1 = {"a", "b"},
                            output_names_1 = {"x", "y"};
   std::vector<std::string> input_names_2 = {"c", "d"},
@@ -273,6 +275,8 @@ TEST_CASE("Jacobian and Hessian queries", "[CIOMap]") {
 }
 
 TEST_CASE("Input-output accessors through vectors", "[CIOMap]") {
+  /*! \brief Inference queries based on member-wise and vector-wise input should
+   * function identically. */
   std::vector<std::string> input_names_1 = {"a", "b"},
                            output_names_1 = {"x", "y"},
                            input_names_2 = {"b", "a"}, output_names_2 = {"z"};
@@ -327,7 +331,7 @@ TEST_CASE("Input-output accessors through vectors", "[CIOMap]") {
 }
 
 TEST_CASE("Ill-defined queries for look-up", "[CIOMap]") {
-  /*! \brief impossible queries should return errors */
+  /*! \brief Improperly defined inference queries should return errors */
   std::vector<std::string> input_names_1 = {"a", "b"},
                            output_names_1 = {"x", "y"};
   MLPToolbox::CNeuralNetwork *mlp_1 =
@@ -412,6 +416,8 @@ TEST_CASE("Ill-defined queries for look-up", "[CIOMap]") {
 }
 
 TEST_CASE("Ill-defined queries for Jacobians and Hessians", "[CIOMap]") {
+  /*! \brief Improperly defined Jacobian and Hessian queries should return
+   * errors */
   std::vector<std::string> input_names_1 = {"a", "b"},
                            output_names_1 = {"x", "y"};
   MLPToolbox::CNeuralNetwork *mlp_1 =

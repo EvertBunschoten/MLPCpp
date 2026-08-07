@@ -1,3 +1,5 @@
+/*! \brief Unit tests for the activation function classes supported by MLPCpp.
+ */
 #include "../include/ActivationFunctions.hpp"
 #include "test_subjects.hpp"
 #include <cmath>
@@ -42,7 +44,8 @@ TEST_CASE("Exponential", "[CActivationFunction]") {
 }
 
 TEST_CASE("Jacobians", "[CActivationFunction]") {
-
+  /*! \brief The analytical derivative of the activation functions should be
+   * accurate. */
   std::random_device
       rd; // Will be used to obtain a seed for the random number engine
   std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
@@ -66,7 +69,8 @@ TEST_CASE("Jacobians", "[CActivationFunction]") {
 }
 
 TEST_CASE("Hessian", "[CActivationFunction]") {
-
+  /*! \brief The analytical second derivative of the activation functions should
+   * be accurate. */
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_real_distribution<> dis(-1.0, 1.0);
@@ -90,6 +94,8 @@ TEST_CASE("Hessian", "[CActivationFunction]") {
 }
 
 TEST_CASE("Unknown activation function", "[CActivationFunction]") {
+  /*! \brief Specifying the tag for an unsupported activation function should
+   * return an error. */
   std::string unknown_function_name{"wrong_tag"};
   REQUIRE_THROWS_AS(
       MLPToolbox::RetrieveActivationFunction(unknown_function_name),

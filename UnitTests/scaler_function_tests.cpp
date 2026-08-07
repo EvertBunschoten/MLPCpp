@@ -1,3 +1,5 @@
+/*! \brief Unit tests for the correct functioning of the supported scaling
+ * functions. */
 #include "../include/ScalarFunctions.hpp"
 #include "test_subjects.hpp"
 #include <cmath>
