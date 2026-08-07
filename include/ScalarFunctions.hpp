@@ -46,12 +46,12 @@ namespace MLPToolbox {
 class ScalerFunction {
   /*! \brief Base class for scaler functions. */
 protected:
-  size_t n_scalars{0}; /* Number of variables to scale. */
-  std::string tag;     /* Scaling function ID tag. */
+  size_t n_scalars; /* Number of variables to scale. */
+  std::string tag;  /* Scaling function ID tag. */
 public:
   ScalerFunction() = delete;
   ScalerFunction(const std::string &tag_in, const size_t n_in)
-      : tag(tag_in), n_scalars(n_in){};
+      : n_scalars(n_in), tag(tag_in){};
   virtual ~ScalerFunction() = default;
 
   /*!

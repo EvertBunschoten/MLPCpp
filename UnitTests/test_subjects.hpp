@@ -1,4 +1,4 @@
-#include "../include/CLookUp_ANN.hpp"
+#include "../include/CNeuralNetwork.hpp"
 #include "../include/ScalarFunctions.hpp"
 #include <string>
 #include <vector>
