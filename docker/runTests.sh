@@ -57,13 +57,17 @@ git config --add remote.origin.fetch '+refs/heads/*:refs/remotes/origin/refs/hea
 git fetch origin
 git checkout $branch
 
-# if [ "$unittest" = true ]; then
-cd UnitTests
-cmake -B build
-cd build
-make
-
-
+if [ "$unittest" = true ]; then
+    cd UnitTests
+    cmake -B build
+    cd build
+    make
+    if ctest --output-on-failure; then
+        exit 0;
+    else
+        exit 1;
+    fi
+fi
 
 # if [ "$regressiontest" = true ]; then
 
@@ -72,4 +76,3 @@ make
 # cmake --build build
 # ./build/run_unit_tests
 # fi
-ctest --output-on-failure
