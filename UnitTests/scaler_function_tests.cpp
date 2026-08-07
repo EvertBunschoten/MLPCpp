@@ -52,7 +52,7 @@ TEST_CASE("Normalization and de-normalization", "[ScalerFunction]") {
     auto f = MLPToolbox::RetrieveScalerFunction(scalerfunction.first, n_inputs);
     auto r = RandomInputs(n_inputs);
     auto val_dim = r[0];
-    auto norm = f->Normalize(val_dim, 0);
+    auto norm = f->Normalize(val_dim+1, 0);
     auto denorm = f->Dimensionalize(norm, 0);
     REQUIRE(val_dim == denorm);
   }
