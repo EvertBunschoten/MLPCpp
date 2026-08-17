@@ -20,6 +20,8 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/SciCompKL/CoDiPack
 )
 
+find_package(MPI REQUIRED)
+
 FetchContent_MakeAvailable(Catch2)
 FetchContent_MakeAvailable(CoDiPack)
 
@@ -63,7 +65,7 @@ target_link_libraries(test_mean_squared_error_loss PRIVATE Catch2::Catch2WithMai
 target_link_libraries(test_adam PRIVATE Catch2::Catch2WithMain)
 target_link_libraries(test_gradient_annealer PRIVATE Catch2::Catch2WithMain)
 target_link_libraries(test_physics_loss PRIVATE Catch2::Catch2WithMain PRIVATE CoDiPack)
-target_link_libraries(test_mlp_trainer PRIVATE Catch2::Catch2WithMain PRIVATE CoDiPack)
+target_link_libraries(test_mlp_trainer PRIVATE Catch2::Catch2WithMain PRIVATE CoDiPack MPI::MPI_CXX)
 
 
 # Register with CTest

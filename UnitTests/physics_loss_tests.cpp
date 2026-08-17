@@ -112,7 +112,7 @@ TEST_CASE("CPhysicsLoss sparsity flags", "[CPhysicsLoss]") {
     eq_jac.output_names = {"u"};
     eq_jac.requires_jacobian = true;
     eq_jac.requires_hessian  = false;
-    eq_jac.residual = [](const PhysicsState& s, const PhysicsData&) { return s.EquationJac(0, 0); };
+    eq_jac.residual = [](const PhysicsState& s, const PhysicsData&) { return s.Jac(0, 0); };
     
     CPhysicsLoss loss_jac("jac_only", net_in, net_out, {}, {eq_jac});
     REQUIRE(loss_jac.RequiresJacobian() == true);
@@ -124,7 +124,7 @@ TEST_CASE("CPhysicsLoss sparsity flags", "[CPhysicsLoss]") {
     eq_hess.output_names = {"u"};
     eq_hess.requires_jacobian = true;
     eq_hess.requires_hessian  = true;
-    eq_hess.residual = [](const PhysicsState& s, const PhysicsData&) { return s.EquationHess(0, 0, 0); };
+    eq_hess.residual = [](const PhysicsState& s, const PhysicsData&) { return s.Hess(0, 0, 0); };
     
     CPhysicsLoss loss_hess("hess_full", net_in, net_out, {}, {eq_hess});
     REQUIRE(loss_hess.RequiresJacobian() == true);
@@ -225,14 +225,14 @@ TEST_CASE("PhysicsState accessor mapping", "[CPhysicsLoss]") {
     eq.requires_jacobian = true;
     eq.requires_hessian  = true;
     eq.residual = [&](const PhysicsState& s, const PhysicsData&) {
-        captured_in.push_back(s.EquationIn(0));
-        captured_in.push_back(s.EquationIn(1));
-        captured_in.push_back(s.EquationIn(2));
-        captured_out.push_back(s.EquationOut(0));
-        captured_out.push_back(s.EquationOut(1));
-        captured_jac.push_back(s.EquationJac(2, 0));
-        captured_jac.push_back(s.EquationJac(0, 1));
-        captured_hess.push_back(s.EquationHess(2, 0, 0));
+        captured_in.push_back(s.In(0));
+        captured_in.push_back(s.In(1));
+        captured_in.push_back(s.In(2));
+        captured_out.push_back(s.Out(0));
+        captured_out.push_back(s.Out(1));
+        captured_jac.push_back(s.Jac(2, 0));
+        captured_jac.push_back(s.Jac(0, 1));
+        captured_hess.push_back(s.Hess(2, 0, 0));
         return mlpdouble(0.0);
     };
     
@@ -272,7 +272,7 @@ TEST_CASE("CPhysicsLoss passes per-point physics data", "[CPhysicsLoss]") {
     eq.requires_jacobian = true;
     eq.residual = [&](const PhysicsState& s, const PhysicsData& data) {
         captured_source.push_back(data.Ref("source"));
-        return s.EquationJac(1, 0) - data.Ref("source");
+        return s.Jac(1, 0) - data.Ref("source");
     };
     
     CPhysicsLoss loss("rhs_test", net_in, net_out, {"source"}, {eq});
@@ -339,7 +339,7 @@ TEST_CASE("CPhysicsLoss Jacobian nullptr throws", "[CPhysicsLoss]") {
     eq.input_names  = {"x"};
     eq.output_names = {"u"};
     eq.requires_jacobian = true;
-    eq.residual = [](const PhysicsState& s, const PhysicsData&) { return s.EquationJac(0, 0); };
+    eq.residual = [](const PhysicsState& s, const PhysicsData&) { return s.Jac(0, 0); };
     
     CPhysicsLoss loss("jac_null", net_in, net_out, {}, {eq});
     PredictionResult pred = MakePrediction({1.0}, {1.0}, nullptr, nullptr);
@@ -358,7 +358,7 @@ TEST_CASE("CPhysicsLoss Hessian nullptr throws", "[CPhysicsLoss]") {
     eq.output_names = {"u"};
     eq.requires_jacobian = true;
     eq.requires_hessian  = true;
-    eq.residual = [](const PhysicsState& s, const PhysicsData&) { return s.EquationHess(0, 0, 0); };
+    eq.residual = [](const PhysicsState& s, const PhysicsData&) { return s.Hess(0, 0, 0); };
     
     CPhysicsLoss loss("hess_null", net_in, net_out, {}, {eq});
     mlpdouble** jac = AllocateJacobian(1, 1);
@@ -381,7 +381,7 @@ TEST_CASE("CPhysicsLoss multiple source terms via separate equations", "[CPhysic
     eq1.output_names = {"u"};
     eq1.requires_jacobian = true;
     eq1.residual = [](const PhysicsState& s, const PhysicsData& data) {
-        return s.EquationJac(2, 0) - data.Ref("fx");
+        return s.Jac(2, 0) - data.Ref("fx");
     };
     
     CPhysicsEquation eq2;
@@ -390,7 +390,7 @@ TEST_CASE("CPhysicsLoss multiple source terms via separate equations", "[CPhysic
     eq2.output_names = {"v"};
     eq2.requires_jacobian = true;
     eq2.residual = [](const PhysicsState& s, const PhysicsData& data) {
-        return s.EquationJac(2, 0) - data.Ref("fy");
+        return s.Jac(2, 0) - data.Ref("fy");
     };
     
     CPhysicsLoss loss("multiple_rhs", net_in, net_out, {"fx", "fy"}, {eq1, eq2});
@@ -651,7 +651,7 @@ TEST_CASE("CPhysicsLoss equations with different subsets", "[CPhysicsLoss]") {
     eq1.output_names = {"u"};
     eq1.requires_jacobian = true;
     eq1.residual = [](const PhysicsState& s, const PhysicsData&) {
-        return s.EquationJac(1, 0) - mlpdouble(5.0);
+        return s.Jac(1, 0) - mlpdouble(5.0);
     };
     
     CPhysicsEquation eq2;
@@ -660,7 +660,7 @@ TEST_CASE("CPhysicsLoss equations with different subsets", "[CPhysicsLoss]") {
     eq2.output_names = {"v"};
     eq2.requires_jacobian = true;
     eq2.residual = [](const PhysicsState& s, const PhysicsData&) {
-        return s.EquationJac(1, 0) - mlpdouble(7.0);
+        return s.Jac(1, 0) - mlpdouble(7.0);
     };
     
     CPhysicsLoss loss("subset_test", net_in, net_out, {}, {eq1, eq2});
@@ -716,7 +716,7 @@ TEST_CASE("Jac/Hess throws when pointer is null regardless of flags", "[CPhysics
     eq_bad.output_names = {"u"};
     eq_bad.requires_jacobian = false;
     eq_bad.residual = [](const PhysicsState& s, const PhysicsData&) {
-        return s.EquationJac(0, 0);
+        return s.Jac(0, 0);
     };
     
     CPhysicsLoss loss("undeclared", net_in, net_out, {}, {eq_bad});

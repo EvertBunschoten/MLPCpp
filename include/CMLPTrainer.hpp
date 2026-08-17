@@ -70,12 +70,13 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <mpi.h>
 
 #include "CNeuralNetwork.hpp"
 #include "CAdam.hpp"
 #include "CGradientAnnealer.hpp"
 #include "CBaseLoss.hpp"
-#include "CMeanSquaredErrorLoss.hpp"
+// #include "CMeanSquaredErrorLoss.hpp"
 #include "CPhysicsLoss.hpp"
 #include "variable_def.hpp"
 
@@ -102,11 +103,13 @@ struct TrainerConfig {
     bool        verbose{false};
     std::size_t log_every{100};          // 0 = disabled
     bool        shuffle_per_epoch{true};
+    std::size_t annealer_update_freq{10};
 };
 
 struct TrainStepResult {
     double loss_ref{0.0};      // Sum of all reference losses
     std::vector<double> loss_phys;
+    std::vector<double> loss_bcs;   // NEW: per-term boundary-condition losses
     double loss_total{0.0};    // weighted: L_phys + sum lambda_k * L_ref_k
     double loss_raw{0.0};      // unweighted: L_ref + sum L_phys
     std::vector<double> lambdas;
@@ -264,6 +267,17 @@ public:
                 "CMLPTrainer: cannot clear reference losses after Build().");
         }
         ref_losses_.clear();
+    }
+
+    // --------------------------------------------------------------------
+    // Boundary Losses (L_i evaluated on collocation sets)
+    // --------------------------------------------------------------------
+    void AddBoundaryLoss(std::shared_ptr<CPhysicsLoss> loss, const std::string& collocation_set_name) {
+        if (!loss) throw std::invalid_argument("CMLPTrainer: boundary loss cannot be null.");
+        if (coll_sets_.find(collocation_set_name) == coll_sets_.end()) throw std::invalid_argument("CMLPTrainer: collocation set '" + collocation_set_name + "' does not exist.");
+        
+        bcs_losses_.push_back(std::move(loss));
+        bcs_set_name_.push_back(collocation_set_name);
     }
 
     // ------------------------------------------------------------------------
@@ -597,10 +611,32 @@ public:
             }
         }
 
+
+        bcs_losses_by_set_.clear();
+        for (std::size_t k = 0; k < bcs_losses_.size(); ++k) {
+            const std::string& set_name = bcs_set_name_[k];
+            bcs_losses_by_set_[set_name].push_back(k);
+            
+            // Add to active set order if it has points
+            if (coll_sets_.find(set_name) != coll_sets_.end() && !coll_sets_.at(set_name).empty()) {
+                if (std::find(active_set_order_.begin(), active_set_order_.end(), set_name) == active_set_order_.end()) {
+                    active_set_order_.push_back(set_name);
+                }
+                // FIX: BC sets must be registered in the needs_jac/hess maps so .at() doesn't throw
+                if (set_needs_jac_.find(set_name) == set_needs_jac_.end()) set_needs_jac_[set_name] = false;
+                if (set_needs_hess_.find(set_name) == set_needs_hess_.end()) set_needs_hess_[set_name] = false;
+            }
+        }
+
         annealer_.reset();
-        if (cfg_.use_annealer && has_ref_objective && has_phys_objective) {
+        const bool has_data_like_terms = has_ref_objective || !bcs_losses_.empty();
+        if (cfg_.use_annealer && has_data_like_terms && has_phys_objective) {
             AnnealerConfig a = annealer_cfg_;
-            a.n_data_terms = ref_losses_.size(); // M data terms
+            // M data terms includes BCs now! Works with reference data,
+            // boundary losses, or both — a pure-PINN run with only
+            // AddBoundaryLoss() terms and no SetTrainingData() must still
+            // get an annealer if BCs are present.
+            a.n_data_terms = ref_losses_.size() + bcs_losses_.size(); 
             annealer_ = std::make_unique<CGradientAnnealer>(a);
         }
 
@@ -611,7 +647,7 @@ public:
     // Train one step (Optimized)
     // ------------------------------------------------------------------------
 
-    TrainStepResult TrainStep() {
+       TrainStepResult TrainStep() {
         if (!built_) {
             Build();
         }
@@ -688,17 +724,19 @@ public:
         }
 
         // ------------------------------------------------------------
-        // Physics losses (streaming, mini-batch aware)
+        // Physics & Boundary losses (streaming, mini-batch aware)
         // ------------------------------------------------------------
         std::vector<mlpdouble> L_phys(n_phys, mlpdouble(0.0));
         std::vector<std::size_t> n_points_seen(n_phys, 0);
+        
+        std::vector<mlpdouble> L_bcs(bcs_losses_.size(), mlpdouble(0.0));
+        std::vector<std::size_t> n_bc_points_seen(bcs_losses_.size(), 0);
 
         if (current_pred_.outputs.size() != net_.GetnOutputs()) {
             current_pred_.outputs.resize(net_.GetnOutputs());
         }
 
         for (const auto& set_name : active_set_order_) {
-            const auto& loss_indices = losses_by_set_.at(set_name);
             const auto& points = coll_sets_.at(set_name);
 
             const bool need_jac  = set_needs_jac_.at(set_name);
@@ -711,51 +749,63 @@ public:
             for (std::size_t idx : batch_indices_) {
                 point_storage_.Fill(net_, points[idx], current_pred_, eval_jac, eval_hess);
 
-                for (const std::size_t k : loss_indices) {
-                    const std::size_t n_phys_vars = phys_losses_[k]->NumPhysicsVariables();
-                    const auto& data = phys_data_[k];
+                // Evaluate PDEs (L_r)
+                auto phys_it = losses_by_set_.find(set_name);
+                if (phys_it != losses_by_set_.end()) {
+                    for (const std::size_t k : phys_it->second) {
+                        const std::size_t n_phys_vars = phys_losses_[k]->NumPhysicsVariables();
+                        const auto& data = phys_data_[k];
 
-                    if (n_phys_vars > 0 && data.empty()) {
-                        tape.reset();
-                        throw std::runtime_error(
-                            "CMLPTrainer: physics loss '" + phys_losses_[k]->GetName() +
-                            "' requires " + std::to_string(n_phys_vars) +
-                            " physics variables but no data has been set. "
-                            "Call SetPhysicsData() or MakeZeroPhysicsData() before training.");
-                    }
+                        if (n_phys_vars > 0 && data.empty()) {
+                            tape.reset();
+                            throw std::runtime_error("CMLPTrainer: missing physics data.");
+                        }
 
-                    if (data.empty()) {
-                        L_phys[k] += phys_losses_[k]->EvaluateOne(current_pred_);
-                    } else {
-                        L_phys[k] += phys_losses_[k]->EvaluateOne(current_pred_, data[idx]);
+                        if (data.empty()) {
+                            L_phys[k] += phys_losses_[k]->EvaluateOne(current_pred_);
+                        } else {
+                            L_phys[k] += phys_losses_[k]->EvaluateOne(current_pred_, data[idx]);
+                        }
+                        ++n_points_seen[k];
                     }
-                    ++n_points_seen[k];
+                }
+
+                // Evaluate BCs (L_i) on the same active tape!
+                auto bcs_it = bcs_losses_by_set_.find(set_name);
+                if (bcs_it != bcs_losses_by_set_.end()) {
+                    for (const std::size_t k : bcs_it->second) {
+                        L_bcs[k] += bcs_losses_[k]->EvaluateOne(current_pred_);
+                        ++n_bc_points_seen[k];
+                    }
                 }
             }
         }
 
-        // Normalize physics losses
+        // Normalize PDE losses
         for (std::size_t k = 0; k < n_phys; ++k) {
             if (n_points_seen[k] == 0) {
                 L_phys[k] = mlpdouble(0.0);
                 tape.registerOutput(L_phys[k]);
                 continue;
             }
-
-            const double denom = static_cast<double>(n_points_seen[k]) *
-                                 static_cast<double>(phys_losses_[k]->NumEquations());
-
-            if (denom <= 0.0) {
-                tape.reset();
-                throw std::runtime_error("CMLPTrainer: invalid physics-loss normalization.");
-            }
-
+            const double denom = static_cast<double>(n_points_seen[k]) * static_cast<double>(phys_losses_[k]->NumEquations());
+            if (denom <= 0.0) throw std::runtime_error("CMLPTrainer: invalid normalization.");
             L_phys[k] = L_phys[k] / mlpdouble(denom);
             tape.registerOutput(L_phys[k]);
         }
 
-        tape.setPassive();
+        // Normalize BC losses and register BEFORE setPassive()
+        for (std::size_t k = 0; k < bcs_losses_.size(); ++k) {
+            if (n_bc_points_seen[k] == 0) {
+                L_bcs[k] = mlpdouble(0.0);
+                tape.registerOutput(L_bcs[k]);
+                continue;
+            }
+            L_bcs[k] = L_bcs[k] / mlpdouble(n_bc_points_seen[k]);
+            tape.registerOutput(L_bcs[k]);
+        }
 
+        tape.setPassive();
         // ------------------------------------------------------------
         // Reverse sweeps
         // ------------------------------------------------------------
@@ -769,79 +819,126 @@ public:
             }
         };
 
-        std::vector<double> lambdas(n_ref, 1.0);
-        const bool need_separate_grads = (annealer_ && have_ref && n_phys > 0);
+        // Only pay for N+1 sweeps on steps that actually refresh lambda
+        const bool is_anneal_update_step =
+            (cfg_.annealer_update_freq > 0) && (step_ % cfg_.annealer_update_freq == 0);
+        const bool have_data_like_terms = have_ref || !L_bcs.empty();
+        const bool need_separate_grads = 
+            (annealer_ && have_data_like_terms && n_phys > 0 && is_anneal_update_step);
+
+        // Initialize lambdas with cached values from the annealer
+        std::vector<double> lambdas(n_ref + bcs_losses_.size(), 1.0);
+        if (annealer_) {
+            for (std::size_t i = 0; i < n_ref + bcs_losses_.size(); ++i) { 
+                lambdas[i] = annealer_->get_lambda(i);
+            }
+        }
 
         if (!need_separate_grads) {
-            // FAST PATH: Single reverse sweep when annealer is off
+            // FAST PATH: 1 sweep using cached lambdas
             zero_gradients();
             tape.clearAdjoints();
 
-            for (std::size_t i = 0; i < n_ref; ++i) L_ref_vec[i].setGradient(1.0);
-            for (std::size_t k = 0; k < n_phys; ++k) L_phys[k].setGradient(1.0);
+            for (std::size_t i = 0; i < n_ref; ++i) { L_ref_vec[i].setGradient(lambdas[i]); } // Use cached lambd
+            for (std::size_t k = 0; k < L_bcs.size(); ++k) { L_bcs[k].setGradient(lambdas[n_ref + k]); } 
+            for (std::size_t k = 0; k < n_phys; ++k) { L_phys[k].setGradient(1.0); }
 
             tape.evaluate();
             read_gradients(g_total_d_);
+
+            // MPI Synchronization for Fast Path
+            if (use_mpi_ && mpi_size_ > 1) {
+                MPI_Allreduce(MPI_IN_PLACE, g_total_d_.data(), n_w, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+                for (double& g : g_total_d_) g /= mpi_size_;
+            }
         } else {
-            // SLOW PATH: N+1 sweeps for gradient annealing
-            if (have_ref) {
-                for (std::size_t i = 0; i < n_ref; ++i) {
-                    zero_gradients();
-                    tape.clearAdjoints();
-                    for (std::size_t j = 0; j < n_ref; ++j) {
-                        L_ref_vec[j].setGradient(j == i ? 1.0 : 0.0);
-                    }
-                    for (auto& lp : L_phys) lp.setGradient(0.0);
-                    tape.evaluate();
-                    read_gradients(g_ref_per_term_[i]);
+            // SLOW PATH: (n_ref + n_bcs + 1) sweeps for gradient annealing
+            // (Paper Algorithm 1) — one combined sweep for the aggregate
+            // physics/residual gradient (Lr), plus one sweep per individual
+            // data-like term (Li) so each gets its own gradient statistics.
+            
+            // Sweep 1: Combined Physics gradients (L_r)
+            zero_gradients(); 
+            tape.clearAdjoints();
+            for (std::size_t i = 0; i < n_ref; ++i) L_ref_vec[i].setGradient(0.0);
+            for (auto& lb : L_bcs) lb.setGradient(0.0);
+            for (std::size_t k = 0; k < n_phys; ++k) L_phys[k].setGradient(1.0);
+
+            tape.evaluate(); 
+            
+            // Reuse g_total_d_ to hold combined physics gradients temporarily
+            read_gradients(g_total_d_); 
+
+            // Sweep 2..N+1: one sweep PER individual data-like term (SU2
+            // reference data, then each BC individually) — each term needs
+            // its OWN gradient for GradStats (max/mean), not a shared
+            // combined one. A single combined sweep here would make every
+            // data_stats_vec[i] identical, defeating per-term annealing.
+            g_ref_per_term_.resize(n_ref + L_bcs.size());
+            for (std::size_t i = 0; i < n_ref + L_bcs.size(); ++i) {
+                if (g_ref_per_term_[i].size() < n_w) {
+                    g_ref_per_term_[i].assign(n_w, 0.0);
                 }
             }
 
-            for (std::size_t k = 0; k < n_phys; ++k) {
+            for (std::size_t i = 0; i < n_ref; ++i) {
                 zero_gradients();
                 tape.clearAdjoints();
-                for (std::size_t j = 0; j < n_ref; ++j) L_ref_vec[j].setGradient(0.0);
-                for (std::size_t j = 0; j < n_phys; ++j) {
-                    L_phys[j].setGradient(j == k ? 1.0 : 0.0);
-                }
+                for (std::size_t j = 0; j < n_ref; ++j) L_ref_vec[j].setGradient(j == i ? 1.0 : 0.0);
+                for (auto& lb : L_bcs) lb.setGradient(0.0);
+                for (auto& lp : L_phys) lp.setGradient(0.0);
                 tape.evaluate();
-                read_gradients(g_phys_[k]);
+                read_gradients(g_ref_per_term_[i]);
             }
-
-            std::vector<double> g_phys_combined(n_w, 0.0);
-            for (std::size_t k = 0; k < n_phys; ++k) {
-                for (std::size_t i = 0; i < n_w; ++i) {
-                    g_phys_combined[i] += g_phys_[k][i];
+            for (std::size_t k = 0; k < L_bcs.size(); ++k) {
+                zero_gradients();
+                tape.clearAdjoints();
+                for (auto& lr : L_ref_vec) lr.setGradient(0.0);
+                for (std::size_t j = 0; j < L_bcs.size(); ++j) L_bcs[j].setGradient(j == k ? 1.0 : 0.0);
+                for (auto& lp : L_phys) lp.setGradient(0.0);
+                tape.evaluate();
+                read_gradients(g_ref_per_term_[n_ref + k]);
+            }
+            // MPI Synchronization for both L_r and L_i
+            if (use_mpi_ && mpi_size_ > 1) {
+                MPI_Allreduce(MPI_IN_PLACE, g_total_d_.data(), n_w, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+                for (double& g : g_total_d_) g /= mpi_size_;
+                
+                // Resize and reduce all L_i terms (Data + BCs)
+                for (std::size_t i = 0; i < n_ref + L_bcs.size(); ++i) {
+                    MPI_Allreduce(MPI_IN_PLACE, g_ref_per_term_[i].data(), n_w, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+                    for (double& g : g_ref_per_term_[i]) g /= mpi_size_;
                 }
             }
-            
-            const GradStats base_stats = GradStats::from_grads(g_phys_combined);
-            
-            std::vector<GradStats> data_stats_vec(n_ref);
-            for (std::size_t i = 0; i < n_ref; ++i) {
-                data_stats_vec[i] = GradStats::from_grads(g_ref_per_term_[i]);
-            }
 
+            // Annealer update (Paper Algorithm 1, step a & b)
+            const GradStats base_stats = GradStats::from_grads(g_total_d_);
+            std::vector<GradStats> data_stats_vec(n_ref + L_bcs.size());
+            for (std::size_t i = 0; i < data_stats_vec.size(); ++i) data_stats_vec[i] = GradStats::from_grads(g_ref_per_term_[i]);
+            
             annealer_->update(base_stats, data_stats_vec);
-            for (std::size_t i = 0; i < n_ref; ++i) {
+            
+            // Retrieve updated lambdas for Data + BCs
+            for (std::size_t i = 0; i < n_ref + L_bcs.size(); ++i) {
                 lambdas[i] = annealer_->get_lambda(i);
             }
 
+            // Calculate final composite gradient (Paper Algorithm 1, step c)
+            // g_total_d_ currently holds combined physics gradients.
+            // We add the weighted data gradients to it. The ref-term inner
+            // loop is naturally a no-op when n_ref==0 (pure PINN, no
+            // SetTrainingData), so this must NOT be gated behind have_ref —
+            // doing so would silently drop the weighted BC contributions
+            // (L_bcs) from the actual optimization gradient whenever there's
+            // no reference data, even though they were correctly computed
+            // and fed into the annealer just above.
             for (std::size_t i = 0; i < n_w; ++i) {
-                g_total_d_[i] = 0.0;
-                for (std::size_t k = 0; k < n_phys; ++k) {
-                    g_total_d_[i] += g_phys_[k][i];
-                }
-                if (have_ref) {
-                    for (std::size_t r = 0; r < n_ref; ++r) {
-                        g_total_d_[i] += lambdas[r] * g_ref_per_term_[r][i];
-                    }
-                }
+                for (std::size_t r = 0; r < n_ref; ++r) g_total_d_[i] += lambdas[r] * g_ref_per_term_[r][i];
+                for (std::size_t k = 0; k < L_bcs.size(); ++k) g_total_d_[i] += lambdas[n_ref + k] * g_ref_per_term_[n_ref + k][i];
             }
         }
 
         tape.reset();
-
         // ------------------------------------------------------------
         // Gradient clipping
         // ------------------------------------------------------------
@@ -876,6 +973,7 @@ public:
         TrainStepResult result;
         result.lambdas = lambdas;
         result.loss_phys.resize(n_phys);
+        result.loss_bcs.resize(L_bcs.size());
 
         double total_ref_loss = 0.0;
         for (std::size_t i = 0; i < n_ref; ++i) total_ref_loss += to_double(L_ref_vec[i]);
@@ -891,10 +989,16 @@ public:
             result.loss_raw   += result.loss_phys[k];
             result.loss_total += result.loss_phys[k];
         }
+
         if (have_ref) {
             for (std::size_t r = 0; r < n_ref; ++r) {
                 result.loss_total += lambdas[r] * to_double(L_ref_vec[r]);
             }
+        }
+        for (std::size_t k = 0; k < L_bcs.size(); ++k) {
+            result.loss_bcs[k]  = to_double(L_bcs[k]);
+            result.loss_raw    += result.loss_bcs[k];
+            result.loss_total  += lambdas[n_ref + k] * result.loss_bcs[k];
         }
 
         last_result_ = result;
@@ -939,6 +1043,7 @@ public:
         epoch_loss_total_sum_  = 0.0;
         epoch_loss_ref_sum_    = 0.0;
         std::fill(epoch_loss_phys_sum_.begin(), epoch_loss_phys_sum_.end(), 0.0);
+        std::fill(epoch_loss_bcs_sum_.begin(), epoch_loss_bcs_sum_.end(), 0.0);
         std::fill(epoch_loss_lambda_sum_.begin(), epoch_loss_lambda_sum_.end(), 0.0);
         epoch_loss_count_      = 0;
 
@@ -950,6 +1055,9 @@ public:
             
             if (epoch_loss_phys_sum_.size() < res.loss_phys.size()) epoch_loss_phys_sum_.resize(res.loss_phys.size(), 0.0);
             for (std::size_t k = 0; k < res.loss_phys.size(); ++k) epoch_loss_phys_sum_[k] += res.loss_phys[k];
+
+            if (epoch_loss_bcs_sum_.size() < res.loss_bcs.size()) epoch_loss_bcs_sum_.resize(res.loss_bcs.size(), 0.0);
+            for (std::size_t k = 0; k < res.loss_bcs.size(); ++k) epoch_loss_bcs_sum_[k] += res.loss_bcs[k];
 
             if (epoch_loss_lambda_sum_.size() < res.lambdas.size()) epoch_loss_lambda_sum_.resize(res.lambdas.size(), 0.0);
             for (std::size_t k = 0; k < res.lambdas.size(); ++k) epoch_loss_lambda_sum_[k] += res.lambdas[k];
@@ -1045,6 +1153,13 @@ public:
         return (k < last_result_.loss_phys.size()) ? last_result_.loss_phys[k] : 0.0;
     }
 
+    double GetEpochAverageLossBC(std::size_t k = 0) const noexcept {
+        if (epoch_loss_count_ > 0 && k < epoch_loss_bcs_sum_.size()) {
+            return epoch_loss_bcs_sum_[k] / static_cast<double>(epoch_loss_count_);
+        }
+        return (k < last_result_.loss_bcs.size()) ? last_result_.loss_bcs[k] : 0.0;
+    }
+
     double GetEpochAverageLambda(std::size_t k = 0) const noexcept {
         if (epoch_loss_count_ > 0 && k < epoch_loss_lambda_sum_.size()) {
             return epoch_loss_lambda_sum_[k] / static_cast<double>(epoch_loss_count_);
@@ -1055,6 +1170,13 @@ public:
     double GetEpochAverageLossTotal() const noexcept {
         if (epoch_loss_count_ > 0) return epoch_loss_total_sum_ / static_cast<double>(epoch_loss_count_);
         return last_result_.loss_total;
+    }
+
+    // MPI Enable
+    void EnableMPI() {
+        use_mpi_ = true;
+        MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank_);
+        MPI_Comm_size(MPI_COMM_WORLD, &mpi_size_);
     }
 
 
@@ -1210,6 +1332,10 @@ private:
     std::vector<std::string> phys_set_name_;
     std::vector<std::vector<std::vector<mlpdouble>>> phys_data_;
 
+    std::vector<std::shared_ptr<CPhysicsLoss>> bcs_losses_;
+    std::vector<std::string> bcs_set_name_;
+    std::unordered_map<std::string, std::vector<std::size_t>> bcs_losses_by_set_;
+
     std::unordered_map<std::string, std::vector<std::vector<mlpdouble>>> coll_sets_;
     std::vector<std::string> set_order_;
     std::unordered_set<std::string> empty_sets_;
@@ -1242,6 +1368,7 @@ private:
     
     double epoch_loss_ref_sum_{0.0};
     std::vector<double> epoch_loss_phys_sum_;
+    std::vector<double> epoch_loss_bcs_sum_;
     std::vector<double> epoch_loss_lambda_sum_;
 
     // Pre-allocated buffers to prevent heap allocations inside TrainStep
@@ -1255,6 +1382,11 @@ private:
     std::vector<std::vector<double>> g_phys_;
     std::vector<mlpdouble> clean_weights_ad_;
     std::vector<mlpdouble> g_total_ad_;
+
+    // MPI
+    bool use_mpi_{false};
+    int mpi_rank_{0};
+    int mpi_size_{1};
 };
 
 } // namespace MLPToolbox

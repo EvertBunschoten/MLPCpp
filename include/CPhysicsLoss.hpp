@@ -131,37 +131,35 @@ private:
 /*!
  * \brief Read-only view of network quantities at a single collocation point.
  *
- * Provides two levels of access:
- *   - Network-level: In(), Out(), Jac(), Hess() use full-network indices.
- *   - Equation-level: EquationIn(), EquationOut(), EquationJac(), EquationHess()
- *     use the (usually smaller) index sets declared by a CPhysicsEquation.
+ * Provides equation-level access to the network's inputs, outputs, and
+ * derivatives. 
+ *
+ * Accessors are overloaded to accept either:
+ *   - std::size_t: equation-local index (e.g., In(0))
+ *   - std::string: variable name (e.g., In("u"))
  *
  * Jacobian layout expected from PredictionResult (input-major):
  *   jacobian[input_i][output_o]
  * Hessian layout:
  *   hessian[input_i][input_j][output_o]
- *
- * The object does not own the PredictionResult; the caller must keep it
- * alive for the lifetime of the PhysicsState.
  */
 class PhysicsState {
 public:
-    /*!
-     * \param[in] pred                     Network prediction (inputs, outputs, optional derivatives).
-     * \param[in] equation_input_indices   Mapping from equation-local input indices to network indices.
-     * \param[in] equation_output_indices  Mapping from equation-local output indices to network indices.
-     * \param[in] n_network_inputs         Expected number of network inputs (for validation).
-     * \param[in] n_network_outputs        Expected number of network outputs (for validation).
-     */
     PhysicsState(const PredictionResult& pred,
                  const std::vector<std::size_t>& equation_input_indices,
                  const std::vector<std::size_t>& equation_output_indices,
+                 const std::vector<std::string>& equation_input_names,
+                 const std::vector<std::string>& equation_output_names,
                  std::size_t n_network_inputs,
                  std::size_t n_network_outputs)
-        : pred_(pred), equation_input_indices_(equation_input_indices),
+        : pred_(pred), 
+          equation_input_indices_(equation_input_indices),
           equation_output_indices_(equation_output_indices),
+          equation_input_names_(equation_input_names),
+          equation_output_names_(equation_output_names),
           n_network_inputs_(n_network_inputs),
-          n_network_outputs_(n_network_outputs) {
+          n_network_outputs_(n_network_outputs) 
+    {
         if (pred_.inputs.size() != n_network_inputs_) {
             throw std::invalid_argument(
                 "PhysicsState: PredictionResult input dimension mismatch. " +
@@ -176,77 +174,63 @@ public:
         }
     }
 
-    // ---- Network-level accessors -------------------------------------------
-
-    /*! \brief Network input by full-network index. */
-    mlpdouble In(std::size_t network_input_index) const {
-        if (network_input_index >= pred_.inputs.size()) {
-            throw std::out_of_range("PhysicsState::In: input index out of range.");
-        }
-        return pred_.inputs[network_input_index];
+    // ---- Integer Index Accessors ----
+    mlpdouble In(std::size_t equation_input_index) const {
+        if (equation_input_index >= equation_input_indices_.size()) throw std::out_of_range("PhysicsState::In: index out of range.");
+        return pred_.inputs[equation_input_indices_[equation_input_index]];
     }
 
-    /*! \brief Network output by full-network index. */
-    mlpdouble Out(std::size_t network_output_index) const {
-        if (network_output_index >= pred_.outputs.size()) {
-            throw std::out_of_range("PhysicsState::Out: output index out of range.");
-        }
-        return pred_.outputs[network_output_index];
+    mlpdouble Out(std::size_t equation_output_index) const {
+        if (equation_output_index >= equation_output_indices_.size()) throw std::out_of_range("PhysicsState::Out: index out of range.");
+        return pred_.outputs[equation_output_indices_[equation_output_index]];
     }
 
-    /*!
-     * \brief First derivative \partial output / \partial input (full-network indices).
-     * \note Requires that PredictionResult::jacobian is non-null.
-     */
-    mlpdouble Jac(std::size_t input_index, std::size_t output_index) const {
-        if (input_index >= pred_.inputs.size())  throw std::out_of_range("PhysicsState::Jac: input index out of range.");
-        if (output_index >= pred_.outputs.size()) throw std::out_of_range("PhysicsState::Jac: output index out of range.");
-        if (pred_.jacobian == nullptr)            throw std::runtime_error("PhysicsState::Jac: Jacobian was not provided by PredictionResult.");
-        return pred_.jacobian[input_index][output_index];
+    mlpdouble Jac(std::size_t equation_output_index, std::size_t equation_input_index) const {
+        if (equation_input_index >= equation_input_indices_.size())  throw std::out_of_range("PhysicsState::Jac: input index out of range.");
+        if (equation_output_index >= equation_output_indices_.size()) throw std::out_of_range("PhysicsState::Jac: output index out of range.");
+        if (pred_.jacobian == nullptr) throw std::runtime_error("PhysicsState::Jac: Jacobian was not provided by PredictionResult.");
+        return pred_.jacobian[equation_input_indices_[equation_input_index]][equation_output_indices_[equation_output_index]];
     }
 
-    /*!
-     * \brief Second derivative \partial^{2} output / (\partial input_i \partial input_j).
-     * \note Requires that PredictionResult::hessian is non-null.
-     */
-    mlpdouble Hess(std::size_t input_i, std::size_t input_j, std::size_t output_index) const {
-        if (input_i >= pred_.inputs.size() || input_j >= pred_.inputs.size()) throw std::out_of_range("PhysicsState::Hess: input index out of range.");
-        if (output_index >= pred_.outputs.size())                             throw std::out_of_range("PhysicsState::Hess: output index out of range.");
-        if (pred_.hessian == nullptr)                                         throw std::runtime_error("PhysicsState::Hess: Hessian was not provided by PredictionResult.");
-        return pred_.hessian[input_i][input_j][output_index];
+    mlpdouble Hess( std::size_t equation_output_index, std::size_t equation_input_i, std::size_t equation_input_j) const {
+        if (equation_input_i >= equation_input_indices_.size() || equation_input_j >= equation_input_indices_.size()) throw std::out_of_range("PhysicsState::Hess: input index out of range.");
+        if (equation_output_index >= equation_output_indices_.size()) throw std::out_of_range("PhysicsState::Hess: output index out of range.");
+        if (pred_.hessian == nullptr) throw std::runtime_error("PhysicsState::Hess: Hessian was not provided by PredictionResult.");
+        return pred_.hessian[equation_input_indices_[equation_input_i]][equation_input_indices_[equation_input_j]][equation_output_indices_[equation_output_index]];
     }
 
-    // ---- Equation-level accessors (preferred for residual writers) ---------
-
-    /*! \brief Input that belongs to the current equation (equation-local index). */
-    mlpdouble EquationIn(std::size_t equation_input_index) const {
-        if (equation_input_index >= equation_input_indices_.size()) throw std::out_of_range("PhysicsState::EquationIn: index out of range.");
-        return In(equation_input_indices_[equation_input_index]);
+    // ---- String Name Accessors (Polymorphic Overloads) ----
+    mlpdouble In(const std::string& name) const {
+        auto it = std::find(equation_input_names_.begin(), equation_input_names_.end(), name);
+        if (it == equation_input_names_.end()) throw std::out_of_range("PhysicsState::In: name '" + name + "' not found in equation inputs.");
+        return In(static_cast<std::size_t>(std::distance(equation_input_names_.begin(), it)));
     }
 
-    /*! \brief Output that belongs to the current equation (equation-local index). */
-    mlpdouble EquationOut(std::size_t equation_output_index) const {
-        if (equation_output_index >= equation_output_indices_.size()) throw std::out_of_range("PhysicsState::EquationOut: index out of range.");
-        return Out(equation_output_indices_[equation_output_index]);
+    mlpdouble Out(const std::string& name) const {
+        auto it = std::find(equation_output_names_.begin(), equation_output_names_.end(), name);
+        if (it == equation_output_names_.end()) throw std::out_of_range("PhysicsState::Out: name '" + name + "' not found in equation outputs.");
+        return Out(static_cast<std::size_t>(std::distance(equation_output_names_.begin(), it)));
     }
 
-    /*!
-     * \brief Jacobian entry restricted to the variables declared by the equation.
-     *
-     * Example: for residual “dy/du = 0” with input_names={"u"}, output_names={"y"}
-     *          EquationJac(0,0) returns dy/du.
-     */
-    mlpdouble EquationJac(std::size_t equation_input_index, std::size_t equation_output_index) const {
-        if (equation_input_index >= equation_input_indices_.size())  throw std::out_of_range("PhysicsState::EquationJac: input index out of range.");
-        if (equation_output_index >= equation_output_indices_.size()) throw std::out_of_range("PhysicsState::EquationJac: output index out of range.");
-        return Jac(equation_input_indices_[equation_input_index], equation_output_indices_[equation_output_index]);
+    mlpdouble Jac(const std::string& output_name, const std::string& input_name) const {
+        auto it_in = std::find(equation_input_names_.begin(), equation_input_names_.end(), input_name);
+        auto it_out = std::find(equation_output_names_.begin(), equation_output_names_.end(), output_name);
+        if (it_in == equation_input_names_.end()) throw std::out_of_range("PhysicsState::Jac: input name '" + input_name + "' not found.");
+        if (it_out == equation_output_names_.end()) throw std::out_of_range("PhysicsState::Jac: output name '" + output_name + "' not found.");
+        return Jac(static_cast<std::size_t>(std::distance(equation_input_names_.begin(), it_in)), 
+                   static_cast<std::size_t>(std::distance(equation_output_names_.begin(), it_out)));
     }
 
-    /*! \brief Hessian entry restricted to the variables declared by the equation. */
-    mlpdouble EquationHess(std::size_t equation_input_i, std::size_t equation_input_j, std::size_t equation_output_index) const {
-        if (equation_input_i >= equation_input_indices_.size() || equation_input_j >= equation_input_indices_.size()) throw std::out_of_range("PhysicsState::EquationHess: input index out of range.");
-        if (equation_output_index >= equation_output_indices_.size()) throw std::out_of_range("PhysicsState::EquationHess: output index out of range.");
-        return Hess(equation_input_indices_[equation_input_i], equation_input_indices_[equation_input_j], equation_output_indices_[equation_output_index]);
+    mlpdouble Hess(const std::string& output_name, const std::string& input_name_i, const std::string& input_name_j) const {
+        auto it_i = std::find(equation_input_names_.begin(), equation_input_names_.end(), input_name_i);
+        auto it_j = std::find(equation_input_names_.begin(), equation_input_names_.end(), input_name_j);
+        auto it_out = std::find(equation_output_names_.begin(), equation_output_names_.end(), output_name);
+        if (it_i == equation_input_names_.end()) throw std::out_of_range("PhysicsState::Hess: input name '" + input_name_i + "' not found.");
+        if (it_j == equation_input_names_.end()) throw std::out_of_range("PhysicsState::Hess: input name '" + input_name_j + "' not found.");
+        if (it_out == equation_output_names_.end()) throw std::out_of_range("PhysicsState::Hess: output name '" + output_name + "' not found.");
+        return Hess(static_cast<std::size_t>(std::distance(equation_input_names_.begin(), it_i)), 
+                    static_cast<std::size_t>(std::distance(equation_input_names_.begin(), it_j)), 
+                    static_cast<std::size_t>(std::distance(equation_output_names_.begin(), it_out)));
     }
 
     std::size_t NumEquationInputs()  const noexcept { return equation_input_indices_.size(); }
@@ -258,6 +242,8 @@ private:
     const PredictionResult& pred_;
     const std::vector<std::size_t>& equation_input_indices_;
     const std::vector<std::size_t>& equation_output_indices_;
+    const std::vector<std::string>& equation_input_names_;
+    const std::vector<std::string>& equation_output_names_;
     std::size_t n_network_inputs_;
     std::size_t n_network_outputs_;
 };
@@ -386,6 +372,8 @@ public:
             PhysicsState state(pred,
                                equation_input_indices_[e],
                                equation_output_indices_[e],
+                               equations_[e].input_names,   
+                               equations_[e].output_names,
                                network_input_names_.size(),
                                network_output_names_.size());
             const mlpdouble residual = equations_[e].residual(state, data);

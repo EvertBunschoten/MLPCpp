@@ -271,7 +271,7 @@ TEST_CASE("CMLPTrainer gradient clipping", "[CMLPTrainer]") {
     eq.output_names = {"y"};
     eq.requires_jacobian = true;
     eq.residual = [](const PhysicsState& s, const PhysicsData&) -> mlpdouble {
-        return s.EquationJac(0, 0); 
+        return s.Jac(0, 0); 
     };
 
     auto phys_loss = std::make_shared<CPhysicsLoss>(
@@ -384,7 +384,7 @@ TEST_CASE("CMLPTrainer multiple physics losses", "[CMLPTrainer]") {
     eq1.output_names = {"y"};
     eq1.requires_jacobian = true;
     eq1.residual = [](const PhysicsState& s, const PhysicsData&) -> mlpdouble {
-        return s.EquationJac(0, 0); 
+        return s.Jac(0, 0); 
     };
 
     CPhysicsEquation eq2;
@@ -393,7 +393,7 @@ TEST_CASE("CMLPTrainer multiple physics losses", "[CMLPTrainer]") {
     eq2.output_names = {"y"};
     eq2.requires_jacobian = true;
     eq2.residual = [](const PhysicsState& s, const PhysicsData&) -> mlpdouble {
-        return s.EquationJac(0, 0) - 1.0; 
+        return s.Jac(0, 0) - 1.0; 
     };
 
     auto phys_loss1 = std::make_shared<CPhysicsLoss>(
@@ -449,7 +449,7 @@ TEST_CASE("CMLPTrainer multiple reference losses", "[CMLPTrainer]") {
     eq.output_names = {"y1"};
     eq.requires_jacobian = true;
     eq.residual = [](const PhysicsState& s, const PhysicsData&) -> mlpdouble {
-        return s.EquationJac(0, 0); 
+        return s.Jac(0, 0); 
     };
 
     auto phys_loss = std::make_shared<CPhysicsLoss>(
@@ -606,7 +606,7 @@ TEST_CASE("CMLPTrainer basic construction and training", "[CMLPTrainer]") {
     eq.output_names = {"y"};
     eq.requires_jacobian = true;
     eq.residual = [](const PhysicsState& s, const PhysicsData&) -> mlpdouble {
-        return s.EquationJac(0, 0); 
+        return s.Jac(0, 0); 
     };
 
     auto phys_loss = std::make_shared<CPhysicsLoss>(
@@ -650,7 +650,7 @@ TEST_CASE("CMLPTrainer missing physics data throws at runtime", "[CMLPTrainer]")
     eq.output_names = {"y"};
     eq.requires_jacobian = true;
     eq.residual = [](const PhysicsState& s, const PhysicsData& data) -> mlpdouble {
-        return s.EquationJac(0, 0) - data.Ref("source");
+        return s.Jac(0, 0) - data.Ref("source");
     };
 
     auto phys_loss = std::make_shared<CPhysicsLoss>(
@@ -690,7 +690,7 @@ TEST_CASE("CMLPTrainer MakeZeroPhysicsData helper", "[CMLPTrainer]") {
     eq.output_names = {"y"};
     eq.requires_jacobian = true;
     eq.residual = [](const PhysicsState& s, const PhysicsData& data) -> mlpdouble {
-        return s.EquationJac(0, 0) - data.Ref("source");
+        return s.Jac(0, 0) - data.Ref("source");
     };
 
     auto phys_loss = std::make_shared<CPhysicsLoss>(
