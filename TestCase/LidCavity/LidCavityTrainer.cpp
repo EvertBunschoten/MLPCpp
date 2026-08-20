@@ -235,47 +235,47 @@ int main(int argc, char** argv) {
     // =========================================================================
     // 6. Create Boundary Condition Losses (L_i) - with Corner Smoothing
     // =========================================================================
-    // Top wall (y=1): u=1, v=0
-    // CPhysicsEquation eq_top_u;
-    // eq_top_u.name = "bc_top_u";
-    // eq_top_u.input_names = {"x", "y"};
-    // eq_top_u.output_names = {"u"};
-    // eq_top_u.residual = [](const PhysicsState& s, const PhysicsData&) -> mlpdouble {
-    //     double x = to_double(s.In(0));
-    //     double target_u = 1.0;
-    //     if (x < 0.1) target_u = x / 0.1;
-    //     else if (x > 0.9) target_u = (1.0 - x) / 0.1;
-    //     return s.Out(0) - mlpdouble(target_u);
-    // };
-    // auto loss_top_u = std::make_shared<CPhysicsLoss>("loss_top_u", net.GetInputVars(), net.GetOutputVars(), std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq_top_u});
+    Top wall (y=1): u=1, v=0
+    CPhysicsEquation eq_top_u;
+    eq_top_u.name = "bc_top_u";
+    eq_top_u.input_names = {"x", "y"};
+    eq_top_u.output_names = {"u"};
+    eq_top_u.residual = [](const PhysicsState& s, const PhysicsData&) -> mlpdouble {
+        double x = to_double(s.In(0));
+        double target_u = 1.0;
+        if (x < 0.1) target_u = x / 0.1;
+        else if (x > 0.9) target_u = (1.0 - x) / 0.1;
+        return s.Out(0) - mlpdouble(target_u);
+    };
+    auto loss_top_u = std::make_shared<CPhysicsLoss>("loss_top_u", net.GetInputVars(), net.GetOutputVars(), std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq_top_u});
 
-    // CPhysicsEquation eq_top_v;
-    // eq_top_v.name = "bc_top_v";
-    // eq_top_v.input_names = {"x", "y"};
-    // eq_top_v.output_names = {"v"};
-    // eq_top_v.residual = [](const PhysicsState& s, const PhysicsData&) -> mlpdouble {
-    //     return s.Out(0) - 0.0;
-    // };
-    // auto loss_top_v = std::make_shared<CPhysicsLoss>("loss_top_v", net.GetInputVars(), net.GetOutputVars(), std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq_top_v});
+    CPhysicsEquation eq_top_v;
+    eq_top_v.name = "bc_top_v";
+    eq_top_v.input_names = {"x", "y"};
+    eq_top_v.output_names = {"v"};
+    eq_top_v.residual = [](const PhysicsState& s, const PhysicsData&) -> mlpdouble {
+        return s.Out(0) - 0.0;
+    };
+    auto loss_top_v = std::make_shared<CPhysicsLoss>("loss_top_v", net.GetInputVars(), net.GetOutputVars(), std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq_top_v});
 
-    // // Other walls (x=0, x=1, y=0): u=0, v=0
-    // CPhysicsEquation eq_wall_u;
-    // eq_wall_u.name = "bc_wall_u";
-    // eq_wall_u.input_names = {"x", "y"};
-    // eq_wall_u.output_names = {"u"};
-    // eq_wall_u.residual = [](const PhysicsState& s, const PhysicsData&) -> mlpdouble {
-    //     return s.Out(0) - 0.0;
-    // };
-    // auto loss_wall_u = std::make_shared<CPhysicsLoss>("loss_wall_u", net.GetInputVars(), net.GetOutputVars(), std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq_wall_u});
+    // Other walls (x=0, x=1, y=0): u=0, v=0
+    CPhysicsEquation eq_wall_u;
+    eq_wall_u.name = "bc_wall_u";
+    eq_wall_u.input_names = {"x", "y"};
+    eq_wall_u.output_names = {"u"};
+    eq_wall_u.residual = [](const PhysicsState& s, const PhysicsData&) -> mlpdouble {
+        return s.Out(0) - 0.0;
+    };
+    auto loss_wall_u = std::make_shared<CPhysicsLoss>("loss_wall_u", net.GetInputVars(), net.GetOutputVars(), std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq_wall_u});
 
-    // CPhysicsEquation eq_wall_v;
-    // eq_wall_v.name = "bc_wall_v";
-    // eq_wall_v.input_names = {"x", "y"};
-    // eq_wall_v.output_names = {"v"};
-    // eq_wall_v.residual = [](const PhysicsState& s, const PhysicsData&) -> mlpdouble {
-    //     return s.Out(0) - 0.0;
-    // };
-    // auto loss_wall_v = std::make_shared<CPhysicsLoss>("loss_wall_v", net.GetInputVars(), net.GetOutputVars(), std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq_wall_v});
+    CPhysicsEquation eq_wall_v;
+    eq_wall_v.name = "bc_wall_v";
+    eq_wall_v.input_names = {"x", "y"};
+    eq_wall_v.output_names = {"v"};
+    eq_wall_v.residual = [](const PhysicsState& s, const PhysicsData&) -> mlpdouble {
+        return s.Out(0) - 0.0;
+    };
+    auto loss_wall_v = std::make_shared<CPhysicsLoss>("loss_wall_v", net.GetInputVars(), net.GetOutputVars(), std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq_wall_v});
 
     // =========================================================================
     // 7. Create optimizer and trainer
@@ -328,26 +328,26 @@ int main(int argc, char** argv) {
     }
     trainer.SetCollocationPoints("interior", physics_points);
 
-    // std::vector<std::vector<mlpdouble>> top_bc_pts, wall_bc_pts;
-    // std::size_t local_bc = (1000 + size - 1) / size;
-    // for (std::size_t i = 0; i < local_bc; ++i) {
-    //     double t = dist(gen);
-    //     top_bc_pts.push_back({mlpdouble(t), mlpdouble(1.0)});
-    //     wall_bc_pts.push_back({mlpdouble(0.0), mlpdouble(t)});
-    //     wall_bc_pts.push_back({mlpdouble(1.0), mlpdouble(t)});
-    //     wall_bc_pts.push_back({mlpdouble(t), mlpdouble(0.0)});
-    // }
-    // trainer.SetCollocationPoints("top_bc", top_bc_pts);
-    // trainer.SetCollocationPoints("wall_bc", wall_bc_pts);
+    std::vector<std::vector<mlpdouble>> top_bc_pts, wall_bc_pts;
+    std::size_t local_bc = (1000 + size - 1) / size;
+    for (std::size_t i = 0; i < local_bc; ++i) {
+        double t = dist(gen);
+        top_bc_pts.push_back({mlpdouble(t), mlpdouble(1.0)});
+        wall_bc_pts.push_back({mlpdouble(0.0), mlpdouble(t)});
+        wall_bc_pts.push_back({mlpdouble(1.0), mlpdouble(t)});
+        wall_bc_pts.push_back({mlpdouble(t), mlpdouble(0.0)});
+    }
+    trainer.SetCollocationPoints("top_bc", top_bc_pts);
+    trainer.SetCollocationPoints("wall_bc", wall_bc_pts);
 
     // Register PDEs as L_r (Physics Losses), Data+BCs as L_i
     trainer.AddPhysicsLoss(loss_cont, "interior");
     trainer.AddPhysicsLoss(loss_xmom, "interior");
     trainer.AddPhysicsLoss(loss_ymom, "interior");
-    // trainer.AddBoundaryLoss(loss_top_u, "top_bc");
-    // trainer.AddBoundaryLoss(loss_top_v, "top_bc");
-    // trainer.AddBoundaryLoss(loss_wall_u, "wall_bc");
-    // trainer.AddBoundaryLoss(loss_wall_v, "wall_bc");
+    trainer.AddBoundaryLoss(loss_top_u, "top_bc");
+    trainer.AddBoundaryLoss(loss_top_v, "top_bc");
+    trainer.AddBoundaryLoss(loss_wall_u, "wall_bc");
+    trainer.AddBoundaryLoss(loss_wall_v, "wall_bc");
 
     trainer.EnableMPI();
     trainer.Build();
@@ -361,7 +361,7 @@ int main(int argc, char** argv) {
               << std::setw(8)  << "Epoch"
               << std::setw(14) << "L_Data"
               << std::setw(14) << "L_Phys"
-              // << std::setw(14) << "L_BC"
+              << std::setw(14) << "L_BC"
               << std::setw(12) << "Lambda"
               << std::setw(14) << "L_Total"
               << "\n";
@@ -408,7 +408,7 @@ int main(int argc, char** argv) {
                         << std::setw(8)  << (epoch + 1)
                         << std::setw(14) << std::scientific << std::setprecision(4) << avg_data_loss
                         << std::setw(14) << avg_physics_loss
-                        // << std::setw(14) << avg_bc_loss
+                        << std::setw(14) << avg_bc_loss
                         << std::setw(12) << std::fixed << std::setprecision(2) << avg_lambda
                         << std::setw(14) << std::scientific << std::setprecision(4) << avg_loss_total
                         << "\n";

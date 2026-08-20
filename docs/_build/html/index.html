@@ -1,0 +1,494 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to MLPToolbox’s Documentation! &mdash; MLPToolbox Tutorial  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            MLPToolbox Tutorial
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">Welcome to MLPToolbox’s Documentation!</a></li>
+<li><a class="reference internal" href="#understanding-gradient-annealing-lambda">Understanding Gradient Annealing &amp; Lambda</a><ul>
+<li><a class="reference internal" href="#the-problem-gradient-pathologies">The Problem: Gradient Pathologies</a></li>
+<li><a class="reference internal" href="#the-solution-adaptive-lambda-lambda-i">The Solution: Adaptive Lambda (<span class="math notranslate nohighlight">\(\lambda_i\)</span>)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#core-api-components">Core API Components</a><ul>
+<li><a class="reference internal" href="#the-optimizer-cadam">The Optimizer: CAdam</a></li>
+<li><a class="reference internal" href="#the-annealer-cgradientannealer">The Annealer: CGradientAnnealer</a></li>
+<li><a class="reference internal" href="#the-trainer-cmlptrainer">The Trainer: CMLPTrainer</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#example-2d-lid-driven-cavity">Example: 2D Lid-Driven Cavity</a><ul>
+<li><a class="reference internal" href="#mpi-initialization-physical-scales">1. MPI Initialization &amp; Physical Scales</a></li>
+<li><a class="reference internal" href="#data-loading-non-dimensionalization">2. Data Loading &amp; Non-Dimensionalization</a></li>
+<li><a class="reference internal" href="#neural-network-architecture">3. Neural Network Architecture</a></li>
+<li><a class="reference internal" href="#physics-residuals-the-pdes-l-r">4. Physics Residuals (The PDEs, <span class="math notranslate nohighlight">\(L_r\)</span>)</a></li>
+<li><a class="reference internal" href="#boundary-condition-losses-l-i">5. Boundary Condition Losses (<span class="math notranslate nohighlight">\(L_i\)</span>)</a></li>
+<li><a class="reference internal" href="#optimizer-annealer-and-trainer-configuration">6. Optimizer, Annealer, and Trainer Configuration</a></li>
+<li><a class="reference internal" href="#data-partitioning-collocation-points-mpi">7. Data Partitioning &amp; Collocation Points (MPI)</a></li>
+<li><a class="reference internal" href="#registering-losses">8. Registering Losses</a></li>
+<li><a class="reference internal" href="#the-training-loop-logging">9. The Training Loop &amp; Logging</a></li>
+<li><a class="reference internal" href="#output-predictions-dimensionalization">10. Output Predictions (Dimensionalization)</a></li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">MLPToolbox Tutorial</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Welcome to MLPToolbox’s Documentation!</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="welcome-to-mlptoolbox-s-documentation">
+<h1><a class="toc-backref" href="#id1" role="doc-backlink">Welcome to MLPToolbox’s Documentation!</a><a class="headerlink" href="#welcome-to-mlptoolbox-s-documentation" title="Link to this heading"></a></h1>
+<p>MLPToolbox is designed to train Physics-Informed Neural Networks (PINNs) using
+reverse-mode Algorithmic Differentiation (AD) and features an advanced Gradient
+Annealing algorithm to mitigate gradient pathologies.</p>
+<nav class="contents" id="table-of-contents">
+<p class="topic-title">Table of Contents</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#welcome-to-mlptoolbox-s-documentation" id="id1">Welcome to MLPToolbox’s Documentation!</a></p></li>
+<li><p><a class="reference internal" href="#understanding-gradient-annealing-lambda" id="id2">Understanding Gradient Annealing &amp; Lambda</a></p>
+<ul>
+<li><p><a class="reference internal" href="#the-problem-gradient-pathologies" id="id3">The Problem: Gradient Pathologies</a></p></li>
+<li><p><a class="reference internal" href="#the-solution-adaptive-lambda-lambda-i" id="id4">The Solution: Adaptive Lambda (<span class="math notranslate nohighlight">\(\lambda_i\)</span>)</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#core-api-components" id="id5">Core API Components</a></p>
+<ul>
+<li><p><a class="reference internal" href="#the-optimizer-cadam" id="id6">The Optimizer: CAdam</a></p></li>
+<li><p><a class="reference internal" href="#the-annealer-cgradientannealer" id="id7">The Annealer: CGradientAnnealer</a></p></li>
+<li><p><a class="reference internal" href="#the-trainer-cmlptrainer" id="id8">The Trainer: CMLPTrainer</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#example-2d-lid-driven-cavity" id="id9">Example: 2D Lid-Driven Cavity</a></p>
+<ul>
+<li><p><a class="reference internal" href="#mpi-initialization-physical-scales" id="id10">1. MPI Initialization &amp; Physical Scales</a></p></li>
+<li><p><a class="reference internal" href="#data-loading-non-dimensionalization" id="id11">2. Data Loading &amp; Non-Dimensionalization</a></p></li>
+<li><p><a class="reference internal" href="#neural-network-architecture" id="id12">3. Neural Network Architecture</a></p></li>
+<li><p><a class="reference internal" href="#physics-residuals-the-pdes-l-r" id="id13">4. Physics Residuals (The PDEs, <span class="math notranslate nohighlight">\(L_r\)</span>)</a></p></li>
+<li><p><a class="reference internal" href="#boundary-condition-losses-l-i" id="id14">5. Boundary Condition Losses (<span class="math notranslate nohighlight">\(L_i\)</span>)</a></p></li>
+<li><p><a class="reference internal" href="#optimizer-annealer-and-trainer-configuration" id="id15">6. Optimizer, Annealer, and Trainer Configuration</a></p></li>
+<li><p><a class="reference internal" href="#data-partitioning-collocation-points-mpi" id="id16">7. Data Partitioning &amp; Collocation Points (MPI)</a></p></li>
+<li><p><a class="reference internal" href="#registering-losses" id="id17">8. Registering Losses</a></p></li>
+<li><p><a class="reference internal" href="#the-training-loop-logging" id="id18">9. The Training Loop &amp; Logging</a></p></li>
+<li><p><a class="reference internal" href="#output-predictions-dimensionalization" id="id19">10. Output Predictions (Dimensionalization)</a></p></li>
+</ul>
+</li>
+</ul>
+</nav>
+</section>
+<section id="understanding-gradient-annealing-lambda">
+<h1><a class="toc-backref" href="#id2" role="doc-backlink">Understanding Gradient Annealing &amp; Lambda</a><a class="headerlink" href="#understanding-gradient-annealing-lambda" title="Link to this heading"></a></h1>
+<p>In standard PINNs, the total loss is a composite of data-fit terms
+(<span class="math notranslate nohighlight">\(L_i\)</span>, e.g., boundary conditions, reference data) and physics residual
+terms (<span class="math notranslate nohighlight">\(L_r\)</span>, e.g., Navier-Stokes equations):</p>
+<div class="math notranslate nohighlight">
+\[L(\theta) = L_r(\theta) + \sum_{i=1}^{M} \lambda_i L_i(\theta)\]</div>
+<section id="the-problem-gradient-pathologies">
+<h2><a class="toc-backref" href="#id3" role="doc-backlink">The Problem: Gradient Pathologies</a><a class="headerlink" href="#the-problem-gradient-pathologies" title="Link to this heading"></a></h2>
+<p>As discussed in <em>Wang et al. (2020)</em>, the back-propagated gradients of the PDE
+residual (<span class="math notranslate nohighlight">\(\nabla_\theta L_r\)</span>) are often orders of magnitude larger than
+the data gradients (<span class="math notranslate nohighlight">\(\nabla_\theta L_i\)</span>). This causes the optimizer to
+focus solely on minimizing the physics residual while ignoring the boundary/initial
+conditions, leading to erroneous predictions.</p>
+</section>
+<section id="the-solution-adaptive-lambda-lambda-i">
+<h2><a class="toc-backref" href="#id4" role="doc-backlink">The Solution: Adaptive Lambda (<span class="math notranslate nohighlight">\(\lambda_i\)</span>)</a><a class="headerlink" href="#the-solution-adaptive-lambda-lambda-i" title="Link to this heading"></a></h2>
+<p>MLPToolbox implements <strong>Paper Algorithm 1</strong> to dynamically update <span class="math notranslate nohighlight">\(\lambda_i\)</span>
+during training. Instead of manually tuning <span class="math notranslate nohighlight">\(\lambda_i\)</span>, the trainer tracks
+gradient statistics:</p>
+<ol class="arabic">
+<li><p><strong>Instantaneous Lambda</strong> (<span class="math notranslate nohighlight">\(\hat{\lambda}_i\)</span>): Computed as the ratio
+between the maximum absolute gradient of the physics residual and the mean
+absolute gradient of the data term:</p>
+<div class="math notranslate nohighlight">
+\[\hat{\lambda}_i = \frac{\max_\theta |\nabla_\theta L_r|}{\overline{|\nabla_\theta L_i|}}\]</div>
+</li>
+<li><p><strong>Exponential Moving Average (EMA)</strong>: To prevent oscillations, the actual
+weight is smoothed using an EMA coefficient (<span class="math notranslate nohighlight">\(\alpha\)</span>):</p>
+<div class="math notranslate nohighlight">
+\[\lambda_i \leftarrow (1 - \alpha)\lambda_i + \alpha \hat{\lambda}_i\]</div>
+</li>
+</ol>
+<p><strong>How it affects the loss:</strong> By scaling <span class="math notranslate nohighlight">\(L_i\)</span> by <span class="math notranslate nohighlight">\(\lambda_i\)</span>, the
+effective learning rate of the data-fit terms is scaled up, forcing the network
+to respect boundary conditions and reference data even when the physics residuals
+are extremely stiff.</p>
+</section>
+</section>
+<section id="core-api-components">
+<h1><a class="toc-backref" href="#id5" role="doc-backlink">Core API Components</a><a class="headerlink" href="#core-api-components" title="Link to this heading"></a></h1>
+<p>MLPToolbox is modular. A typical workflow involves constructing a Network,
+defining Losses, configuring an Optimizer and Annealer, and passing them to
+the Trainer.</p>
+<section id="the-optimizer-cadam">
+<h2><a class="toc-backref" href="#id6" role="doc-backlink">The Optimizer: CAdam</a><a class="headerlink" href="#the-optimizer-cadam" title="Link to this heading"></a></h2>
+<p>A standard Adam optimizer implementation.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">CAdam</span><span class="p">(</span>
+<span class="w">    </span><span class="n">mlpdouble</span><span class="w"> </span><span class="n">learning_rate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1e-3</span><span class="p">,</span>
+<span class="w">    </span><span class="n">mlpdouble</span><span class="w"> </span><span class="n">beta1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.9</span><span class="p">,</span>
+<span class="w">    </span><span class="n">mlpdouble</span><span class="w"> </span><span class="n">beta2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.999</span><span class="p">,</span>
+<span class="w">    </span><span class="n">mlpdouble</span><span class="w"> </span><span class="n">epsilon</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1e-8</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="the-annealer-cgradientannealer">
+<h2><a class="toc-backref" href="#id7" role="doc-backlink">The Annealer: CGradientAnnealer</a><a class="headerlink" href="#the-annealer-cgradientannealer" title="Link to this heading"></a></h2>
+<p>The annealer automatically balances the loss terms. It is configured using
+the <code class="docutils literal notranslate"><span class="pre">AnnealerConfig</span></code> struct.</p>
+<p><strong>AnnealerConfig Parameters:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">alpha</span></code>: Default <cite>0.9</cite>. Controls the EMA smoothing. A higher value makes
+<span class="math notranslate nohighlight">\(\lambda\)</span> react faster to gradient changes, while a lower value smooths
+it out. <cite>0.9</cite> is recommended by the paper.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda_init</span></code>: Default <cite>1.0</cite>. The initial <span class="math notranslate nohighlight">\(\lambda\)</span> for all data terms.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda_max</span></code>: Default <cite>1e4</cite>. <strong>Crucial parameter</strong>. If your non-dimensionalization
+introduces large scaling coefficients, the physics gradients will be massive,
+driving <span class="math notranslate nohighlight">\(\hat{\lambda}_i\)</span> to infinity. The hard clamp prevents gradient explosion.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda_min</span></code>: Default <cite>1e-4</cite>. Prevents a data term from being completely ignored.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n_data_terms</span></code>: Automatically calculated by the <code class="docutils literal notranslate"><span class="pre">CMLPTrainer</span></code> during
+<code class="docutils literal notranslate"><span class="pre">Build()</span></code> as <cite>n_reference_losses + n_boundary_losses</cite>.</p></li>
+</ul>
+</section>
+<section id="the-trainer-cmlptrainer">
+<h2><a class="toc-backref" href="#id8" role="doc-backlink">The Trainer: CMLPTrainer</a><a class="headerlink" href="#the-trainer-cmlptrainer" title="Link to this heading"></a></h2>
+<p>The trainer orchestrates the AD tape, mini-batching, MPI synchronization, and
+the fast/slow path gradient evaluations.</p>
+<p><strong>TrainerConfig Parameters:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">batch_size</span></code>: The number of reference data points processed per gradient step.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">physics_batch_size</span></code>: The number of collocation points processed per step.
+<strong>Performance Note:</strong> Computing Hessians (2nd derivatives) for momentum equations
+is memory and CPU intensive. Keep this between 32 and 128.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">use_annealer</span></code>: Set to <cite>true</cite> to enable the gradient pathology mitigation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">annealer_update_freq</span></code>: <strong>Performance Note</strong>. Computing <span class="math notranslate nohighlight">\(\hat{\lambda}_i\)</span>
+requires <span class="math notranslate nohighlight">\(N+1\)</span> reverse sweeps of the AD tape. Setting this to <cite>10</cite> means
+the expensive “Slow Path” only runs every 10 steps. On the other 9 steps, the
+trainer uses a “Fast Path” (1 sweep) with the cached <span class="math notranslate nohighlight">\(\lambda\)</span> values.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max_grad_norm</span></code>: If &gt; 0.0, applies global gradient clipping to prevent NaNs.</p></li>
+</ul>
+</section>
+</section>
+<section id="example-2d-lid-driven-cavity">
+<h1><a class="toc-backref" href="#id9" role="doc-backlink">Example: 2D Lid-Driven Cavity</a><a class="headerlink" href="#example-2d-lid-driven-cavity" title="Link to this heading"></a></h1>
+<p>This section provides a comprehensive, section-by-section walkthrough of the
+<code class="docutils literal notranslate"><span class="pre">cavity_trainer.cpp</span></code> code. It explains the physics, the non-dimensionalization,
+and how the MLPToolbox API is used to implement Paper Algorithm 1 for the 2D
+Lid-Driven Cavity flow.</p>
+<section id="mpi-initialization-physical-scales">
+<h2><a class="toc-backref" href="#id10" role="doc-backlink">1. MPI Initialization &amp; Physical Scales</a><a class="headerlink" href="#mpi-initialization-physical-scales" title="Link to this heading"></a></h2>
+<p>First, we initialize MPI and define the physical reference scales of the problem.
+The cavity is a <span class="math notranslate nohighlight">\(1 \times 1\)</span> box (<span class="math notranslate nohighlight">\(L_{ref}=1\)</span>). The lid moves at
+<span class="math notranslate nohighlight">\(U_{lid} = 33.179\)</span> m/s.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">MPI_Init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">argv</span><span class="p">);</span>
+<span class="kt">int</span><span class="w"> </span><span class="n">rank</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="n">MPI_Comm_rank</span><span class="p">(</span><span class="n">MPI_COMM_WORLD</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">rank</span><span class="p">);</span>
+<span class="n">MPI_Comm_size</span><span class="p">(</span><span class="n">MPI_COMM_WORLD</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">size</span><span class="p">);</span>
+
+<span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">U_lid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">33.179</span><span class="p">;</span>
+<span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">L_ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0</span><span class="p">;</span>
+<span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">rho_ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">5.04175e-04</span><span class="p">;</span>
+<span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">R_gas</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">287.058</span><span class="p">;</span>
+<span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">T_ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">288.15</span><span class="p">;</span>
+<span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">p_ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">rho_ref</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">R_gas</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">T_ref</span><span class="p">;</span>
+<span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">C_p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">R_gas</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">T_ref</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="n">U_lid</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">U_lid</span><span class="p">);</span>
+<span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">Re</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2000.0</span><span class="p">;</span>
+</pre></div>
+</div>
+<p><strong>Key Physics Note (Pressure Scaling):</strong>
+Instead of scaling pressure by dynamic pressure (<span class="math notranslate nohighlight">\(\rho U^2\)</span>), we scale it by
+ideal gas static pressure (<span class="math notranslate nohighlight">\(\rho R T\)</span>). Because of this specific pressure scaling,
+the pressure gradient term in the Navier-Stokes equations needs a coefficient:
+<span class="math notranslate nohighlight">\(C_p = \frac{R T}{U_{lid}^2} \approx 75\)</span>. The Reynolds number is set to 2000.</p>
+</section>
+<section id="data-loading-non-dimensionalization">
+<h2><a class="toc-backref" href="#id11" role="doc-backlink">2. Data Loading &amp; Non-Dimensionalization</a><a class="headerlink" href="#data-loading-non-dimensionalization" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">ReadSU2CSV_NonDim</span></code> function reads a SU2 CFD restart file. SU2 outputs
+conservative variables (Density, Momentum, Energy). The function converts these to
+primitives (<span class="math notranslate nohighlight">\(u, v, p\)</span>), and then <strong>non-dimensionalizes</strong> them so the neural
+network trains on values that are <span class="math notranslate nohighlight">\(\mathcal{O}(1)\)</span>.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">Y</span><span class="p">.</span><span class="n">push_back</span><span class="p">({</span>
+<span class="w">    </span><span class="n">mlpdouble</span><span class="p">(</span><span class="n">u_dim</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">U_ref</span><span class="p">),</span>
+<span class="w">    </span><span class="n">mlpdouble</span><span class="p">(</span><span class="n">v_dim</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">U_ref</span><span class="p">),</span>
+<span class="w">    </span><span class="n">mlpdouble</span><span class="p">(</span><span class="n">p_dim</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">p_ref</span><span class="p">)</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+</section>
+<section id="neural-network-architecture">
+<h2><a class="toc-backref" href="#id12" role="doc-backlink">3. Neural Network Architecture</a><a class="headerlink" href="#neural-network-architecture" title="Link to this heading"></a></h2>
+<p>A simple Multi-Layer Perceptron (MLP) is used: 2 inputs <span class="math notranslate nohighlight">\((x,y)\)</span>, three hidden
+layers of 32 neurons (Tanh activation), and 3 outputs <span class="math notranslate nohighlight">\((u,v,p)\)</span> (Linear activation).
+Crucially, min-max normalization is applied to keep the internal math of the network stable.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">architecture</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">};</span>
+<span class="n">CNeuralNetwork</span><span class="w"> </span><span class="nf">net</span><span class="p">(</span><span class="n">architecture</span><span class="p">);</span>
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">iLayer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">iLayer</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">net</span><span class="p">.</span><span class="n">GetnLayers</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">iLayer</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">net</span><span class="p">.</span><span class="n">SetActivationFunction</span><span class="p">(</span><span class="n">iLayer</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;tanh&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="n">net</span><span class="p">.</span><span class="n">SetActivationFunction</span><span class="p">(</span><span class="n">net</span><span class="p">.</span><span class="n">GetnLayers</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;linear&quot;</span><span class="p">);</span>
+
+<span class="n">net</span><span class="p">.</span><span class="n">SetInputRegularization</span><span class="p">(</span><span class="s">&quot;minmax&quot;</span><span class="p">);</span>
+<span class="n">net</span><span class="p">.</span><span class="n">SetInputNorm</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p">);</span><span class="w"> </span><span class="c1">// x in [0,1]</span>
+<span class="n">net</span><span class="p">.</span><span class="n">SetInputNorm</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p">);</span><span class="w"> </span><span class="c1">// y in [0,1]</span>
+
+<span class="n">net</span><span class="p">.</span><span class="n">SetOutputRegularization</span><span class="p">(</span><span class="s">&quot;minmax&quot;</span><span class="p">);</span>
+<span class="n">net</span><span class="p">.</span><span class="n">SetOutputNorm</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mf">-1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p">);</span><span class="w"> </span><span class="c1">// u, v, p normalized to [-1, 1]</span>
+<span class="n">net</span><span class="p">.</span><span class="n">SetOutputNorm</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mf">-1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p">);</span>
+<span class="n">net</span><span class="p">.</span><span class="n">SetOutputNorm</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mf">-1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="physics-residuals-the-pdes-l-r">
+<h2><a class="toc-backref" href="#id13" role="doc-backlink">4. Physics Residuals (The PDEs, <span class="math notranslate nohighlight">\(L_r\)</span>)</a><a class="headerlink" href="#physics-residuals-the-pdes-l-r" title="Link to this heading"></a></h2>
+<p>This section defines the residuals. The trainer will enforce that these residuals
+equal zero at collocation points inside the domain.</p>
+<p><strong>Signed Distance Function (SDF) Weighting:</strong>
+To prevent the stiff boundary layers from causing gradient explosions early in
+training, we down-weight the physics near the walls using an SDF.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">auto</span><span class="w"> </span><span class="n">sdf_weight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[](</span><span class="k">const</span><span class="w"> </span><span class="n">PhysicsState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">s</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">to_double</span><span class="p">(</span><span class="n">s</span><span class="p">.</span><span class="n">In</span><span class="p">(</span><span class="mi">0</span><span class="p">));</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">to_double</span><span class="p">(</span><span class="n">s</span><span class="p">.</span><span class="n">In</span><span class="p">(</span><span class="mi">1</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">min</span><span class="p">({</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">y</span><span class="p">});</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p><strong>Continuity Equation:</strong>
+Enforces incompressibility (<span class="math notranslate nohighlight">\(\nabla \cdot \mathbf{u} = 0\)</span>). <code class="docutils literal notranslate"><span class="pre">s.Jac(output,</span> <span class="pre">input)</span></code>
+provides the Jacobian.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">eq_cont</span><span class="p">.</span><span class="n">residual</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">sdf_weight</span><span class="p">](</span><span class="k">const</span><span class="w"> </span><span class="n">PhysicsState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">s</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">PhysicsData</span><span class="o">&amp;</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">mlpdouble</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">mlpdouble</span><span class="w"> </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">Jac</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">Jac</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"> </span><span class="c1">// du/dx + dv/dy</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nf">mlpdouble</span><span class="p">(</span><span class="n">sdf_weight</span><span class="p">(</span><span class="n">s</span><span class="p">));</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p><strong>X-Momentum Equation:</strong>
+The steady-state x-momentum Navier-Stokes equation. Note the use of <code class="docutils literal notranslate"><span class="pre">s.Hess(output,</span> <span class="pre">input_i,</span> <span class="pre">input_j)</span></code>
+to get the 2nd derivatives (Laplacian) for the viscous terms, and the inclusion of the
+<span class="math notranslate nohighlight">\(C_p\)</span> coefficient for the pressure gradient.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">eq_xmom</span><span class="p">.</span><span class="n">residual</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">Re</span><span class="p">,</span><span class="w"> </span><span class="n">C_p</span><span class="p">,</span><span class="w"> </span><span class="n">sdf_weight</span><span class="p">](</span><span class="k">const</span><span class="w"> </span><span class="n">PhysicsState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">s</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">PhysicsData</span><span class="o">&amp;</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">mlpdouble</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">mlpdouble</span><span class="w"> </span><span class="n">u</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">Out</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="w">    </span><span class="n">mlpdouble</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">Out</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+<span class="w">    </span><span class="n">mlpdouble</span><span class="w"> </span><span class="n">dudx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">Jac</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="w">    </span><span class="n">mlpdouble</span><span class="w"> </span><span class="n">dudy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">Jac</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="w">    </span><span class="n">mlpdouble</span><span class="w"> </span><span class="n">dpdx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">Jac</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="w">    </span><span class="n">mlpdouble</span><span class="w"> </span><span class="n">d2udx2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">Hess</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="w">    </span><span class="n">mlpdouble</span><span class="w"> </span><span class="n">d2udy2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">Hess</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="w">    </span><span class="n">mlpdouble</span><span class="w"> </span><span class="n">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">u</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">dudx</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">dudy</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">C_p</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">dpdx</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="p">(</span><span class="mf">1.0</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">Re</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="n">d2udx2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">d2udy2</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nf">mlpdouble</span><span class="p">(</span><span class="n">sdf_weight</span><span class="p">(</span><span class="n">s</span><span class="p">));</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+</section>
+<section id="boundary-condition-losses-l-i">
+<h2><a class="toc-backref" href="#id14" role="doc-backlink">5. Boundary Condition Losses (<span class="math notranslate nohighlight">\(L_i\)</span>)</a><a class="headerlink" href="#boundary-condition-losses-l-i" title="Link to this heading"></a></h2>
+<p>Boundary conditions are treated as physics losses evaluated on boundary collocation sets.</p>
+<p><strong>Corner Smoothing for Top Wall:</strong>
+At the top wall (<span class="math notranslate nohighlight">\(y=1\)</span>), <span class="math notranslate nohighlight">\(u=1\)</span>. However, at the top corners (<span class="math notranslate nohighlight">\(x=0\)</span> and <span class="math notranslate nohighlight">\(x=1\)</span>),
+there is a mathematical discontinuity (the lid moves, but the side walls are fixed). This logic
+linearly ramps <span class="math notranslate nohighlight">\(u\)</span> from 0 to 1 near the corners, preventing the network from trying to learn
+an infinite gradient.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">eq_top_u</span><span class="p">.</span><span class="n">residual</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[](</span><span class="k">const</span><span class="w"> </span><span class="n">PhysicsState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">s</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">PhysicsData</span><span class="o">&amp;</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">mlpdouble</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">to_double</span><span class="p">(</span><span class="n">s</span><span class="p">.</span><span class="n">In</span><span class="p">(</span><span class="mi">0</span><span class="p">));</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">target_u</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mf">0.1</span><span class="p">)</span><span class="w"> </span><span class="n">target_u</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">0.1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0.9</span><span class="p">)</span><span class="w"> </span><span class="n">target_u</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="mf">1.0</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">0.1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">Out</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">mlpdouble</span><span class="p">(</span><span class="n">target_u</span><span class="p">);</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+</section>
+<section id="optimizer-annealer-and-trainer-configuration">
+<h2><a class="toc-backref" href="#id15" role="doc-backlink">6. Optimizer, Annealer, and Trainer Configuration</a><a class="headerlink" href="#optimizer-annealer-and-trainer-configuration" title="Link to this heading"></a></h2>
+<p>The Annealer is configured exactly as the paper recommends (<span class="math notranslate nohighlight">\(\alpha=0.9\)</span>).
+The <code class="docutils literal notranslate"><span class="pre">lambda_max=1e4</span></code> clamps the weights because the <span class="math notranslate nohighlight">\(C_p=75\)</span> makes the physics
+gradients massive. The trainer uses <code class="docutils literal notranslate"><span class="pre">annealer_update_freq=10</span></code> to run the “Slow Path”
+every 10 steps, and the “Fast Path” for the other 9.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">CAdam</span><span class="w"> </span><span class="nf">optimizer</span><span class="p">(</span><span class="mf">1e-3</span><span class="p">,</span><span class="w"> </span><span class="mf">0.9</span><span class="p">,</span><span class="w"> </span><span class="mf">0.999</span><span class="p">,</span><span class="w"> </span><span class="mf">1e-8</span><span class="p">);</span>
+<span class="n">AnnealerConfig</span><span class="w"> </span><span class="n">anneal_cfg</span><span class="p">;</span>
+<span class="n">anneal_cfg</span><span class="p">.</span><span class="n">alpha</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.9</span><span class="p">;</span>
+<span class="n">anneal_cfg</span><span class="p">.</span><span class="n">lambda_max</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1e4</span><span class="p">;</span>
+
+<span class="n">TrainerConfig</span><span class="w"> </span><span class="n">trainer_cfg</span><span class="p">;</span>
+<span class="n">trainer_cfg</span><span class="p">.</span><span class="n">max_epochs</span><span class="w">         </span><span class="o">=</span><span class="w"> </span><span class="mi">500</span><span class="p">;</span>
+<span class="n">trainer_cfg</span><span class="p">.</span><span class="n">batch_size</span><span class="w">         </span><span class="o">=</span><span class="w"> </span><span class="mi">128</span><span class="p">;</span>
+<span class="n">trainer_cfg</span><span class="p">.</span><span class="n">physics_batch_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="p">;</span><span class="w">  </span><span class="c1">// Keep small for Hessian memory</span>
+<span class="n">trainer_cfg</span><span class="p">.</span><span class="n">use_annealer</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="n">trainer_cfg</span><span class="p">.</span><span class="n">annealer_update_freq</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+<span class="n">trainer_cfg</span><span class="p">.</span><span class="n">shuffle_per_epoch</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+
+<span class="n">CMLPTrainer</span><span class="w"> </span><span class="nf">trainer</span><span class="p">(</span><span class="n">net</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">optimizer</span><span class="p">),</span><span class="w"> </span><span class="n">anneal_cfg</span><span class="p">,</span><span class="w"> </span><span class="n">trainer_cfg</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="data-partitioning-collocation-points-mpi">
+<h2><a class="toc-backref" href="#id16" role="doc-backlink">7. Data Partitioning &amp; Collocation Points (MPI)</a><a class="headerlink" href="#data-partitioning-collocation-points-mpi" title="Link to this heading"></a></h2>
+<p>The domain is sampled randomly. With 2 MPI ranks, each rank gets 2500 interior points,
+500 top boundary points, and 1500 wall boundary points. The trainer is told which points
+belong to which named set (<code class="docutils literal notranslate"><span class="pre">&quot;interior&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;top_bc&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;wall_bc&quot;</span></code>).</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">local_coll</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="mi">5000</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">local_coll</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">physics_points</span><span class="p">.</span><span class="n">push_back</span><span class="p">({</span><span class="n">mlpdouble</span><span class="p">(</span><span class="n">dist</span><span class="p">(</span><span class="n">gen</span><span class="p">)),</span><span class="w"> </span><span class="n">mlpdouble</span><span class="p">(</span><span class="n">dist</span><span class="p">(</span><span class="n">gen</span><span class="p">))});</span>
+<span class="p">}</span>
+<span class="n">trainer</span><span class="p">.</span><span class="n">SetCollocationPoints</span><span class="p">(</span><span class="s">&quot;interior&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">physics_points</span><span class="p">);</span>
+<span class="c1">// ... generate boundary points ...</span>
+</pre></div>
+</div>
+</section>
+<section id="registering-losses">
+<h2><a class="toc-backref" href="#id17" role="doc-backlink">8. Registering Losses</a><a class="headerlink" href="#registering-losses" title="Link to this heading"></a></h2>
+<p>The separation of API calls maps directly to Paper Algorithm 1:</p>
+<ol class="arabic simple">
+<li><p><strong>Reference Data</strong> (<span class="math notranslate nohighlight">\(L_{data}\)</span>) and <strong>Boundary Conditions</strong> (<span class="math notranslate nohighlight">\(L_{bc}\)</span>) are
+registered as <span class="math notranslate nohighlight">\(L_i\)</span> terms. The annealer will assign a <span class="math notranslate nohighlight">\(\lambda\)</span> weight to each.</p></li>
+<li><p><strong>Physics Losses</strong> (<span class="math notranslate nohighlight">\(L_{phys}\)</span>) are registered as <span class="math notranslate nohighlight">\(L_r\)</span> terms. They always have a weight of 1.0.</p></li>
+</ol>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">trainer</span><span class="p">.</span><span class="n">AddReferenceLoss</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">CMeanSquaredErrorLoss</span><span class="o">&gt;</span><span class="p">());</span><span class="w"> </span><span class="c1">// SU2 Data</span>
+
+<span class="n">trainer</span><span class="p">.</span><span class="n">AddPhysicsLoss</span><span class="p">(</span><span class="n">loss_cont</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;interior&quot;</span><span class="p">);</span>
+<span class="n">trainer</span><span class="p">.</span><span class="n">AddPhysicsLoss</span><span class="p">(</span><span class="n">loss_xmom</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;interior&quot;</span><span class="p">);</span>
+<span class="n">trainer</span><span class="p">.</span><span class="n">AddPhysicsLoss</span><span class="p">(</span><span class="n">loss_ymom</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;interior&quot;</span><span class="p">);</span>
+
+<span class="n">trainer</span><span class="p">.</span><span class="n">AddBoundaryLoss</span><span class="p">(</span><span class="n">loss_top_u</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;top_bc&quot;</span><span class="p">);</span>
+<span class="n">trainer</span><span class="p">.</span><span class="n">AddBoundaryLoss</span><span class="p">(</span><span class="n">loss_top_v</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;top_bc&quot;</span><span class="p">);</span>
+<span class="n">trainer</span><span class="p">.</span><span class="n">AddBoundaryLoss</span><span class="p">(</span><span class="n">loss_wall_u</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;wall_bc&quot;</span><span class="p">);</span>
+<span class="n">trainer</span><span class="p">.</span><span class="n">AddBoundaryLoss</span><span class="p">(</span><span class="n">loss_wall_v</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;wall_bc&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="the-training-loop-logging">
+<h2><a class="toc-backref" href="#id18" role="doc-backlink">9. The Training Loop &amp; Logging</a><a class="headerlink" href="#the-training-loop-logging" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">TrainEpoch()</span></code> handles everything internally: mini-batching, AD tape registration, the
+Fast/Slow gradient sweeps, MPI <code class="docutils literal notranslate"><span class="pre">Allreduce</span></code> synchronization, and the Adam weight update.
+The user only needs to poll the trainer for the average losses and the average <span class="math notranslate nohighlight">\(\lambda\)</span>
+to log the training history.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">epoch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">epoch</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">trainer_cfg</span><span class="p">.</span><span class="n">max_epochs</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">epoch</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">trainer</span><span class="p">.</span><span class="n">TrainEpoch</span><span class="p">();</span>
+
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">avg_data_loss</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">trainer</span><span class="p">.</span><span class="n">GetEpochAverageLossRef</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">avg_physics_loss</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">k</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">avg_physics_loss</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">trainer</span><span class="p">.</span><span class="n">GetEpochAverageLossPhys</span><span class="p">(</span><span class="n">k</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">avg_bc_loss</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">k</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">avg_bc_loss</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">trainer</span><span class="p">.</span><span class="n">GetEpochAverageLossBC</span><span class="p">(</span><span class="n">k</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">avg_lambda</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="n">trainer</span><span class="p">.</span><span class="n">GetEpochAverageLambda</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">avg_loss_total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">trainer</span><span class="p">.</span><span class="n">GetEpochAverageLossTotal</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// ... log to CSV and console ...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="output-predictions-dimensionalization">
+<h2><a class="toc-backref" href="#id19" role="doc-backlink">10. Output Predictions (Dimensionalization)</a><a class="headerlink" href="#output-predictions-dimensionalization" title="Link to this heading"></a></h2>
+<p>After training, the network predicts non-dimensional variables. To visualize the flow
+in standard tools (like ParaView), we evaluate the network on a dense <span class="math notranslate nohighlight">\(100 \times 100\)</span>
+grid and multiply the outputs back by the physical reference scales (<span class="math notranslate nohighlight">\(U_{lid}\)</span> and <span class="math notranslate nohighlight">\(p_{ref}\)</span>)
+to restore their dimensional values.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">j</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">double</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">100.0</span><span class="p">;</span>
+<span class="w">        </span><span class="kt">double</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="p">(</span><span class="n">j</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">100.0</span><span class="p">;</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">mlpdouble</span><span class="o">&gt;</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">mlpdouble</span><span class="p">(</span><span class="n">x</span><span class="p">),</span><span class="w"> </span><span class="n">mlpdouble</span><span class="p">(</span><span class="n">y</span><span class="p">)};</span>
+
+<span class="w">        </span><span class="n">net</span><span class="p">.</span><span class="n">Predict</span><span class="p">(</span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="nb">false</span><span class="p">,</span><span class="w"> </span><span class="nb">false</span><span class="p">);</span>
+
+<span class="w">        </span><span class="kt">double</span><span class="w"> </span><span class="n">u_dim</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">to_double</span><span class="p">(</span><span class="n">net</span><span class="p">.</span><span class="n">GetOutput</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">U_lid</span><span class="p">;</span>
+<span class="w">        </span><span class="kt">double</span><span class="w"> </span><span class="n">v_dim</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">to_double</span><span class="p">(</span><span class="n">net</span><span class="p">.</span><span class="n">GetOutput</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">U_lid</span><span class="p">;</span>
+<span class="w">        </span><span class="kt">double</span><span class="w"> </span><span class="n">p_dim</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">to_double</span><span class="p">(</span><span class="n">net</span><span class="p">.</span><span class="n">GetOutput</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">p_ref</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">pred_file</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;,&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;,&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">u_dim</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;,&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">v_dim</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;,&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">p_dim</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

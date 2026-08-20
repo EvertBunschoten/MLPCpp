@@ -1,0 +1,281 @@
+.. _mlptoolbox-tutorial:
+
+====================================
+MLPToolbox: Hybrid PINN Tutorial
+====================================
+
+Welcome to the MLPToolbox tutorial. This guide covers the API and configuration 
+parameters of the MLPToolbox library, using a 2D Lid-Driven Cavity flow solver 
+as a comprehensive test case. MLPToolbox is designed to train Physics-Informed 
+Neural Networks (PINNs) using reverse-mode Algorithmic Differentiation (AD) and 
+features an advanced Gradient Annealing algorithm to mitigate gradient pathologies.
+
+.. contents:: Table of Contents
+   :depth: 3
+
+.. _math-annealer:
+
+Understanding Gradient Annealing & Lambda
+========================================
+
+In standard PINNs, the total loss is a composite of data-fit terms 
+(:math:`L_i`, e.g., boundary conditions, reference data) and physics residual 
+terms (:math:`L_r`, e.g., Navier-Stokes equations):
+
+.. math::
+   L(\theta) = L_r(\theta) + \sum_{i=1}^{M} \lambda_i L_i(\theta)
+
+The Problem: Gradient Pathologies
+---------------------------------
+As discussed in *Wang et al. (2020)*, the back-propagated gradients of the PDE 
+residual (:math:`\nabla_\theta L_r`) are often orders of magnitude larger than 
+the data gradients (:math:`\nabla_\theta L_i`). This causes the optimizer to 
+focus solely on minimizing the physics residual while ignoring the boundary/initial 
+conditions, leading to erroneous predictions.
+
+The Solution: Adaptive Lambda (:math:`\lambda_i`)
+-------------------------------------------------
+MLPToolbox implements **Paper Algorithm 1** to dynamically update :math:`\lambda_i` 
+during training. Instead of manually tuning :math:`\lambda_i`, the trainer tracks 
+gradient statistics:
+
+1. **Instantaneous Lambda** (:math:`\hat{\lambda}_i`): Computed as the ratio 
+   between the maximum absolute gradient of the physics residual and the mean 
+   absolute gradient of the data term:
+   
+   .. math::
+      \hat{\lambda}_i = \frac{\max_\theta |\nabla_\theta L_r|}{\overline{|\nabla_\theta L_i|}}
+
+2. **Exponential Moving Average (EMA)**: To prevent oscillations, the actual 
+   weight is smoothed using an EMA coefficient (:math:`\alpha`):
+   
+   .. math::
+      \lambda_i \leftarrow (1 - \alpha)\lambda_i + \alpha \hat{\lambda}_i
+
+**How it affects the loss:** By scaling :math:`L_i` by :math:`\lambda_i`, the 
+effective learning rate of the data-fit terms is scaled up, forcing the network 
+to respect boundary conditions and reference data even when the physics residuals 
+are extremely stiff.
+
+.. _api-components:
+
+Core API Components
+===================
+
+MLPToolbox is modular. A typical workflow involves constructing a Network, 
+defining Losses, configuring an Optimizer and Annealer, and passing them to 
+the Trainer.
+
+The Optimizer: ``CAdam``
+------------------------
+.. doxygenclass:: MLPToolbox::CAdam
+   :members:
+
+The Annealer: ``CGradientAnnealer``
+-----------------------------------
+The annealer automatically balances the loss terms. It is configured using 
+the ``AnnealerConfig`` struct.
+
+.. doxygenstruct:: AnnealerConfig
+   :members:
+
+.. doxygenclass:: CGradientAnnealer
+   :members:
+
+Loss Functions
+--------------
+MLPToolbox separates losses into Reference Losses (data) and Physics Losses (PDEs/BCs).
+
+Reference Data Loss: ``CMeanSquaredErrorLoss``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+A standard Mean Squared Error loss used for supervised data points (e.g., SU2 CFD snapshots).
+
+.. doxygenclass:: MLPToolbox::CMeanSquaredErrorLoss
+   :members:
+
+Physics & Boundary Loss: ``CPhysicsLoss``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This is the heart of the PINN API. It evaluates user-defined PDE residuals or 
+boundary condition residuals using AD. Equations are defined via ``CPhysicsEquation``.
+
+.. doxygenstruct:: MLPToolbox::CPhysicsEquation
+   :members:
+
+.. doxygenclass:: MLPToolbox::CPhysicsLoss
+   :members:
+
+.. note:: 
+   In MLPToolbox, Boundary Conditions are treated as ``CPhysicsLoss`` objects 
+   evaluated on specific collocation sets, allowing them to participate in the 
+   gradient annealing process alongside reference data.
+
+The Trainer: ``CMLPTrainer``
+----------------------------
+The trainer orchestrates the AD tape, mini-batching, MPI synchronization, and 
+the fast/slow path gradient evaluations.
+
+.. doxygenstruct:: TrainerConfig
+   :members:
+
+.. doxygenstruct:: TrainStepResult
+   :members:
+
+.. doxygenclass:: MLPToolbox::CMLPTrainer
+   :members: 
+      AddReferenceLoss,
+      AddPhysicsLoss,
+      AddBoundaryLoss,
+      SetCollocationPoints,
+      SetTrainingData,
+      Build,
+      TrainEpoch,
+      EnableMPI
+
+.. _configuration-guide:
+
+Configuration Guide & Best Practices
+====================================
+
+When setting up a PINN model, your configuration choices dictate both convergence 
+speed and final accuracy.
+
+1. ``AnnealerConfig`` Parameters
+-------------------------------
+
+* ``alpha``: Default `0.9`. Controls the EMA smoothing. A higher value makes 
+  :math:`\lambda` react faster to gradient changes, while a lower value smooths 
+  it out. `0.9` is recommended by the paper.
+* ``lambda_init``: Default `1.0`. The initial :math:`\lambda` for all data terms.
+* ``lambda_max``: Default `1e4`. **Crucial parameter**. If your non-dimensionalization 
+  introduces large scaling coefficients (e.g., compressible pressure scaling), 
+  the physics gradients will be massive, driving :math:`\hat{\lambda}_i` to 
+  infinity. The hard clamp prevents gradient explosion.
+* ``lambda_min``: Default `1e-4`. Prevents a data term from being completely ignored.
+* ``n_data_terms``: Automatically calculated by the ``CMLPTrainer`` during 
+  ``Build()`` as `n_reference_losses + n_boundary_losses`.
+
+2. ``TrainerConfig`` Parameters
+-------------------------------
+
+* ``batch_size``: The number of reference data points (SU2 snapshots) processed 
+  per gradient step.
+* ``physics_batch_size``: The number of collocation points processed per step. 
+  **Performance Note:** Computing Hessians (2nd derivatives) for momentum equations 
+  is memory and CPU intensive. Keep this between 32 and 128.
+* ``use_annealer``: Set to `true` to enable the gradient pathology mitigation.
+* ``annealer_update_freq``: **Performance Note**. Computing :math:`\hat{\lambda}_i` 
+  requires :math:`N+1` reverse sweeps of the AD tape (where :math:`N` is the number 
+  of data+BC terms). Setting this to `10` means the expensive "Slow Path" only 
+  runs every 10 steps. On the other 9 steps, the trainer uses a "Fast Path" (1 sweep) 
+  with the cached :math:`\lambda` values.
+* ``max_grad_norm``: If > 0.0, applies global gradient clipping to prevent NaNs.
+
+.. _example-case:
+
+Example: 2D Lid-Driven Cavity
+=============================
+
+The following C++ snippet demonstrates how to configure the MLPToolbox API to solve 
+the steady-state incompressible Navier-Stokes equations in a 2D lid-driven cavity.
+
+.. code-block:: cpp
+
+   #include "CNeuralNetwork.hpp"
+   #include "CAdam.hpp"
+   #include "CGradientAnnealer.hpp"
+   #include "CMLPTrainer.hpp"
+   #include "CPhysicsLoss.hpp"
+   #include "CMeanSquaredErrorLoss.hpp"
+
+   using namespace MLPToolbox;
+
+   void train_cavity() {
+       // 1. Network Definition
+       std::vector<std::size_t> architecture = {2, 32, 32, 32, 3};
+       CNeuralNetwork net(architecture);
+       net.SetActivationFunction(net.GetnLayers() - 1, "linear");
+       net.SetInputName(0, "x"); net.SetInputName(1, "y");
+       net.SetOutputName(0, "u"); net.SetOutputName(1, "v"); net.SetOutputName(2, "p");
+
+       // 2. Optimizer & Annealer Configuration
+       // alpha=0.9 and lambda_max=1e4 are recommended defaults from the paper
+       CAdam optimizer(1e-3, 0.9, 0.999, 1e-8);
+       AnnealerConfig anneal_cfg;
+       anneal_cfg.alpha = 0.9; 
+       anneal_cfg.lambda_max = 1e4;
+
+       // 3. Trainer Configuration
+       TrainerConfig trainer_cfg;
+       trainer_cfg.max_epochs         = 500;
+       trainer_cfg.batch_size         = 128;    
+       trainer_cfg.physics_batch_size = 32;  // Keep small for Hessian memory
+       trainer_cfg.use_annealer       = true;
+       trainer_cfg.annealer_update_freq = 10; // Run slow path every 10 steps
+       trainer_cfg.shuffle_per_epoch  = true;
+
+       CMLPTrainer trainer(net, std::move(optimizer), anneal_cfg, trainer_cfg);
+
+       // 4. Set Training Data (L_i)
+       std::vector<std::vector<mlpdouble>> X_train, Y_train;
+       // LoadSU2CSV_NonDim(...); populates X_train, Y_train
+       trainer.SetTrainingData(X_train, Y_train);
+       trainer.AddReferenceLoss(std::make_shared<CMeanSquaredErrorLoss>());
+
+       // 5. Generate Collocation Sets
+       std::vector<std::vector<mlpdouble>> interior_pts, top_bc_pts, wall_bc_pts;
+       // Populate points here...
+       trainer.SetCollocationPoints("interior", interior_pts);
+       trainer.SetCollocationPoints("top_bc", top_bc_pts);
+       trainer.SetCollocationPoints("wall_bc", wall_bc_pts);
+
+       // 6. Define Physics Equations (L_r)
+       // Example: Continuity Equation du/dx + dv/dy = 0
+       CPhysicsEquation eq_cont;
+       eq_cont.name = "continuity";
+       eq_cont.input_names = {"x", "y"};
+       eq_cont.output_names = {"u", "v"};
+       eq_cont.requires_jacobian = true;
+       eq_cont.residual = [](const PhysicsState& s, const PhysicsData&) -> mlpdouble {
+           return s.Jac(0, 0) + s.Jac(1, 1); // du/dx + dv/dy
+       };
+       
+       auto loss_cont = std::make_shared<CPhysicsLoss>(
+           "loss_continuity", net.GetInputVars(), net.GetOutputVars(), 
+           std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq_cont}
+       );
+       trainer.AddPhysicsLoss(loss_cont, "interior");
+
+       // Define Momentum equations (requires_hessian = true) here...
+       // trainer.AddPhysicsLoss(loss_xmom, "interior");
+       // trainer.AddPhysicsLoss(loss_ymom, "interior");
+
+       // 7. Define Boundary Conditions as Physics Losses (L_i)
+       CPhysicsEquation eq_top_u;
+       eq_top_u.name = "bc_top_u";
+       eq_top_u.input_names = {"x", "y"};
+       eq_top_u.output_names = {"u"};
+       eq_top_u.residual = [](const PhysicsState& s, const PhysicsData&) -> mlpdouble {
+           return s.Out(0) - 1.0; // u = 1 on top wall
+       };
+       auto loss_top_u = std::make_shared<CPhysicsLoss>(
+           "loss_top_u", net.GetInputVars(), net.GetOutputVars(), 
+           std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq_top_u}
+       );
+       trainer.AddBoundaryLoss(loss_top_u, "top_bc");
+
+       // 8. Initialize MPI and Build
+       trainer.EnableMPI();
+       trainer.Build();
+
+       // 9. Train
+       for (std::size_t epoch = 0; epoch < trainer_cfg.max_epochs; ++epoch) {
+           trainer.TrainEpoch();
+           
+           // Logging custom history...
+           double avg_data_loss = trainer.GetEpochAverageLossRef();
+           double avg_phys_loss = trainer.GetEpochAverageLossPhys(0);
+           double avg_bc_loss   = trainer.GetEpochAverageLossBC(0);
+           double avg_lambda    = trainer.GetEpochAverageLambda(0);
+           double avg_total     = trainer.GetEpochAverageLossTotal();
+       }
+   }
