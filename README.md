@@ -76,4 +76,3 @@ docs/_build/html/index.html
 ```
 
 You can open `index.html` in a web browser to view the documentation locally.
-
