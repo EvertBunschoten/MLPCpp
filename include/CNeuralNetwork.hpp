@@ -472,7 +472,7 @@ public:
   /*!
    * \brief Define the regularization method used to normalize the inputs before
    * feeding them to the network. \param[in] reg_method_input - regularization
-   * method (minmax, standard, or robust).
+   * method ( ).
    */
   void SetInputRegularization(const ENUM_SCALING_FUNCTIONS reg_method_input) {
     if (input_scaler != nullptr)

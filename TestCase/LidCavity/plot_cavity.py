@@ -51,31 +51,35 @@ fig, axes = plt.subplots(3, 2, figsize=(12, 16))
 variables = [
     {"name": "u-velocity", "su2": u_su2, "pinn": u_pinn, "cmap": "jet"},
     {"name": "v-velocity", "su2": v_su2, "pinn": v_pinn, "cmap": "jet"},
-    {"name": "pressure",   "su2": p_su2, "pinn": p_pinn, "cmap": "viridis"}
+    {"name": "pressure", "su2": p_su2, "pinn": p_pinn, "cmap": "viridis"},
 ]
 
 for i, var in enumerate(variables):
     # Calculate a shared color scale based on SU2 ground truth
     vmin = var["su2"].min()
     vmax = var["su2"].max()
-    
+
     # Plot SU2 CFD (Left Column)
     ax_su2 = axes[i, 0]
-    tcf_su2 = ax_su2.tricontourf(x_su2, y_su2, var["su2"], levels=50, cmap=var["cmap"], vmin=vmin, vmax=vmax)
+    tcf_su2 = ax_su2.tricontourf(
+        x_su2, y_su2, var["su2"], levels=50, cmap=var["cmap"], vmin=vmin, vmax=vmax
+    )
     ax_su2.set_title(f"SU2 CFD ({var['name']})", fontsize=14)
     ax_su2.set_xlabel("x", fontsize=12)
     ax_su2.set_ylabel("y", fontsize=12)
-    ax_su2.set_aspect('equal')
-    fig.colorbar(tcf_su2, ax=ax_su2, label=var['name'])
+    ax_su2.set_aspect("equal")
+    fig.colorbar(tcf_su2, ax=ax_su2, label=var["name"])
 
     # Plot PINN (Right Column)
     ax_pinn = axes[i, 1]
-    tcf_pinn = ax_pinn.tricontourf(x_pinn, y_pinn, var["pinn"], levels=50, cmap=var["cmap"], vmin=vmin, vmax=vmax)
+    tcf_pinn = ax_pinn.tricontourf(
+        x_pinn, y_pinn, var["pinn"], levels=50, cmap=var["cmap"], vmin=vmin, vmax=vmax
+    )
     ax_pinn.set_title(f"PINN ({var['name']})", fontsize=14)
     ax_pinn.set_xlabel("x", fontsize=12)
     ax_pinn.set_ylabel("y", fontsize=12)
-    ax_pinn.set_aspect('equal')
-    fig.colorbar(tcf_pinn, ax=ax_pinn, label=var['name'])
+    ax_pinn.set_aspect("equal")
+    fig.colorbar(tcf_pinn, ax=ax_pinn, label=var["name"])
 
 plt.tight_layout()
 plt.savefig("pure_pinn_results.png", dpi=300)
