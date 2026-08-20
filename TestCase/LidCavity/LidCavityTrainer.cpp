@@ -278,7 +278,8 @@ int main(int argc, char **argv) {
   // =========================================================================
   // 6. Create Boundary Condition Losses (L_i) - with Corner Smoothing
   // =========================================================================
-  Top wall(y = 1) : u = 1, v = 0 CPhysicsEquation eq_top_u;
+  // Top wall(y = 1) : u = 1, v = 0 
+  CPhysicsEquation eq_top_u;
   eq_top_u.name = "bc_top_u";
   eq_top_u.input_names = {"x", "y"};
   eq_top_u.output_names = {"u"};

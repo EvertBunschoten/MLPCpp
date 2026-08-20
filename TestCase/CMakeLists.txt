@@ -20,7 +20,6 @@ find_package(MPI REQUIRED)
 
 # add_executable(mlp_test_case benchmark_mlpcpp.cpp)
 add_executable(lid_cavity_trainer LidCavity/LidCavityTrainer.cpp)
-add_executable(lid_cavity_trainer_pure_pinn LidCavity/PureCavityPINN.cpp)
 
 
 set(TEST_CASE_INCLUDE_DIRS
@@ -29,9 +28,7 @@ set(TEST_CASE_INCLUDE_DIRS
 
 # target_include_directories(mlp_test_case PRIVATE ${TEST_CASE_INCLUDE_DIRS})
 target_include_directories(lid_cavity_trainer PRIVATE ${TEST_CASE_INCLUDE_DIRS})
-target_include_directories(lid_cavity_trainer_pure_pinn PRIVATE ${TEST_CASE_INCLUDE_DIRS})
 
 
 # target_link_libraries(mlp_test_case PRIVATE CoDiPack MPI::MPI_CXX)
 target_link_libraries(lid_cavity_trainer PRIVATE CoDiPack MPI::MPI_CXX)
-target_link_libraries(lid_cavity_trainer_pure_pinn PRIVATE CoDiPack MPI::MPI_CXX)
