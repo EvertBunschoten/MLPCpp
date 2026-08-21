@@ -146,7 +146,6 @@ struct TrainStepResult {
   std::vector<double> lambdas;
 };
 
-
 class CPointDerivatives {
 public:
   CPointDerivatives(std::size_t n_in, std::size_t n_out)
@@ -225,7 +224,6 @@ private:
   std::vector<mlpdouble *> hess_rows_;
   std::vector<mlpdouble **> hess_planes_;
 };
-
 
 class CMLPTrainer {
 public:
@@ -369,7 +367,6 @@ public:
     SetCollocationPoints("default", points);
   }
 
-
   void SetPhysicsData(const std::string &loss_name,
                       const std::vector<std::vector<mlpdouble>> &data) {
     const std::size_t idx = FindPhysicsLossIndex(loss_name);
@@ -501,7 +498,6 @@ public:
     phys_data_.push_back(std::move(per_point_data));
   }
 
-
   void SetHistoryFile(const std::string &filename) {
     history_filename_ = filename;
   }
@@ -520,7 +516,6 @@ public:
 
     finalized_ = true;
   }
-
 
   TrainStepResult TrainStep() {
     if (!finalized_) {
@@ -564,7 +559,6 @@ public:
 
     return result;
   }
-
 
   void TrainEpoch() {
     if (!finalized_) {
@@ -627,7 +621,6 @@ public:
     }
   }
 
-
   const TrainStepResult &GetLastResult() const noexcept { return last_result_; }
 
   double GetEpochAverageLoss() const noexcept {
@@ -674,7 +667,6 @@ public:
   }
 
 private:
-
   struct TrainStepState {
     std::size_t n_w{0};
     std::size_t n_ref{0};
@@ -835,7 +827,6 @@ private:
       annealer_ = std::make_unique<CGradientAnnealer>(a);
     }
   }
-
 
   void RegisterWeightsOnTape(typename mlpdouble::Tape &tape,
                              TrainStepState &st) {
@@ -1241,8 +1232,6 @@ private:
     ++epoch_loss_count_;
   }
 
-
-
   double ComputeConvergenceLoss() const {
     if (epoch_loss_count_ == 0) {
       return last_result_.loss_raw;
@@ -1261,7 +1250,6 @@ private:
     const double rel_delta = abs_delta / std::max(1.0, std::abs(previous_loss));
     return abs_delta <= cfg_.conv_tol_abs || rel_delta <= cfg_.conv_tol_rel;
   }
-
 
   void NextDataFittingBatch() {
     batch_x_.clear();
@@ -1286,7 +1274,6 @@ private:
       batch_y_.push_back(train_targets_[idx]);
     }
   }
-
 
   void NextPhysicsBatch(const std::string &set_name) {
     batch_indices_.clear();
@@ -1389,7 +1376,6 @@ private:
     std::cout << "\n";
   }
 
- 
   void PrepareEpoch() {
     if (cfg_.shuffle_per_epoch && total_samples_ > 1) {
       std::shuffle(indices_.begin(), indices_.end(), rng_);
@@ -1424,7 +1410,6 @@ private:
     }
   }
 
- 
   static bool HasSameSignature(const std::vector<std::string> &a,
                                const std::vector<std::string> &b) {
     return a == b;
@@ -1450,7 +1435,6 @@ private:
     throw std::runtime_error("CMLPTrainer: no physics loss named '" + name +
                              "'.");
   }
-
 
   CNeuralNetwork &net_;
   CAdam adam_;
