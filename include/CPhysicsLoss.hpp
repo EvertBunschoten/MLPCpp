@@ -7,19 +7,6 @@
  * inputs, outputs, first derivatives (Jacobian) and second derivatives
  * (Hessian).  Residuals are supplied by the user as callable objects.
  *
- * Key design points
- * -----------------
- * - Equations are declared by *name* (not by hard-coded indices).
- *   The mapping from equation-local indices onto the full network is
- *   resolved once at construction time.
- * - EvaluateSingleSample() returns the *un-normalised* sum of weighted
- *   residual squares for a single collocation point.  The trainer is
- *   responsible for the final 1/(N·N_eq) averaging when streaming points.
- * - Evaluate() is the batch interface that performs that averaging.
- * - PhysicsData holds optional auxiliary variables (source terms,
- *   material properties, \ldots) that a residual may need.
- * - PhysicsState gives the residual a safe, readable API to query
- *   inputs, outputs and derivatives.
  */
 
 #include <algorithm>
@@ -178,7 +165,6 @@ public:
     }
   }
 
-  // ---- Integer Index Accessors ----
   mlpdouble In(std::size_t equation_input_index) const {
     if (equation_input_index >= equation_input_indices_.size())
       throw std::out_of_range("PhysicsState::In: index out of range.");
@@ -487,8 +473,6 @@ public:
   }
 
 private:
-  // ---- Construction-time validation --------------------------------------
-
   void ValidateNetworkNames() {
     ValidateUniqueNames(network_input_names_, "network input");
     ValidateUniqueNames(network_output_names_, "network output");

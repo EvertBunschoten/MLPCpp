@@ -2,10 +2,6 @@
  * \file CAdam.hpp
  * \brief Adam optimizer used by the MLPToolbox trainers.
  *
- * The optimizer owns its first/second moment state and timestep.  Under
- * MPI every rank holds an independent copy; the trainer feeds every rank
- * the same (Allreduced) gradient, and this deterministic update then
- * keeps the moments and the parameters bit-identical across ranks.
  */
 
 #pragma once

@@ -14,10 +14,8 @@
 #include <string>
 #include <vector>
 
-//  AnnealerConfig
 struct AnnealerConfig {
 
-  // EMA decay coefficient
   double alpha = 0.9;
 
   double lambda_init = 1.0;
@@ -47,11 +45,8 @@ struct SingleLossGradientStats {
   }
 };
 
-//  CGradientAnnealer
 class CGradientAnnealer {
 public:
-  // Constructor
-
   explicit CGradientAnnealer(AnnealerConfig cfg = {})
       : cfg_(cfg), lambda_(cfg.n_data_terms, cfg.lambda_init),
         lambda_hat_(cfg.n_data_terms, cfg.lambda_init), step_(0) {
@@ -87,16 +82,13 @@ public:
         lambda_hat_[i] = ref_max / data_mean;
       }
 
-      // EMA update
       lambda_[i] =
           (1.0 - cfg_.alpha) * lambda_[i] + cfg_.alpha * lambda_hat_[i];
 
-      // Hard clamp
       lambda_[i] = std::clamp(lambda_[i], cfg_.lambda_min, cfg_.lambda_max);
     }
   }
 
-  // Accessors
   double get_lambda(std::size_t i) const {
     assert(i < cfg_.n_data_terms);
     return lambda_[i];
@@ -113,7 +105,6 @@ public:
   std::size_t n_data_terms() const noexcept { return cfg_.n_data_terms; }
   const AnnealerConfig &config() const noexcept { return cfg_; }
 
-  // Reset EMA state
   void reset() noexcept {
     step_ = 0;
     std::fill(lambda_.begin(), lambda_.end(), cfg_.lambda_init);

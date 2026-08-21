@@ -24,9 +24,6 @@ inline double to_double<codi::RealReverse>(const codi::RealReverse &x) {
 }
 #endif
 
-// ============================================================================
-// PredictionResult
-// ============================================================================
 struct PredictionResult {
   std::vector<mlpdouble> inputs;
   std::vector<mlpdouble> outputs;
@@ -35,7 +32,6 @@ struct PredictionResult {
   mlpdouble ***hessian{nullptr};
 };
 
-//  CBaseLoss
 class CBaseLoss {
 public:
   explicit CBaseLoss(const std::string &name)

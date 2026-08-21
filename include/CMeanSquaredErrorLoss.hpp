@@ -4,7 +4,7 @@
 
 namespace MLPToolbox {
 
-class CMeanSquaredErrorLoss : public CBaseLoss { // FIX 1: Added 'public'
+class CMeanSquaredErrorLoss : public CBaseLoss {
 public:
   CMeanSquaredErrorLoss() : CBaseLoss("data loss") {}
 
@@ -25,7 +25,7 @@ public:
     const size_t N = predictions.size();
     const size_t n_outputs = predictions[0].outputs.size();
 
-    for (size_t i = 0; i < N; ++i) {
+    for (auto i = 0; i < N; ++i) {
       if (predictions[i].outputs.size() != n_outputs) {
         throw std::runtime_error(
             "CDataLoss: inconsistent number of outputs in predictions");
@@ -36,8 +36,8 @@ public:
       }
     }
 
-    for (size_t i = 0; i < N; ++i) {
-      for (size_t j = 0; j < n_outputs; ++j) {
+    for (auto i = 0; i < N; ++i) {
+      for (auto j = 0; j < n_outputs; ++j) {
         mlpdouble diff = predictions[i].outputs[j] - ref_data[i][j];
         mse += diff * diff;
       }
