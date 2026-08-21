@@ -1,7 +1,8 @@
 /*!
  * \file cavity_trainer.cpp
- * \brief Standalone MPI Hybrid PINN trainer for 2D Lid-Driven Cavity flow.
+ * \brief Standalone Hybrid PINN trainer for 2D Lid-Driven Cavity flow.
  * Implements Paper Algorithm 1: PDEs as L_r, Data+BCs as L_i.
+ *
  */
 
 #define MLP_CUSTOM_TYPE codi::RealReverse
@@ -12,7 +13,6 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <mpi.h>
 #include <random>
 #include <sstream>
 #include <string>
@@ -109,22 +109,14 @@ bool ReadSU2CSV_NonDim(const std::string &csv_filename,
   return !X.empty();
 }
 
-int main(int argc, char **argv) {
+int main() {
   // =========================================================================
-  // 1. MPI Initialization
+  // 1. Startup
   // =========================================================================
-  MPI_Init(&argc, &argv);
-  int rank = 0, size = 1;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-  if (rank == 0) {
-    std::cout << "\n======================================\n";
-    std::cout
-        << "Starting Hybrid PINN Lid-Driven Cavity (Paper Algorithm 1)...\n";
-    std::cout << "Running with " << size << " MPI ranks.\n";
-    std::cout << "======================================\n";
-  }
+  std::cout << "\n======================================\n";
+  std::cout
+      << "Starting Hybrid PINN Lid-Driven Cavity (Paper Algorithm 1)...\n";
+  std::cout << "======================================\n";
 
   // =========================================================================
   // 2. Physical Reference Scales
@@ -150,14 +142,11 @@ int main(int argc, char **argv) {
   // =========================================================================
   std::vector<std::vector<mlpdouble>> X, Y;
   if (!ReadSU2CSV_NonDim("restart_flow.csv", X, Y, U_lid, p_ref)) {
-    if (rank == 0)
-      std::cerr << "ERROR: Failed to load dataset. Did SU2 run first?\n";
-    MPI_Finalize();
+    std::cerr << "ERROR: Failed to load dataset. Did SU2 run first?\n";
     return 1;
   }
   const std::size_t N = X.size();
-  if (rank == 0)
-    std::cout << "Loaded " << N << " data points.\n";
+  std::cout << "Loaded " << N << " data points.\n";
 
   // =========================================================================
   // 4. Build neural network (2 inputs -> 32x32x32 hidden -> 3 outputs)
@@ -186,20 +175,8 @@ int main(int argc, char **argv) {
   net.SetOutputName(1, "v");
   net.SetOutputName(2, "p");
 
-  if (rank == 0)
-    net.RandomWeights();
-
-  std::vector<mlpdouble> weights = net.GetWeightsBiases();
-  std::vector<double> w_double(weights.size());
-  for (size_t i = 0; i < weights.size(); ++i)
-    w_double[i] = to_double(weights[i]);
-  MPI_Bcast(w_double.data(), w_double.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-  for (size_t i = 0; i < weights.size(); ++i)
-    weights[i] = mlpdouble(w_double[i]);
-  net.SetWeightsBiases(weights);
-
-  if (rank == 0)
-    net.DisplayNetwork();
+  net.RandomWeights();
+  net.DisplayNetwork();
 
   // =========================================================================
   // 5. Create Physics Losses (L_r) - Clean Non-Dimensional + SDF Down-weighting
@@ -243,8 +220,8 @@ int main(int argc, char **argv) {
     mlpdouble dpdx = s.Jac(2, 0);
     mlpdouble d2udx2 = s.Hess(0, 0, 0);
     mlpdouble d2udy2 = s.Hess(0, 1, 1);
-    mlpdouble res = u * dudx + v * dudy + C_p * dpdx -
-                    (1.0 / Re) * (d2udx2 + d2udy2); // <-- Added C_p
+    mlpdouble res =
+        u * dudx + v * dudy + C_p * dpdx - (1.0 / Re) * (d2udx2 + d2udy2);
     return res * mlpdouble(sdf_weight(s));
   };
   auto loss_xmom = std::make_shared<CPhysicsLoss>(
@@ -268,13 +245,14 @@ int main(int argc, char **argv) {
     mlpdouble dpdy = s.Jac(2, 1);
     mlpdouble d2vdx2 = s.Hess(1, 0, 0);
     mlpdouble d2vdy2 = s.Hess(1, 1, 1);
-    mlpdouble res = u * dvdx + v * dvdy + C_p * dpdy -
-                    (1.0 / Re) * (d2vdx2 + d2vdy2); // <-- Added C_p
+    mlpdouble res =
+        u * dvdx + v * dvdy + C_p * dpdy - (1.0 / Re) * (d2vdx2 + d2vdy2);
     return res * mlpdouble(sdf_weight(s));
   };
   auto loss_ymom = std::make_shared<CPhysicsLoss>(
       "loss_y_momentum", net.GetInputVars(), net.GetOutputVars(),
       std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq_ymom});
+
   // =========================================================================
   // 6. Create Boundary Condition Losses (L_i) - with Corner Smoothing
   // =========================================================================
@@ -340,7 +318,8 @@ int main(int argc, char **argv) {
   CAdam optimizer(1e-3, 0.9, 0.999, 1e-8);
   AnnealerConfig anneal_cfg;
   anneal_cfg.n_data_terms =
-      1; // Overridden in Build() to ref_losses_.size() + bcs_losses_.size()
+      1; // Overridden in FinalizeConfiguration() to
+         // fitting_losses_.size() + bcs_losses_.size()
   anneal_cfg.alpha = 0.9;
   anneal_cfg.lambda_max = 1e10;
 
@@ -349,7 +328,7 @@ int main(int argc, char **argv) {
   trainer_cfg.batch_size = 128;
   trainer_cfg.physics_batch_size = 128;
   trainer_cfg.use_annealer = true;
-  trainer_cfg.verbose = false;
+  trainer_cfg.verbose = true; // the trainer owns epoch logging (LogEpoch)
   trainer_cfg.log_every = 10;
   trainer_cfg.shuffle_per_epoch = true;
   trainer_cfg.annealer_update_freq = 10;
@@ -357,39 +336,31 @@ int main(int argc, char **argv) {
   CMLPTrainer trainer(net, std::move(optimizer), anneal_cfg, trainer_cfg);
 
   // =========================================================================
-  // 8. Partition Data among MPI Ranks
+  // 8. Register data, collocation points and losses
   // =========================================================================
-  std::size_t points_per_rank = N / size;
-  std::size_t start_idx = rank * points_per_rank;
-  std::size_t end_idx = (rank == size - 1) ? N : start_idx + points_per_rank;
-  std::size_t local_N = end_idx - start_idx;
+  trainer.SetTrainingData(X, Y);
 
-  std::vector<std::vector<mlpdouble>> X_local(local_N), Y_local(local_N);
-  for (std::size_t i = 0; i < local_N; ++i) {
-    X_local[i] = X[start_idx + i];
-    Y_local[i] = Y[start_idx + i];
-  }
-
-  trainer.SetTrainingData(X_local, Y_local);
-
-  // Register Data as L_i (Reference Losses)
-  trainer.AddReferenceLoss(
-      std::make_shared<CMeanSquaredErrorLoss>()); // SU2 Data
+  // Register Data as L_i (Fitting Loss)
+  trainer.AddFittingLoss(std::make_shared<CMeanSquaredErrorLoss>());
 
   // Generate Collocation Points (Interior + Boundaries)
-  std::mt19937 gen(42 + rank);
+  std::mt19937 gen(42);
   std::uniform_real_distribution<double> dist(0.0, 1.0);
 
+  const std::size_t TARGET_INTERIOR = 2000;
+  const std::size_t TARGET_BC_PER_WALL = 1000; // 1 top + 3 walls -> 3000 wall
+
   std::vector<std::vector<mlpdouble>> physics_points;
-  std::size_t local_coll = (2000 + size - 1) / size;
-  for (std::size_t i = 0; i < local_coll; ++i) {
+  physics_points.reserve(TARGET_INTERIOR);
+  for (std::size_t i = 0; i < TARGET_INTERIOR; ++i) {
     physics_points.push_back({mlpdouble(dist(gen)), mlpdouble(dist(gen))});
   }
   trainer.SetCollocationPoints("interior", physics_points);
 
   std::vector<std::vector<mlpdouble>> top_bc_pts, wall_bc_pts;
-  std::size_t local_bc = (1000 + size - 1) / size;
-  for (std::size_t i = 0; i < local_bc; ++i) {
+  top_bc_pts.reserve(TARGET_BC_PER_WALL);
+  wall_bc_pts.reserve(3 * TARGET_BC_PER_WALL);
+  for (std::size_t i = 0; i < TARGET_BC_PER_WALL; ++i) {
     double t = dist(gen);
     top_bc_pts.push_back({mlpdouble(t), mlpdouble(1.0)});
     wall_bc_pts.push_back({mlpdouble(0.0), mlpdouble(t)});
@@ -408,107 +379,51 @@ int main(int argc, char **argv) {
   trainer.AddBoundaryLoss(loss_wall_u, "wall_bc");
   trainer.AddBoundaryLoss(loss_wall_v, "wall_bc");
 
-  trainer.EnableMPI();
-  trainer.Build();
-
   // =========================================================================
-  // 9. Train & Log Custom History
+  // 9. Train (the trainer writes the per-epoch history CSV itself)
   // =========================================================================
-  if (rank == 0) {
-    std::cout << "\nStarting training (" << trainer_cfg.max_epochs
-              << " epochs)...\n";
-    std::cout << std::left << std::setw(8) << "Epoch" << std::setw(14)
-              << "L_Data" << std::setw(14) << "L_Phys" << std::setw(14)
-              << "L_BC" << std::setw(12) << "Lambda" << std::setw(14)
-              << "L_Total"
-              << "\n";
-    std::cout << std::string(82, '-') << "\n";
-  }
+  trainer.SetHistoryFile("hybrid_pinn_history.csv");
+  trainer.FinalizeConfiguration();
 
-  std::ofstream history_file;
-  if (rank == 0) {
-    history_file.open("hybrid_pinn_history.csv");
-    history_file << "epoch,loss_data,loss_phys,loss_bc,lambda,loss_total\n";
-  }
+  std::cout << "\nStarting training (" << trainer_cfg.max_epochs
+            << " epochs)...\n";
+  std::cout << "Training data: " << N << " reference | " << TARGET_INTERIOR
+            << " interior | " << TARGET_BC_PER_WALL << " top_bc | "
+            << (3 * TARGET_BC_PER_WALL) << " wall_bc points.\n\n";
 
-  for (std::size_t epoch = 0; epoch < trainer_cfg.max_epochs; ++epoch) {
-    trainer.TrainEpoch();
+  trainer.Train();
 
-    // L_i (Reference) losses
-    const double avg_data_loss = trainer.GetEpochAverageLossRef();
-
-    // L_r (Physics) losses (PDEs only, size is 3)
-    double avg_physics_loss = 0.0;
-    for (size_t k = 0; k < 3; ++k) {
-      avg_physics_loss += trainer.GetEpochAverageLossPhys(k);
-    }
-
-    // L_i (Boundary) losses (size is 4)
-    double avg_bc_loss = 0.0;
-    for (size_t k = 0; k < 4; ++k) {
-      avg_bc_loss += trainer.GetEpochAverageLossBC(k);
-    }
-
-    const double avg_lambda = trainer.GetEpochAverageLambda(0);
-    const double avg_loss_total = trainer.GetEpochAverageLossTotal();
-
-    if (rank == 0) {
-      history_file << (epoch + 1) << "," << std::scientific
-                   << std::setprecision(8) << avg_data_loss << ","
-                   << avg_physics_loss << "," << avg_bc_loss << ","
-                   << std::fixed << std::setprecision(8) << avg_lambda << ","
-                   << std::scientific << std::setprecision(8) << avg_loss_total
-                   << "\n";
-
-      if (epoch % 10 == 0 || epoch == trainer_cfg.max_epochs - 1) {
-        std::cout << std::left << std::setw(8) << (epoch + 1) << std::setw(14)
-                  << std::scientific << std::setprecision(4) << avg_data_loss
-                  << std::setw(14) << avg_physics_loss << std::setw(14)
-                  << avg_bc_loss << std::setw(12) << std::fixed
-                  << std::setprecision(2) << avg_lambda << std::setw(14)
-                  << std::scientific << std::setprecision(4) << avg_loss_total
-                  << "\n";
-      }
-    }
-  }
-
-  if (rank == 0) {
-    history_file.close();
-    net.WriteNeuralNetwork("hybrid_pinn_model.mlp");
-    std::cout << "\nTraining complete. Model saved to hybrid_pinn_model.mlp\n";
-  }
+  net.WriteNeuralNetwork("hybrid_pinn_model.mlp");
+  std::cout << "\nTraining complete. Model saved to hybrid_pinn_model.mlp\n";
 
   // =========================================================================
   // 10. Output Predictions for Visualization (Convert to Dimensional)
   // =========================================================================
-  if (rank == 0) {
-    std::ofstream pred_file("hybrid_pinn_predictions.csv");
-    pred_file << "x,y,u,v,p\n";
-    for (int i = 0; i <= 100; ++i) {
-      for (int j = 0; j <= 100; ++j) {
-        double x = static_cast<double>(i) / 100.0;
-        double y = static_cast<double>(j) / 100.0;
-        std::vector<mlpdouble> input = {mlpdouble(x), mlpdouble(y)};
+  std::ofstream pred_file("hybrid_pinn_predictions.csv");
+  pred_file << "x,y,u,v,p\n";
+  for (int i = 0; i <= 100; ++i) {
+    for (int j = 0; j <= 100; ++j) {
+      double x = static_cast<double>(i) / 100.0;
+      double y = static_cast<double>(j) / 100.0;
+      std::vector<mlpdouble> input = {mlpdouble(x), mlpdouble(y)};
 
-        net.Predict(input, false, false);
+      net.Predict(input, false, false);
 
-        // Convert non-dimensional outputs back to dimensional
-        double u_nd = to_double(net.GetOutput(0));
-        double v_nd = to_double(net.GetOutput(1));
-        double p_nd = to_double(net.GetOutput(2));
+      // Convert non-dimensional outputs back to dimensional
+      double u_nd = to_double(net.GetOutput(0));
+      double v_nd = to_double(net.GetOutput(1));
+      double p_nd = to_double(net.GetOutput(2));
 
-        double u_dim = u_nd * U_lid;
-        double v_dim = v_nd * U_lid;
-        double p_dim = p_nd * p_ref;
+      double u_dim = u_nd * U_lid;
+      double v_dim = v_nd * U_lid;
+      double p_dim = p_nd * p_ref;
 
-        pred_file << std::scientific << std::setprecision(8) << x << "," << y
-                  << "," << u_dim << "," << v_dim << "," << p_dim << "\n";
-      }
+      pred_file << std::scientific << std::setprecision(8) << x << "," << y
+                << "," << u_dim << "," << v_dim << "," << p_dim << "\n";
     }
-    pred_file.close();
-    std::cout << "Predictions saved to hybrid_pinn_predictions.csv\n";
   }
+  pred_file.close();
+  std::cout << "Predictions saved to hybrid_pinn_predictions.csv\n";
 
-  MPI_Finalize();
   return 0;
 }

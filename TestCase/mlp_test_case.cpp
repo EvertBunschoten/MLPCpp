@@ -7,7 +7,6 @@
 #define MLP_CUSTOM_TYPE codi::RealReverse
 #include "codi.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdlib>
@@ -116,7 +115,6 @@ int main() {
   std::vector<std::size_t> architecture = {2, 16, 16, 1};
   CNeuralNetwork net(architecture);
 
-  // FIX: Set hidden layers to tanh, leave output layer as linear (matching TF)
   for (std::size_t iLayer = 1; iLayer < net.GetnLayers() - 1; ++iLayer) {
     net.SetActivationFunction(iLayer, "tanh");
   }
@@ -141,21 +139,19 @@ int main() {
   // =========================================================================
   // 5. Create physics loss
   // =========================================================================
-  // CPhysicsEquation eq;
-  // eq.name = "dy_du_eq";
-  // eq.input_names = {"u"};
-  // eq.output_names = {"y"};
-  // eq.weight = 1.0;
-  // eq.requires_jacobian = true;
-  // eq.requires_hessian = false;
-  // eq.residual = [](const PhysicsState& state, const PhysicsData& /*data*/) ->
-  // mlpdouble {
-  //     return state.EquationJac(0, 0);
-  // };
-  // auto physics_loss = std::make_shared<CPhysicsLoss>(
-  //     "dy_du_zero", net.GetInputVars(), net.GetOutputVars(),
-  //     std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq}
-  // );
+  CPhysicsEquation eq;
+  eq.name = "dy_du_eq";
+  eq.input_names = {"u"};
+  eq.output_names = {"y"};
+  eq.requires_jacobian = true;
+  eq.requires_hessian = false;
+  eq.residual = [](const PhysicsState &state,
+                   const PhysicsData & /*data*/) -> mlpdouble {
+    return state.Jac(0, 0);
+  };
+  auto physics_loss = std::make_shared<CPhysicsLoss>(
+      "dy_du_zero", net.GetInputVars(), net.GetOutputVars(),
+      std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq});
 
   // =========================================================================
   // 6. Create optimizer
@@ -182,93 +178,46 @@ int main() {
   trainer_cfg.conv_tol_abs = 1e-8;
   trainer_cfg.conv_tol_rel = 1e-6;
   trainer_cfg.use_annealer = false; // Set to false for pure data comparison
-  trainer_cfg.verbose = true;
+  trainer_cfg.verbose = true;       // the trainer owns epoch logging
   trainer_cfg.log_every = 10;
   trainer_cfg.shuffle_per_epoch = true;
 
   // =========================================================================
-  // 9. Construct trainer
+  // 9. Construct trainer, register data and losses
   // =========================================================================
   CMLPTrainer trainer(net, std::move(optimizer), anneal_cfg, trainer_cfg);
 
-  // =========================================================================
-  // 10. Set reference data and Reference Loss
-  // =========================================================================
   trainer.SetTrainingData(X, Y);
-  trainer.AddReferenceLoss(std::make_shared<CMeanSquaredErrorLoss>());
+  trainer.AddFittingLoss(std::make_shared<CMeanSquaredErrorLoss>());
 
   // =========================================================================
-  // 11. Register physics collocation set
+  // 10. Register physics collocation set and loss (ENABLED for PINN)
   // =========================================================================
-  // std::vector<std::vector<mlpdouble>> physics_points;
-  // const int Ncoll = 200;
-  // for (int i = 0; i < Ncoll; ++i) {
-  //     double t = static_cast<double>(i) / (Ncoll - 1);
-  //     physics_points.push_back({
-  //         mlpdouble(u_min + t * (u_max - u_min)),
-  //         mlpdouble(v_min + t * (v_max - v_min))
-  //     });
-  // }
-  // trainer.SetCollocationPoints("colloc", physics_points);
+  std::vector<std::vector<mlpdouble>> physics_points;
+  const int Ncoll = 200;
+  for (int i = 0; i < Ncoll; ++i) {
+    double t = static_cast<double>(i) / (Ncoll - 1);
+    physics_points.push_back({mlpdouble(u_min + t * (u_max - u_min)),
+                              mlpdouble(v_min + t * (v_max - v_min))});
+  }
+  trainer.SetCollocationPoints("colloc", physics_points);
+  trainer.AddPhysicsLoss(physics_loss, "colloc");
+
+  trainer.FinalizeConfiguration();
 
   // =========================================================================
-  // 12. Register physics loss with trainer (ENABLED for PINN)
-  // =========================================================================
-  // trainer.AddPhysicsLoss(physics_loss, "colloc");
-
-  // =========================================================================
-  // 13. Build trainer
-  // =========================================================================
-  trainer.Build();
-
-  // =========================================================================
-  // 14. Train & Log History
+  // 11. Train (the trainer writes the per-epoch history CSV itself)
   // =========================================================================
   std::cout << "\nStarting training (" << trainer_cfg.max_epochs
             << " epochs)...\n";
   std::cout << "Physics mini-batch size: " << trainer_cfg.physics_batch_size
             << "\n\n";
 
-  std::cout << std::left << std::setw(8) << "Epoch" << std::setw(16) << "L_data"
-            << std::setw(16) << "L_phys" << std::setw(12) << "lambda"
-            << std::setw(16) << "L_total"
-            << "\n";
-  std::cout << std::string(68, '-') << "\n";
-
-  // Open CSV file for history
-  std::ofstream history_file("pinn_training_history.csv");
-  history_file << "epoch,loss_data,loss_phys,lambda,loss_total\n";
-
-  for (std::size_t epoch = 0; epoch < trainer_cfg.max_epochs; ++epoch) {
-    trainer.TrainEpoch();
-
-    // Get the EPOCH AVERAGES for all metrics to smooth the curves
-    const double avg_loss_data = trainer.GetEpochAverageLossRef();
-    const double avg_l_phys = trainer.GetEpochAverageLossPhys(0);
-    const double avg_lambda = trainer.GetEpochAverageLambda(0);
-    const double avg_loss_total = trainer.GetEpochAverageLossTotal();
-
-    // Write the AVERAGE losses to CSV
-    history_file << (epoch + 1) << "," << std::scientific
-                 << std::setprecision(8) << avg_loss_data << "," << avg_l_phys
-                 << "," << std::fixed << std::setprecision(8) << avg_lambda
-                 << "," << std::scientific << std::setprecision(8)
-                 << avg_loss_total << "\n";
-
-    // Print to console
-    if (epoch % 10 == 0 || epoch == trainer_cfg.max_epochs - 1) {
-      std::cout << std::left << std::setw(8) << (epoch + 1) << std::setw(16)
-                << std::scientific << std::setprecision(4) << avg_loss_data
-                << std::setw(16) << avg_l_phys << std::setw(12) << std::fixed
-                << std::setprecision(4) << avg_lambda << std::setw(16)
-                << std::scientific << std::setprecision(4) << avg_loss_total
-                << "\n";
-    }
-  }
-  history_file.close();
+  trainer.SetHistoryFile("pinn_training_history.csv");
+  trainer.Train();
 
   // =========================================================================
-  // 15. Final training result
+  // 12. Final training result
   // =========================================================================
   const TrainStepResult &final_result = trainer.GetLastResult();
   const double final_phys =
@@ -276,18 +225,18 @@ int main() {
 
   std::cout << "\n======================================\n";
   std::cout << "Training complete.\n";
-  std::cout << "Final reference loss: " << std::scientific
+  std::cout << "Final fitting loss:   " << std::scientific
             << final_result.loss_ref << "\n";
   std::cout << "Final physics loss:   " << final_phys << "\n";
   std::cout << "Final total loss:     " << final_result.loss_total << "\n";
   std::cout << "======================================\n";
 
   // =========================================================================
-  // 16. Save trained network
+  // 13. Save trained network
   // =========================================================================
   net.WriteNeuralNetwork("trained_model_ad.mlp");
   std::cout << "Model saved to trained_model_ad.mlp\n";
-  std::cout << "History saved to training_history.csv\n";
+  std::cout << "History saved to pinn_training_history.csv\n";
 
   return 0;
 }
