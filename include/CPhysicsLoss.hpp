@@ -301,12 +301,18 @@ private:
  */
 struct CPhysicsEquation {
   std::string name; //!< Unique identifier, used only for diagnostics.
-  std::vector<std::string> input_names; //!< Subset of network input names the residual depends on.
-  std::vector<std::string> output_names; //!< Subset of network output names the residual depends on.
-  mlpdouble weight{mlpdouble(1.0)};      //!< Multiplicative factor applied to residual^{2}.
-  bool requires_jacobian{false}; //!< Must be true if the residual reads any first derivative.
-  bool requires_hessian{false}; //!< Must be true if the residual reads any second derivative.
-  ResidualFunction residual; //!< User-supplied callable that returns the residual value.
+  std::vector<std::string>
+      input_names; //!< Subset of network input names the residual depends on.
+  std::vector<std::string>
+      output_names; //!< Subset of network output names the residual depends on.
+  mlpdouble weight{
+      mlpdouble(1.0)}; //!< Multiplicative factor applied to residual^{2}.
+  bool requires_jacobian{
+      false}; //!< Must be true if the residual reads any first derivative.
+  bool requires_hessian{
+      false}; //!< Must be true if the residual reads any second derivative.
+  ResidualFunction
+      residual; //!< User-supplied callable that returns the residual value.
 };
 
 // ============================================================================
@@ -423,8 +429,8 @@ public:
     return raw_loss;
   }
 
-
-  mlpdouble Evaluate(const std::vector<PredictionResult> &preds,
+  mlpdouble
+  Evaluate(const std::vector<PredictionResult> &preds,
            const std::vector<std::vector<mlpdouble>> &physics_data) override {
     const auto N = preds.size();
     if (N == 0) {
@@ -579,7 +585,6 @@ private:
       requires_hessian_ = requires_hessian_ || eq.requires_hessian;
     }
   }
-
 
   void ValidatePrediction(const PredictionResult &pred) const {
     if (pred.inputs.size() != network_input_names_.size()) {
