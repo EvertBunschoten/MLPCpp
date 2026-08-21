@@ -64,9 +64,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <fstream>
 #include <limits>
 #include <memory>
 #include <numeric>
@@ -663,7 +663,8 @@ public:
       if (!std::isfinite(current_loss)) {
         throw std::runtime_error(
             "CMLPTrainer: training diverged — the loss became NaN or "
-            "infinite at epoch " + std::to_string(epoch + 1) + ".");
+            "infinite at epoch " +
+            std::to_string(epoch + 1) + ".");
       }
 
       if (cfg_.verbose) {
@@ -1140,8 +1141,8 @@ private:
   // combined sweep for the aggregate residual (Lr) — only the aggregate
   // is ever consumed, so a single combined sweep is correct and
   // sufficient there — plus one sweep per individual data-like term
-  // (Li), since each needs its OWN gradient for SingleLossGradientStats, not a shared
-  // combined one.
+  // (Li), since each needs its OWN gradient for SingleLossGradientStats, not a
+  // shared combined one.
   void ComputeAnnealedPathGradient(typename mlpdouble::Tape &tape,
                                    TrainStepState &st) {
     auto zero_gradients = [&st]() {
@@ -1197,10 +1198,13 @@ private:
       read_gradients(grad_per_data_term_[st.n_ref + k]);
     }
 
-    const SingleLossGradientStats base_stats = SingleLossGradientStats::from_grads(grad_total_);
-    std::vector<SingleLossGradientStats> data_stats_vec(st.n_ref + st.L_bcs.size());
+    const SingleLossGradientStats base_stats =
+        SingleLossGradientStats::from_grads(grad_total_);
+    std::vector<SingleLossGradientStats> data_stats_vec(st.n_ref +
+                                                        st.L_bcs.size());
     for (std::size_t i = 0; i < data_stats_vec.size(); ++i) {
-      data_stats_vec[i] = SingleLossGradientStats::from_grads(grad_per_data_term_[i]);
+      data_stats_vec[i] =
+          SingleLossGradientStats::from_grads(grad_per_data_term_[i]);
     }
     annealer_->update(base_stats, data_stats_vec);
 
@@ -1463,8 +1467,8 @@ private:
     }
 
     file << "epoch,loss_data,loss_phys,loss_bc,loss_total,loss_raw";
-    for (std::size_t i = 0;
-         i < fitting_losses_.size() + bcs_losses_.size(); ++i) {
+    for (std::size_t i = 0; i < fitting_losses_.size() + bcs_losses_.size();
+         ++i) {
       file << ",lambda_" << i;
     }
     file << "\n";
@@ -1489,8 +1493,8 @@ private:
          << GetEpochAverageLossRef() << "," << physics_loss_sum << ","
          << bcs_loss_sum << "," << GetEpochAverageLossTotal() << ","
          << GetEpochAverageLoss();
-    for (std::size_t i = 0;
-         i < fitting_losses_.size() + bcs_losses_.size(); ++i) {
+    for (std::size_t i = 0; i < fitting_losses_.size() + bcs_losses_.size();
+         ++i) {
       file << "," << GetEpochAverageLambda(i);
     }
     file << "\n";
@@ -1660,7 +1664,7 @@ private:
   std::vector<double> epoch_loss_bcs_sum_;
   std::vector<double> epoch_loss_lambda_sum_;
   std::size_t epoch_loss_count_{0};
-  std::string history_filename_; 
+  std::string history_filename_;
 };
 
 } // namespace MLPToolbox

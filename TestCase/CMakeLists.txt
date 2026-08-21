@@ -16,9 +16,8 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(CoDiPack)
 
-find_package(MPI REQUIRED)
 
-# add_executable(mlp_test_case benchmark_mlpcpp.cpp)
+add_executable(mlp_test_case mlp_test_case.cpp)
 add_executable(lid_cavity_trainer LidCavity/LidCavityTrainer.cpp)
 
 
@@ -26,9 +25,9 @@ set(TEST_CASE_INCLUDE_DIRS
     ${MLPCPP_ROOT}/include
 )
 
-# target_include_directories(mlp_test_case PRIVATE ${TEST_CASE_INCLUDE_DIRS})
+target_include_directories(mlp_test_case PRIVATE ${TEST_CASE_INCLUDE_DIRS})
 target_include_directories(lid_cavity_trainer PRIVATE ${TEST_CASE_INCLUDE_DIRS})
 
 
-# target_link_libraries(mlp_test_case PRIVATE CoDiPack MPI::MPI_CXX)
-target_link_libraries(lid_cavity_trainer PRIVATE CoDiPack MPI::MPI_CXX)
+target_link_libraries(mlp_test_case PRIVATE CoDiPack)
+target_link_libraries(lid_cavity_trainer PRIVATE CoDiPack)

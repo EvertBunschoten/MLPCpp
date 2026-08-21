@@ -317,9 +317,8 @@ int main() {
   // =========================================================================
   CAdam optimizer(1e-3, 0.9, 0.999, 1e-8);
   AnnealerConfig anneal_cfg;
-  anneal_cfg.n_data_terms =
-      1; // Overridden in FinalizeConfiguration() to
-         // fitting_losses_.size() + bcs_losses_.size()
+  anneal_cfg.n_data_terms = 1; // Overridden in FinalizeConfiguration() to
+                               // fitting_losses_.size() + bcs_losses_.size()
   anneal_cfg.alpha = 0.9;
   anneal_cfg.lambda_max = 1e10;
 
