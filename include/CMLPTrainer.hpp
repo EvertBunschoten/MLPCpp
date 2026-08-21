@@ -915,7 +915,7 @@ private:
 
         auto phys_it = losses_by_set_.find(set_name);
         if (phys_it != losses_by_set_.end()) {
-          for (const std::size_t k : phys_it->second) {
+          for (const auto k : phys_it->second) {
             const std::size_t n_phys_vars =
                 phys_losses_[k]->NumPhysicsVariables();
             const auto &data = phys_data_[k];
@@ -938,7 +938,7 @@ private:
 
         auto bcs_it = bcs_losses_by_set_.find(set_name);
         if (bcs_it != bcs_losses_by_set_.end()) {
-          for (const std::size_t k : bcs_it->second) {
+          for (const auto k : bcs_it->second) {
             st.L_bcs[k] += bcs_losses_[k]->EvaluateSingleSample(current_pred_);
             ++st.n_bc_points_seen[k];
           }

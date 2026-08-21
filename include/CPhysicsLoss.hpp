@@ -67,7 +67,7 @@ public:
           std::string("names=") + std::to_string(names_.size()) +
           ", values=" + std::to_string(values_.size()));
     }
-    for (auto i = std::size_t{0}; i < names_.size(); ++i) {
+    for (auto i = 0; i < names_.size(); ++i) {
       if (names_[i].empty()) {
         throw std::invalid_argument(
             "PhysicsData: physics variable name cannot be empty.");
@@ -418,7 +418,7 @@ public:
 
     PhysicsData data(physics_data, physics_variable_names_);
     auto raw_loss = mlpdouble(0.0);
-    for (auto e = std::size_t{0}; e < equations_.size(); ++e) {
+    for (auto e = 0; e < equations_.size(); ++e) {
       PhysicsState state(
           pred, equation_input_indices_[e], equation_output_indices_[e],
           equations_[e].input_names, equations_[e].output_names,
@@ -450,7 +450,7 @@ public:
     }
 
     auto raw_total = mlpdouble(0.0);
-    for (auto p = std::size_t{0}; p < N; ++p) {
+    for (auto p = 0; p < N; ++p) {
       const auto empty_data = std::vector<mlpdouble>{};
       const auto &point_data =
           physics_data.empty() ? empty_data : physics_data[p];
@@ -512,7 +512,7 @@ private:
     equation_input_indices_.resize(equations_.size());
     equation_output_indices_.resize(equations_.size());
 
-    for (auto e = std::size_t{0}; e < equations_.size(); ++e) {
+    for (auto e = 0; e < equations_.size(); ++e) {
       const auto &eq = equations_[e];
       if (eq.name.empty()) {
         throw std::invalid_argument("CPhysicsLoss '" + name_ +
