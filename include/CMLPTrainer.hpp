@@ -146,9 +146,6 @@ struct TrainStepResult {
   std::vector<double> lambdas;
 };
 
-// ============================================================================
-// CPointDerivatives
-// ============================================================================
 
 class CPointDerivatives {
 public:
@@ -173,7 +170,6 @@ public:
     }
   }
 
-  // Fills a pre-allocated PredictionResult to prevent heap allocations.
   void Fill(CNeuralNetwork &net, const std::vector<mlpdouble> &x,
             PredictionResult &pr, bool eval_jac, bool eval_hess) {
     if (x.size() != n_in_) {
@@ -230,9 +226,6 @@ private:
   std::vector<mlpdouble **> hess_planes_;
 };
 
-// ============================================================================
-// CMLPTrainer
-// ============================================================================
 
 class CMLPTrainer {
 public:
@@ -260,10 +253,6 @@ public:
     adam_.Initialize(n_w);
   }
 
-  // ------------------------------------------------------------------------
-  // Fitting losses (Supports M > 1 for generic annealing)
-  // ------------------------------------------------------------------------
-
   void AddFittingLoss(std::shared_ptr<CBaseLoss> loss) {
     if (!loss) {
       throw std::invalid_argument("CMLPTrainer: fitting loss cannot be null.");
@@ -283,10 +272,6 @@ public:
     fitting_losses_.clear();
   }
 
-  // ------------------------------------------------------------------------
-  // Boundary losses (L_i evaluated on collocation sets)
-  // ------------------------------------------------------------------------
-
   void AddBoundaryLoss(std::shared_ptr<CPhysicsLoss> loss,
                        const std::string &collocation_set_name) {
     if (!loss) {
@@ -304,10 +289,6 @@ public:
     bcs_losses_.push_back(std::move(loss));
     bcs_set_name_.push_back(collocation_set_name);
   }
-
-  // ------------------------------------------------------------------------
-  // Training data
-  // ------------------------------------------------------------------------
 
   void SetTrainingData(const std::vector<std::vector<mlpdouble>> &inputs,
                        const std::vector<std::vector<mlpdouble>> &targets) {
@@ -347,10 +328,6 @@ public:
     batch_cursor_ = 0;
     epoch_started_ = false;
   }
-
-  // ------------------------------------------------------------------------
-  // Collocation sets
-  // ------------------------------------------------------------------------
 
   void SetCollocationPoints(const std::string &set_name,
                             const std::vector<std::vector<mlpdouble>> &points) {
@@ -392,9 +369,6 @@ public:
     SetCollocationPoints("default", points);
   }
 
-  // ------------------------------------------------------------------------
-  // Physics data for a registered loss
-  // ------------------------------------------------------------------------
 
   void SetPhysicsData(const std::string &loss_name,
                       const std::vector<std::vector<mlpdouble>> &data) {
@@ -452,10 +426,6 @@ public:
     return std::vector<std::vector<mlpdouble>>(
         n_points, std::vector<mlpdouble>(n_phys, mlpdouble(0.0)));
   }
-
-  // ------------------------------------------------------------------------
-  // Physics losses
-  // ------------------------------------------------------------------------
 
   void AddPhysicsLoss(std::shared_ptr<CPhysicsLoss> loss,
                       const std::string &collocation_set_name,
@@ -531,16 +501,10 @@ public:
     phys_data_.push_back(std::move(per_point_data));
   }
 
-  //-----------------
-  // Training history output
-  //----------------------
+
   void SetHistoryFile(const std::string &filename) {
     history_filename_ = filename;
   }
-
-  // ------------------------------------------------------------------------
-  // FinalizeConfiguration
-  // ------------------------------------------------------------------------
 
   void FinalizeConfiguration() {
     if (finalized_) {
@@ -557,9 +521,6 @@ public:
     finalized_ = true;
   }
 
-  // ------------------------------------------------------------------------
-  // Train one step
-  // ------------------------------------------------------------------------
 
   TrainStepResult TrainStep() {
     if (!finalized_) {
@@ -604,9 +565,6 @@ public:
     return result;
   }
 
-  // ------------------------------------------------------------------------
-  // Train one epoch
-  // ------------------------------------------------------------------------
 
   void TrainEpoch() {
     if (!finalized_) {
@@ -630,10 +588,6 @@ public:
     EndEpoch();
     EndPhysicsEpoch();
   }
-
-  // ------------------------------------------------------------------------
-  // Full training
-  // ------------------------------------------------------------------------
 
   void Train() {
     if (!finalized_) {
@@ -673,9 +627,6 @@ public:
     }
   }
 
-  // ------------------------------------------------------------------------
-  // Accessors
-  // ------------------------------------------------------------------------
 
   const TrainStepResult &GetLastResult() const noexcept { return last_result_; }
 
@@ -723,9 +674,6 @@ public:
   }
 
 private:
-  // --------------------------------------------------------------------
-  // TrainStep() decomposition
-  // --------------------------------------------------------------------
 
   struct TrainStepState {
     std::size_t n_w{0};
@@ -741,10 +689,6 @@ private:
     std::vector<std::size_t> n_bc_points_seen;
     std::vector<double> lambdas;
   };
-
-  // --------------------------------------------------------------------
-  // FinalizeConfiguration() decomposition
-  // --------------------------------------------------------------------
 
   void ValidateNetworkVariableNames() const {
     if (!HasUniqueNames(net_.GetInputVars())) {
@@ -892,9 +836,6 @@ private:
     }
   }
 
-  // --------------------------------------------------------------------
-  // TrainStep() stage helpers
-  // --------------------------------------------------------------------
 
   void RegisterWeightsOnTape(typename mlpdouble::Tape &tape,
                              TrainStepState &st) {
@@ -1234,10 +1175,6 @@ private:
     return result;
   }
 
-  // --------------------------------------------------------------------
-  // TrainEpoch() decomposition
-  // --------------------------------------------------------------------
-
   bool EpochHasWork() const {
     const bool has_ref = (total_samples_ > 0) && !fitting_losses_.empty();
     const bool has_phys = !active_set_order_.empty();
@@ -1304,12 +1241,8 @@ private:
     ++epoch_loss_count_;
   }
 
-  // --------------------------------------------------------------------
-  // Train() helpers
-  // --------------------------------------------------------------------
 
-  // Loss value the convergence criteria are evaluated on, averaged over
-  // the steps of the current epoch.
+
   double ComputeConvergenceLoss() const {
     if (epoch_loss_count_ == 0) {
       return last_result_.loss_raw;
@@ -1320,8 +1253,6 @@ private:
     return epoch_loss_sum_ / static_cast<double>(epoch_loss_count_);
   }
 
-  // The non-finite sentinel of the first epoch simply means "no previous
-  // value yet"; divergence itself is rejected before this is reached.
   bool HasConverged(double current_loss, double previous_loss) const {
     if (!std::isfinite(previous_loss)) {
       return false;
@@ -1331,11 +1262,7 @@ private:
     return abs_delta <= cfg_.conv_tol_abs || rel_delta <= cfg_.conv_tol_rel;
   }
 
-  // --------------------------------------------------------------------
-  // Batch construction
-  // --------------------------------------------------------------------
 
-  // Fills batch_x_/batch_y_ from the fitting data, advancing the cursor.
   void NextDataFittingBatch() {
     batch_x_.clear();
     batch_y_.clear();
@@ -1360,8 +1287,7 @@ private:
     }
   }
 
-  // Fills batch_indices_ from the named set's points, advancing the
-  // set's cursor. Returns an empty batch for empty sets.
+
   void NextPhysicsBatch(const std::string &set_name) {
     batch_indices_.clear();
 
@@ -1388,10 +1314,6 @@ private:
       batch_indices_.push_back(indices[cursor++]);
     }
   }
-
-  // --------------------------------------------------------------------
-  // Logging
-  // --------------------------------------------------------------------
 
   std::ofstream OpenHistoryFile() const {
     std::ofstream file;
@@ -1467,10 +1389,7 @@ private:
     std::cout << "\n";
   }
 
-  // --------------------------------------------------------------------
-  // Epoch bookkeeping
-  // --------------------------------------------------------------------
-
+ 
   void PrepareEpoch() {
     if (cfg_.shuffle_per_epoch && total_samples_ > 1) {
       std::shuffle(indices_.begin(), indices_.end(), rng_);
@@ -1505,10 +1424,7 @@ private:
     }
   }
 
-  // --------------------------------------------------------------------
-  // General helpers
-  // --------------------------------------------------------------------
-
+ 
   static bool HasSameSignature(const std::vector<std::string> &a,
                                const std::vector<std::string> &b) {
     return a == b;
@@ -1535,9 +1451,6 @@ private:
                              "'.");
   }
 
-  // --------------------------------------------------------------------
-  // Members
-  // --------------------------------------------------------------------
 
   CNeuralNetwork &net_;
   CAdam adam_;
@@ -1546,7 +1459,6 @@ private:
   CPointDerivatives point_storage_;
   std::mt19937_64 rng_;
 
-  // --- Losses ------------------------------------------------------------
   std::vector<std::shared_ptr<CBaseLoss>> fitting_losses_;
   std::vector<std::shared_ptr<CPhysicsLoss>> phys_losses_;
   std::vector<std::string> phys_set_name_;
@@ -1554,7 +1466,6 @@ private:
   std::vector<std::shared_ptr<CPhysicsLoss>> bcs_losses_;
   std::vector<std::string> bcs_set_name_;
 
-  // --- Fitting data -------------------------------------------------------
   std::vector<std::vector<mlpdouble>> train_inputs_;
   std::vector<std::vector<mlpdouble>> train_targets_;
   std::size_t total_samples_{0};
@@ -1565,7 +1476,6 @@ private:
   std::vector<std::vector<mlpdouble>> batch_y_;
   std::vector<PredictionResult> batch_preds_;
 
-  // --- Collocation data ----------------------------------------------------
   std::unordered_map<std::string, std::vector<std::vector<mlpdouble>>>
       coll_sets_;
   std::vector<std::string> set_order_;
@@ -1575,7 +1485,6 @@ private:
   std::vector<std::size_t> batch_indices_;
   PredictionResult current_pred_;
 
-  // --- Finalization artifacts ----------------------------------------------
   bool finalized_{false};
   std::unordered_map<std::string, std::vector<std::size_t>> losses_by_set_;
   std::unordered_map<std::string, std::vector<std::size_t>> bcs_losses_by_set_;
@@ -1585,13 +1494,11 @@ private:
   std::unordered_set<std::string> empty_sets_;
   std::unique_ptr<CGradientAnnealer> annealer_;
 
-  // --- Gradient scratch -----------------------------------------------------
   std::vector<double> grad_total_;
   std::vector<std::vector<double>> grad_per_data_term_;
   std::vector<mlpdouble> clean_weights_ad_;
   std::vector<mlpdouble> g_total_ad_;
 
-  // --- Bookkeeping -----------------------------------------------------------
   std::size_t step_{0};
   TrainStepResult last_result_{};
   double epoch_loss_sum_{0.0};
