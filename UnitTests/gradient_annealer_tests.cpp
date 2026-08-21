@@ -10,24 +10,27 @@
 #include "CGradientAnnealer.hpp"
 #include "variable_def.hpp"
 
-// GradStats Tests
-TEST_CASE("GradStats handles empty vectors", "[GradStats]") {
+// SingleLossGradientStats Tests
+TEST_CASE("SingleLossGradientStats handles empty vectors",
+          "[SingleLossGradientStats]") {
   std::vector<mlpdouble> g;
-  GradStats stats = GradStats::from_grads(g);
+  SingleLossGradientStats stats = SingleLossGradientStats::from_grads(g);
   CHECK(stats.max_abs == Catch::Approx(0.0));
   CHECK(stats.mean_abs == Catch::Approx(0.0));
 }
 
-TEST_CASE("GradStats handles single element", "[GradStats]") {
+TEST_CASE("SingleLossGradientStats handles single element",
+          "[SingleLossGradientStats]") {
   std::vector<mlpdouble> g = {-5.0};
-  GradStats stats = GradStats::from_grads(g);
+  SingleLossGradientStats stats = SingleLossGradientStats::from_grads(g);
   CHECK(stats.max_abs == Catch::Approx(5.0));
   CHECK(stats.mean_abs == Catch::Approx(5.0));
 }
 
-TEST_CASE("GradStats handles multiple elements", "[GradStats]") {
+TEST_CASE("SingleLossGradientStats handles multiple elements",
+          "[SingleLossGradientStats]") {
   std::vector<mlpdouble> g = {1.0, -2.0, 3.0, -4.0};
-  GradStats stats = GradStats::from_grads(g);
+  SingleLossGradientStats stats = SingleLossGradientStats::from_grads(g);
   CHECK(stats.max_abs == Catch::Approx(4.0));
   CHECK(stats.mean_abs == Catch::Approx((1.0 + 2.0 + 3.0 + 4.0) / 4.0));
 }
@@ -74,8 +77,8 @@ TEST_CASE("CGradientAnnealer basic update logic", "[CGradientAnnealer]") {
 
   CGradientAnnealer annealer(cfg);
 
-  GradStats ref{2.0, 1.0};
-  GradStats data{1.0, 0.5};
+  SingleLossGradientStats ref{2.0, 1.0};
+  SingleLossGradientStats data{1.0, 0.5};
 
   annealer.update(ref, {data});
 
@@ -96,8 +99,8 @@ TEST_CASE("CGradientAnnealer handles zero data mean", "[CGradientAnnealer]") {
 
   CGradientAnnealer annealer(cfg);
 
-  GradStats ref{2.0, 1.0};
-  GradStats data{1.0, 1e-16}; // mean_abs < 1e-15 threshold
+  SingleLossGradientStats ref{2.0, 1.0};
+  SingleLossGradientStats data{1.0, 1e-16}; // mean_abs < 1e-15 threshold
 
   annealer.update(ref, {data});
 
@@ -117,8 +120,8 @@ TEST_CASE("CGradientAnnealer enforces clamping", "[CGradientAnnealer]") {
   CGradientAnnealer annealer(cfg);
 
   SECTION("Upper clamp") {
-    GradStats ref{10.0, 1.0};
-    GradStats data{1.0, 1.0};
+    SingleLossGradientStats ref{10.0, 1.0};
+    SingleLossGradientStats data{1.0, 1.0};
     annealer.update(ref, {data});
     // lambda = 0.1 * 1.0 + 0.9 * 10.0 = 9.1 -> clamped to 2.0
     CHECK(annealer.get_lambda(0) == Catch::Approx(2.0));
@@ -126,8 +129,8 @@ TEST_CASE("CGradientAnnealer enforces clamping", "[CGradientAnnealer]") {
 
   SECTION("Lower clamp") {
     annealer.reset();
-    GradStats ref{0.01, 0.0};
-    GradStats data{1.0, 1.0};
+    SingleLossGradientStats ref{0.01, 0.0};
+    SingleLossGradientStats data{1.0, 1.0};
     annealer.update(ref, {data});
     // lambda = 0.1 * 1.0 + 0.9 * 0.01 = 0.109 -> clamped to 0.5
     CHECK(annealer.get_lambda(0) == Catch::Approx(0.5));
@@ -144,9 +147,9 @@ TEST_CASE("CGradientAnnealer handles multiple terms and EMA accumulation",
 
   CGradientAnnealer annealer(cfg);
 
-  GradStats ref{4.0, 2.0};
-  GradStats data1{2.0, 1.0}; // lambda_hat = 4.0
-  GradStats data2{1.0, 2.0}; // lambda_hat = 2.0
+  SingleLossGradientStats ref{4.0, 2.0};
+  SingleLossGradientStats data1{2.0, 1.0}; // lambda_hat = 4.0
+  SingleLossGradientStats data2{1.0, 2.0}; // lambda_hat = 2.0
 
   // step1
   annealer.update(ref, {data1, data2});
@@ -179,8 +182,8 @@ TEST_CASE("CGradientAnnealer reset and accessors", "[CGradientAnnealer]") {
   }
 
   // Update and then reset
-  GradStats ref{2.0, 1.0};
-  GradStats data{1.0, 0.5};
+  SingleLossGradientStats ref{2.0, 1.0};
+  SingleLossGradientStats data{1.0, 0.5};
   annealer.update(ref, {data, data, data});
 
   CHECK(annealer.step() == 1);

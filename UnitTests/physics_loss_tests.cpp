@@ -523,7 +523,8 @@ TEST_CASE("PhysicsState bounds checking", "[CPhysicsLoss]") {
   loss.Evaluate({pred}, {});
 }
 
-TEST_CASE("CPhysicsLoss EvaluateOne returns raw loss", "[CPhysicsLoss]") {
+TEST_CASE("CPhysicsLoss EvaluateSingleSample returns raw loss",
+          "[CPhysicsLoss]") {
   std::vector<std::string> net_in = {"x"};
   std::vector<std::string> net_out = {"u"};
   CPhysicsEquation eq1;
@@ -545,7 +546,7 @@ TEST_CASE("CPhysicsLoss EvaluateOne returns raw loss", "[CPhysicsLoss]") {
   CPhysicsLoss loss("raw_test", net_in, net_out, {}, {eq1, eq2});
   PredictionResult pred = MakePrediction({1.0}, {1.0});
 
-  mlpdouble raw = loss.EvaluateOne(pred);
+  mlpdouble raw = loss.EvaluateSingleSample(pred);
   REQUIRE_EQUAL_TOL(raw, 25.0, 1e-12);
 
   mlpdouble normalized = loss.Evaluate({pred}, {});
@@ -576,7 +577,7 @@ TEST_CASE("CPhysicsLoss per-equation weights", "[CPhysicsLoss]") {
   CPhysicsLoss loss("weight_test", net_in, net_out, {}, {eq1, eq2});
   PredictionResult pred = MakePrediction({1.0}, {1.0});
 
-  mlpdouble raw = loss.EvaluateOne(pred);
+  mlpdouble raw = loss.EvaluateSingleSample(pred);
   REQUIRE_EQUAL_TOL(raw, 34.0, 1e-12);
 
   mlpdouble normalized = loss.Evaluate({pred}, {});
@@ -740,10 +741,10 @@ TEST_CASE("CPhysicsLoss PredictionResult dimension mismatch throws",
   CPhysicsLoss loss("dim_test", net_in, net_out, {}, {eq});
 
   PredictionResult bad_in = MakePrediction({1.0}, {1.0});
-  REQUIRE_THROWS_AS(loss.EvaluateOne(bad_in), std::invalid_argument);
+  REQUIRE_THROWS_AS(loss.EvaluateSingleSample(bad_in), std::invalid_argument);
 
   PredictionResult bad_out = MakePrediction({1.0, 2.0}, {1.0, 2.0});
-  REQUIRE_THROWS_AS(loss.EvaluateOne(bad_out), std::invalid_argument);
+  REQUIRE_THROWS_AS(loss.EvaluateSingleSample(bad_out), std::invalid_argument);
 }
 
 TEST_CASE("Jac/Hess throws when pointer is null regardless of flags",
@@ -763,5 +764,5 @@ TEST_CASE("Jac/Hess throws when pointer is null regardless of flags",
   CPhysicsLoss loss("undeclared", net_in, net_out, {}, {eq_bad});
   PredictionResult pred = MakePrediction({1.0}, {1.0});
 
-  REQUIRE_THROWS_AS(loss.EvaluateOne(pred), std::runtime_error);
+  REQUIRE_THROWS_AS(loss.EvaluateSingleSample(pred), std::runtime_error);
 }

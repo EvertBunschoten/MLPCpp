@@ -31,21 +31,6 @@ struct PredictionResult {
   std::vector<mlpdouble> inputs;
   std::vector<mlpdouble> outputs;
 
-  // Non-owning views into external derivative buffers.
-  //
-  // Layout: input-major (matches CNeuralNetwork internal storage)
-  //   jacobian[input_index][output_index]     = d(output_o)/d(input_i)
-  //   hessian[input_i][input_j][output_index] =
-  //   d²(output_o)/d(input_i)d(input_j)
-  //
-  // Argument order in accessors matches this layout:
-  //   Jac(input, output)              -> jacobian[input][output]
-  //   Hess(input_i, input_j, output)  -> hessian[input_i][input_j][output]
-  //
-  // LIFETIME: These pointers are valid only as long as the provider's
-  // buffer remains unchanged. For CPointDerivatives, they are invalidated
-  // by the next Fill() call. Do NOT copy PredictionResult and use
-  // derivatives after Fill() is called again.
   mlpdouble **jacobian{nullptr};
   mlpdouble ***hessian{nullptr};
 };
@@ -54,9 +39,7 @@ struct PredictionResult {
 class CBaseLoss {
 public:
   explicit CBaseLoss(const std::string &name)
-      : name_(name),
-        last_loss_value_(0.0) // BUG 3 FIX: was last_loss_value (missing _)
-  {}
+      : name_(name), last_loss_value_(0.0) {}
 
   virtual ~CBaseLoss() = default;
 
@@ -76,11 +59,11 @@ public:
            const std::vector<std::vector<mlpdouble>> &ref_data) = 0;
 
   std::string GetName() const { return name_; }
-  double GetLastLossValue() const { return last_loss_value_; }
+  mlpdouble GetLastLossValue() const { return last_loss_value_; }
 
 protected:
   std::string name_;
-  double last_loss_value_;
+  mlpdouble last_loss_value_{mlpdouble(0.0)};
 };
 
 } // namespace MLPToolbox

@@ -22,30 +22,30 @@
 
 TEST_CASE("CAdam default constructor", "[CAdam]") {
   CAdam adam;
-  REQUIRE_EQUAL_TOL(adam.getLearningRate(), 1e-3, 1e-12);
-  REQUIRE_EQUAL_TOL(adam.getBeta1(), 0.9, 1e-12);
-  REQUIRE_EQUAL_TOL(adam.getBeta2(), 0.999, 1e-12);
-  REQUIRE_EQUAL_TOL(adam.getEpsilon(), 1e-8, 1e-12);
-  REQUIRE(adam.getTimeStep() == 0);
-  REQUIRE(adam.getStateSize() == 0);
+  REQUIRE_EQUAL_TOL(adam.GetLearningRate(), 1e-3, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetBeta1(), 0.9, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetBeta2(), 0.999, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetEpsilon(), 1e-8, 1e-12);
+  REQUIRE(adam.GetTimeStep() == 0);
+  REQUIRE(adam.GetStateSize() == 0);
 }
 
 TEST_CASE("CAdam custom constructor", "[CAdam]") {
   CAdam adam(0.01, 0.8, 0.99, 1e-7);
-  REQUIRE_EQUAL_TOL(adam.getLearningRate(), 0.01, 1e-12);
-  REQUIRE_EQUAL_TOL(adam.getBeta1(), 0.8, 1e-12);
-  REQUIRE_EQUAL_TOL(adam.getBeta2(), 0.99, 1e-12);
-  REQUIRE_EQUAL_TOL(adam.getEpsilon(), 1e-7, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetLearningRate(), 0.01, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetBeta1(), 0.8, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetBeta2(), 0.99, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetEpsilon(), 1e-7, 1e-12);
 }
 
-TEST_CASE("CAdam initialize", "[CAdam]") {
+TEST_CASE("CAdam Initialize", "[CAdam]") {
   CAdam adam;
-  adam.initialize(10);
-  REQUIRE(adam.getStateSize() == 10);
-  REQUIRE(adam.getTimeStep() == 0);
+  adam.Initialize(10);
+  REQUIRE(adam.GetStateSize() == 10);
+  REQUIRE(adam.GetTimeStep() == 0);
 
-  const auto &m = adam.getFirstMoment();
-  const auto &v = adam.getSecondMoment();
+  const auto &m = adam.GetFirstMoment();
+  const auto &v = adam.GetSecondMoment();
 
   for (std::size_t i = 0; i < 10; i++) {
     REQUIRE_EQUAL_TOL(m[i], 0.0, 1e-12);
@@ -53,15 +53,15 @@ TEST_CASE("CAdam initialize", "[CAdam]") {
   }
 }
 
-TEST_CASE("CAdam auto initialize", "[CAdam]") {
+TEST_CASE("CAdam auto Initialize", "[CAdam]") {
   CAdam adam;
   std::vector<mlpdouble> params = {1.0, 2.0, 3.0};
   std::vector<mlpdouble> grads = {0.1, 0.2, 0.3};
 
-  adam.step(params, grads);
+  adam.OptimizationStep(params, grads);
 
-  REQUIRE(adam.getStateSize() == 3);
-  REQUIRE(adam.getTimeStep() == 1);
+  REQUIRE(adam.GetStateSize() == 3);
+  REQUIRE(adam.GetTimeStep() == 1);
 }
 
 TEST_CASE("CAdam step size mismatch throws", "[CAdam]") {
@@ -69,7 +69,7 @@ TEST_CASE("CAdam step size mismatch throws", "[CAdam]") {
   std::vector<mlpdouble> params = {1.0, 2.0};
   std::vector<mlpdouble> grads = {0.5};
 
-  REQUIRE_THROWS_AS(adam.step(params, grads), std::runtime_error);
+  REQUIRE_THROWS_AS(adam.OptimizationStep(params, grads), std::runtime_error);
 }
 
 TEST_CASE("CAdam single step", "[CAdam]") {
@@ -78,7 +78,7 @@ TEST_CASE("CAdam single step", "[CAdam]") {
 
   std::vector<mlpdouble> params = {1.0};
   std::vector<mlpdouble> grads = {0.5};
-  adam.step(params, grads);
+  adam.OptimizationStep(params, grads);
 
   mlpdouble m = (1 - b1) * 0.5;
   mlpdouble v = (1 - b2) * 0.5 * 0.5;
@@ -89,10 +89,10 @@ TEST_CASE("CAdam single step", "[CAdam]") {
   mlpdouble expected_p =
       1 - lr * mh / (std::sqrt(static_cast<double>(vh)) + eps);
 
-  REQUIRE_EQUAL_TOL(adam.getFirstMoment()[0], m, 1e-12);
-  REQUIRE_EQUAL_TOL(adam.getSecondMoment()[0], v, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetFirstMoment()[0], m, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetSecondMoment()[0], v, 1e-12);
   REQUIRE_EQUAL_TOL(params[0], expected_p, 1e-6);
-  REQUIRE(adam.getTimeStep() == 1);
+  REQUIRE(adam.GetTimeStep() == 1);
 }
 
 TEST_CASE("CAdam multiple steps", "[CAdam]") {
@@ -103,7 +103,7 @@ TEST_CASE("CAdam multiple steps", "[CAdam]") {
 
   // Step 1
   std::vector<mlpdouble> grads1 = {0.5, -0.2};
-  adam.step(params, grads1);
+  adam.OptimizationStep(params, grads1);
 
   mlpdouble m1_0 = (1.0 - b1) * grads1[0];
   mlpdouble v1_0 = (1.0 - b2) * grads1[0] * grads1[0];
@@ -119,19 +119,19 @@ TEST_CASE("CAdam multiple steps", "[CAdam]") {
   mlpdouble expected_p1_1 =
       -1.0 - lr * mh1_1 / (std::sqrt(static_cast<double>(vh1_1)) + eps);
 
-  REQUIRE_EQUAL_TOL(adam.getFirstMoment()[0], m1_0, 1e-12);
-  REQUIRE_EQUAL_TOL(adam.getSecondMoment()[0], v1_0, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetFirstMoment()[0], m1_0, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetSecondMoment()[0], v1_0, 1e-12);
   REQUIRE_EQUAL_TOL(params[0], expected_p1_0, 1e-6);
 
-  REQUIRE_EQUAL_TOL(adam.getFirstMoment()[1], m1_1, 1e-12);
-  REQUIRE_EQUAL_TOL(adam.getSecondMoment()[1], v1_1, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetFirstMoment()[1], m1_1, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetSecondMoment()[1], v1_1, 1e-12);
   REQUIRE_EQUAL_TOL(params[1], expected_p1_1, 1e-6);
 
-  REQUIRE(adam.getTimeStep() == 1);
+  REQUIRE(adam.GetTimeStep() == 1);
 
   // step2
   std::vector<mlpdouble> grads2 = {0.3, 0.4};
-  adam.step(params, grads2);
+  adam.OptimizationStep(params, grads2);
 
   mlpdouble m2_0 = b1 * m1_0 + (1.0 - b1) * grads2[0];
   mlpdouble v2_0 = b2 * v1_0 + (1.0 - b2) * grads2[0] * grads2[0];
@@ -149,24 +149,24 @@ TEST_CASE("CAdam multiple steps", "[CAdam]") {
       expected_p1_1 -
       lr * mh2_1 / (std::sqrt(static_cast<double>(vh2_1)) + eps);
 
-  REQUIRE_EQUAL_TOL(adam.getFirstMoment()[0], m2_0, 1e-12);
-  REQUIRE_EQUAL_TOL(adam.getSecondMoment()[0], v2_0, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetFirstMoment()[0], m2_0, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetSecondMoment()[0], v2_0, 1e-12);
   REQUIRE_EQUAL_TOL(params[0], expected_p2_0, 1e-6);
 
-  REQUIRE_EQUAL_TOL(adam.getFirstMoment()[1], m2_1, 1e-12);
-  REQUIRE_EQUAL_TOL(adam.getSecondMoment()[1], v2_1, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetFirstMoment()[1], m2_1, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetSecondMoment()[1], v2_1, 1e-12);
   REQUIRE_EQUAL_TOL(params[1], expected_p2_1, 1e-6);
 
-  REQUIRE(adam.getTimeStep() == 2);
+  REQUIRE(adam.GetTimeStep() == 2);
 }
 
 TEST_CASE("CAdam zero gradients", "[CAdam]") {
   CAdam adam;
   std::vector<mlpdouble> p = {1.0, 2.0};
-  adam.step(p, {0.0, 0.0});
+  adam.OptimizationStep(p, {0.0, 0.0});
 
-  REQUIRE_EQUAL_TOL(adam.getFirstMoment()[0], 0.0, 1e-12);
-  REQUIRE_EQUAL_TOL(adam.getSecondMoment()[0], 0.0, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetFirstMoment()[0], 0.0, 1e-12);
+  REQUIRE_EQUAL_TOL(adam.GetSecondMoment()[0], 0.0, 1e-12);
   REQUIRE_EQUAL_TOL(p[0], 1.0, 1e-12);
   REQUIRE_EQUAL_TOL(p[1], 2.0, 1e-12);
 }
@@ -174,24 +174,24 @@ TEST_CASE("CAdam zero gradients", "[CAdam]") {
 TEST_CASE("CAdam negative gradients", "[CAdam]") {
   CAdam adam(0.01);
   std::vector<mlpdouble> p = {1.0};
-  adam.step(p, {-0.5});
+  adam.OptimizationStep(p, {-0.5});
 
   REQUIRE(static_cast<double>(p[0]) > 1.0);
-  REQUIRE(static_cast<double>(adam.getFirstMoment()[0]) < 0.0);
+  REQUIRE(static_cast<double>(adam.GetFirstMoment()[0]) < 0.0);
 }
 
-TEST_CASE("CAdam reset", "[CAdam]") {
+TEST_CASE("CAdam Reset", "[CAdam]") {
   CAdam adam;
   std::vector<mlpdouble> p = {1.0}, g = {0.5};
-  adam.step(p, g);
-  adam.step(p, g);
-  REQUIRE(adam.getTimeStep() == 2);
+  adam.OptimizationStep(p, g);
+  adam.OptimizationStep(p, g);
+  REQUIRE(adam.GetTimeStep() == 2);
 
-  adam.reset();
-  REQUIRE(adam.getTimeStep() == 0);
-  REQUIRE(adam.getStateSize() == 0);
-  REQUIRE(adam.getFirstMoment().empty());
-  REQUIRE(adam.getSecondMoment().empty());
+  adam.Reset();
+  REQUIRE(adam.GetTimeStep() == 0);
+  REQUIRE(adam.GetStateSize() == 0);
+  REQUIRE(adam.GetFirstMoment().empty());
+  REQUIRE(adam.GetSecondMoment().empty());
 }
 
 TEST_CASE("CAdam convergence quadratic", "[CAdam]") {
@@ -201,7 +201,7 @@ TEST_CASE("CAdam convergence quadratic", "[CAdam]") {
 
   for (int i = 0; i < 200; ++i) {
     std::vector<mlpdouble> g = {2.0 * p[0]};
-    adam.step(p, g);
+    adam.OptimizationStep(p, g);
   }
 
   REQUIRE(std::abs(static_cast<double>(p[0])) < 0.05);
@@ -214,7 +214,7 @@ TEST_CASE("CAdam determinism", "[CAdam]") {
     std::vector<std::vector<mlpdouble>> gs = {
         {0.5, -0.3}, {0.2, -0.1}, {-0.4, 0.6}, {0.1, 0.1}};
     for (auto &g : gs)
-      adam.step(p, g);
+      adam.OptimizationStep(p, g);
     return p;
   };
 

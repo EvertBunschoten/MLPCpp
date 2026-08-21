@@ -60,7 +60,7 @@ TEST_CASE("CMLPTrainer constructor validation", "[CMLPTrainer]") {
                     std::invalid_argument);
 }
 
-TEST_CASE("CMLPTrainer reference loss management", "[CMLPTrainer]") {
+TEST_CASE("CMLPTrainer data fitting loss management", "[CMLPTrainer]") {
   std::vector<std::size_t> arch = {1, 2, 1};
   CNeuralNetwork net(arch);
   net.SetInputName(0, "x");
@@ -75,17 +75,17 @@ TEST_CASE("CMLPTrainer reference loss management", "[CMLPTrainer]") {
   CMLPTrainer trainer(net, adam, annealer_cfg, cfg);
 
   auto custom_loss = std::make_shared<CMeanSquaredErrorLoss>();
-  REQUIRE_NOTHROW(trainer.AddReferenceLoss(custom_loss));
-  REQUIRE_THROWS_AS(trainer.AddReferenceLoss(nullptr), std::invalid_argument);
+  REQUIRE_NOTHROW(trainer.AddFittingLoss(custom_loss));
+  REQUIRE_THROWS_AS(trainer.AddFittingLoss(nullptr), std::invalid_argument);
 
   std::vector<std::vector<mlpdouble>> X = {{0.0}};
   std::vector<std::vector<mlpdouble>> Y = {{0.0}};
   trainer.SetTrainingData(X, Y);
 
-  trainer.Build();
+  trainer.FinalizeConfiguration();
 
-  REQUIRE_THROWS_AS(trainer.AddReferenceLoss(custom_loss), std::runtime_error);
-  REQUIRE_THROWS_AS(trainer.ClearReferenceLosses(), std::runtime_error);
+  REQUIRE_THROWS_AS(trainer.AddFittingLoss(custom_loss), std::runtime_error);
+  REQUIRE_THROWS_AS(trainer.ClearFittingLosses(), std::runtime_error);
 }
 
 TEST_CASE("CMLPTrainer training data validation", "[CMLPTrainer]") {
@@ -114,8 +114,8 @@ TEST_CASE("CMLPTrainer training data validation", "[CMLPTrainer]") {
   std::vector<std::vector<mlpdouble>> Y = {{0.0}, {1.0}};
   REQUIRE_NOTHROW(trainer.SetTrainingData(X, Y));
 
-  trainer.AddReferenceLoss(std::make_shared<CMeanSquaredErrorLoss>());
-  trainer.Build();
+  trainer.AddFittingLoss(std::make_shared<CMeanSquaredErrorLoss>());
+  trainer.FinalizeConfiguration();
   REQUIRE_THROWS_AS(trainer.SetTrainingData(X, Y), std::runtime_error);
 }
 
@@ -143,9 +143,9 @@ TEST_CASE("CMLPTrainer collocation points validation", "[CMLPTrainer]") {
   std::vector<std::vector<mlpdouble>> X = {{0.0}};
   std::vector<std::vector<mlpdouble>> Y = {{0.0}};
   trainer.SetTrainingData(X, Y);
-  trainer.AddReferenceLoss(std::make_shared<CMeanSquaredErrorLoss>());
+  trainer.AddFittingLoss(std::make_shared<CMeanSquaredErrorLoss>());
 
-  trainer.Build();
+  trainer.FinalizeConfiguration();
   REQUIRE_THROWS_AS(trainer.SetCollocationPoints("test2", {{0.5}}),
                     std::runtime_error);
 }
@@ -188,7 +188,7 @@ TEST_CASE("CMLPTrainer physics loss validation", "[CMLPTrainer]") {
   REQUIRE_THROWS_AS(trainer.AddPhysicsLoss(phys_loss, "colloc"),
                     std::invalid_argument);
 
-  trainer.Build();
+  trainer.FinalizeConfiguration();
   REQUIRE_THROWS_AS(trainer.AddPhysicsLoss(phys_loss, "colloc"),
                     std::runtime_error);
 }
@@ -237,7 +237,7 @@ TEST_CASE("CMLPTrainer physics data validation", "[CMLPTrainer]") {
                     std::runtime_error);
 }
 
-TEST_CASE("CMLPTrainer build validation", "[CMLPTrainer]") {
+TEST_CASE("CMLPTrainer FinalizeConfiguration validation", "[CMLPTrainer]") {
   std::vector<std::size_t> arch = {1, 2, 1};
   CNeuralNetwork net(arch);
   net.SetInputName(0, "x");
@@ -251,13 +251,13 @@ TEST_CASE("CMLPTrainer build validation", "[CMLPTrainer]") {
 
   CMLPTrainer trainer(net, adam, annealer_cfg, cfg);
 
-  REQUIRE_THROWS_AS(trainer.Build(), std::runtime_error);
+  REQUIRE_THROWS_AS(trainer.FinalizeConfiguration(), std::runtime_error);
 
   std::vector<std::vector<mlpdouble>> X = {{0.0}};
   std::vector<std::vector<mlpdouble>> Y = {{0.0}};
   trainer.SetTrainingData(X, Y);
-  trainer.AddReferenceLoss(std::make_shared<CMeanSquaredErrorLoss>());
-  REQUIRE_NOTHROW(trainer.Build());
+  trainer.AddFittingLoss(std::make_shared<CMeanSquaredErrorLoss>());
+  REQUIRE_NOTHROW(trainer.FinalizeConfiguration());
 }
 
 TEST_CASE("CMLPTrainer gradient clipping", "[CMLPTrainer]") {
@@ -281,7 +281,7 @@ TEST_CASE("CMLPTrainer gradient clipping", "[CMLPTrainer]") {
   std::vector<std::vector<mlpdouble>> X = {{0.0}, {1.0}};
   std::vector<std::vector<mlpdouble>> Y = {{0.0}, {1.0}};
   trainer.SetTrainingData(X, Y);
-  trainer.AddReferenceLoss(std::make_shared<CMeanSquaredErrorLoss>());
+  trainer.AddFittingLoss(std::make_shared<CMeanSquaredErrorLoss>());
 
   trainer.SetCollocationPoints("colloc", {{0.5}});
 
@@ -299,7 +299,7 @@ TEST_CASE("CMLPTrainer gradient clipping", "[CMLPTrainer]") {
       std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq});
 
   trainer.AddPhysicsLoss(phys_loss, "colloc");
-  trainer.Build();
+  trainer.FinalizeConfiguration();
 
   REQUIRE_NOTHROW(trainer.TrainStep());
 }
@@ -324,9 +324,9 @@ TEST_CASE("CMLPTrainer convergence early stopping", "[CMLPTrainer]") {
   std::vector<std::vector<mlpdouble>> X = {{0.0}, {1.0}};
   std::vector<std::vector<mlpdouble>> Y = {{0.0}, {1.0}};
   trainer.SetTrainingData(X, Y);
-  trainer.AddReferenceLoss(std::make_shared<CMeanSquaredErrorLoss>());
+  trainer.AddFittingLoss(std::make_shared<CMeanSquaredErrorLoss>());
 
-  trainer.Build();
+  trainer.FinalizeConfiguration();
   trainer.Train();
 
   REQUIRE(trainer.GetStep() < 100);
@@ -351,7 +351,7 @@ TEST_CASE("CMLPTrainer empty collocation set handling", "[CMLPTrainer]") {
   std::vector<std::vector<mlpdouble>> X = {{0.0}, {1.0}};
   std::vector<std::vector<mlpdouble>> Y = {{0.0}, {1.0}};
   trainer.SetTrainingData(X, Y);
-  trainer.AddReferenceLoss(std::make_shared<CMeanSquaredErrorLoss>());
+  trainer.AddFittingLoss(std::make_shared<CMeanSquaredErrorLoss>());
 
   trainer.SetCollocationPoints("empty_colloc", {});
 
@@ -368,7 +368,7 @@ TEST_CASE("CMLPTrainer empty collocation set handling", "[CMLPTrainer]") {
       std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq});
 
   trainer.AddPhysicsLoss(phys_loss, "empty_colloc");
-  trainer.Build();
+  trainer.FinalizeConfiguration();
 
   REQUIRE_NOTHROW(trainer.TrainStep());
   REQUIRE(trainer.GetLastResult().loss_phys[0] == 0.0);
@@ -396,7 +396,7 @@ TEST_CASE("CMLPTrainer multiple physics losses", "[CMLPTrainer]") {
   std::vector<std::vector<mlpdouble>> X = {{0.0}, {1.0}};
   std::vector<std::vector<mlpdouble>> Y = {{0.0}, {1.0}};
   trainer.SetTrainingData(X, Y);
-  trainer.AddReferenceLoss(std::make_shared<CMeanSquaredErrorLoss>());
+  trainer.AddFittingLoss(std::make_shared<CMeanSquaredErrorLoss>());
 
   trainer.SetCollocationPoints("colloc1", {{0.5}});
   trainer.SetCollocationPoints("colloc2", {{0.8}});
@@ -429,7 +429,7 @@ TEST_CASE("CMLPTrainer multiple physics losses", "[CMLPTrainer]") {
 
   trainer.AddPhysicsLoss(phys_loss1, "colloc1");
   trainer.AddPhysicsLoss(phys_loss2, "colloc2");
-  trainer.Build();
+  trainer.FinalizeConfiguration();
   trainer.TrainEpoch();
 
   const auto &res = trainer.GetLastResult();
@@ -438,7 +438,7 @@ TEST_CASE("CMLPTrainer multiple physics losses", "[CMLPTrainer]") {
   REQUIRE(trainer.GetStep() == 1);
 }
 
-TEST_CASE("CMLPTrainer multiple reference losses", "[CMLPTrainer]") {
+TEST_CASE("CMLPTrainer multiple data fitting losses", "[CMLPTrainer]") {
   std::vector<std::size_t> arch = {1, 4, 2}; // 2 outputs
   CNeuralNetwork net(arch);
   net.SetInputName(0, "x");
@@ -456,9 +456,9 @@ TEST_CASE("CMLPTrainer multiple reference losses", "[CMLPTrainer]") {
 
   CMLPTrainer trainer(net, adam, annealer_cfg, cfg);
 
-  // Add two separate reference losses
-  trainer.AddReferenceLoss(std::make_shared<CMeanSquaredErrorLoss>());
-  trainer.AddReferenceLoss(std::make_shared<CMeanSquaredErrorLoss>());
+  // Add two separate data fitting losses
+  trainer.AddFittingLoss(std::make_shared<CMeanSquaredErrorLoss>());
+  trainer.AddFittingLoss(std::make_shared<CMeanSquaredErrorLoss>());
 
   std::vector<std::vector<mlpdouble>> X = {{0.0}, {1.0}};
   std::vector<std::vector<mlpdouble>> Y = {{0.0, 0.0}, {1.0, 1.0}};
@@ -480,7 +480,7 @@ TEST_CASE("CMLPTrainer multiple reference losses", "[CMLPTrainer]") {
       std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq});
 
   trainer.AddPhysicsLoss(phys_loss, "colloc");
-  trainer.Build();
+  trainer.FinalizeConfiguration();
   trainer.TrainStep();
 
   const auto &res = trainer.GetLastResult();
@@ -513,7 +513,7 @@ TEST_CASE("CMLPTrainer physics mini-batch limits points per step",
   std::vector<std::vector<mlpdouble>> X = {{0.0}, {1.0}};
   std::vector<std::vector<mlpdouble>> Y = {{0.0}, {1.0}};
   trainer.SetTrainingData(X, Y);
-  trainer.AddReferenceLoss(std::make_shared<CMeanSquaredErrorLoss>());
+  trainer.AddFittingLoss(std::make_shared<CMeanSquaredErrorLoss>());
 
   // Create 10 collocation points
   std::vector<std::vector<mlpdouble>> colloc;
@@ -539,7 +539,7 @@ TEST_CASE("CMLPTrainer physics mini-batch limits points per step",
       std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq});
 
   trainer.AddPhysicsLoss(phys_loss, "colloc");
-  trainer.Build();
+  trainer.FinalizeConfiguration();
 
   call_count = 0;
   trainer.TrainStep();
@@ -569,7 +569,7 @@ TEST_CASE("CMLPTrainer physics full batch when size is 0", "[CMLPTrainer]") {
   std::vector<std::vector<mlpdouble>> X = {{0.0}, {1.0}};
   std::vector<std::vector<mlpdouble>> Y = {{0.0}, {1.0}};
   trainer.SetTrainingData(X, Y);
-  trainer.AddReferenceLoss(std::make_shared<CMeanSquaredErrorLoss>());
+  trainer.AddFittingLoss(std::make_shared<CMeanSquaredErrorLoss>());
 
   std::vector<std::vector<mlpdouble>> colloc;
   for (int i = 0; i < 10; ++i) {
@@ -594,7 +594,7 @@ TEST_CASE("CMLPTrainer physics full batch when size is 0", "[CMLPTrainer]") {
       std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq});
 
   trainer.AddPhysicsLoss(phys_loss, "colloc");
-  trainer.Build();
+  trainer.FinalizeConfiguration();
 
   call_count = 0;
   trainer.TrainStep();
@@ -623,7 +623,7 @@ TEST_CASE("CMLPTrainer basic construction and training", "[CMLPTrainer]") {
   std::vector<std::vector<mlpdouble>> X = {{0.0}, {1.0}};
   std::vector<std::vector<mlpdouble>> Y = {{0.0}, {1.0}};
   trainer.SetTrainingData(X, Y);
-  trainer.AddReferenceLoss(std::make_shared<CMeanSquaredErrorLoss>());
+  trainer.AddFittingLoss(std::make_shared<CMeanSquaredErrorLoss>());
   trainer.SetCollocationPoints("colloc", {{0.5}});
 
   CPhysicsEquation eq;
@@ -640,7 +640,7 @@ TEST_CASE("CMLPTrainer basic construction and training", "[CMLPTrainer]") {
       std::vector<std::string>{}, std::vector<CPhysicsEquation>{eq});
 
   trainer.AddPhysicsLoss(phys_loss, "colloc");
-  trainer.Build();
+  trainer.FinalizeConfiguration();
   trainer.TrainEpoch();
 
   const auto &res = trainer.GetLastResult();
@@ -682,7 +682,7 @@ TEST_CASE("CMLPTrainer missing physics data throws at runtime",
       std::vector<std::string>{"source"}, std::vector<CPhysicsEquation>{eq});
 
   trainer.AddPhysicsLoss(phys_loss, "colloc");
-  trainer.Build();
+  trainer.FinalizeConfiguration();
 
   REQUIRE_THROWS_AS(trainer.TrainStep(), std::runtime_error);
 }
@@ -726,7 +726,7 @@ TEST_CASE("CMLPTrainer MakeZeroPhysicsData helper", "[CMLPTrainer]") {
   REQUIRE_EQUAL_TOL(zero_data[0][0], 0.0, 1e-12);
 
   trainer.SetPhysicsData("dy_dx_source", zero_data);
-  trainer.Build();
+  trainer.FinalizeConfiguration();
 
   REQUIRE_NOTHROW(trainer.TrainStep());
 }

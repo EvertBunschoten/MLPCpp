@@ -28,23 +28,22 @@ struct AnnealerConfig {
   std::size_t n_data_terms = 1;
 };
 
-//  GradStats  — pre-computed statistics for ONE loss term.
-struct GradStats {
+struct SingleLossGradientStats {
   double max_abs;
   double mean_abs;
 
-  // compute stats from a flat gradient vector.
-  static GradStats from_grads(const std::vector<double> &g) {
-    if (g.empty())
+  static SingleLossGradientStats
+  from_grads(const std::vector<double> &gradients_vector) {
+    if (gradients_vector.empty())
       return {0.0, 0.0};
     double mx = 0.0, sum = 0.0;
-    for (double gi : g) {
-      double ag = std::abs(gi);
+    for (const double grad_i : gradients_vector) {
+      double ag = std::abs(grad_i);
       if (ag > mx)
         mx = ag;
       sum += ag;
     }
-    return {mx, sum / static_cast<double>(g.size())};
+    return {mx, sum / static_cast<double>(gradients_vector.size())};
   }
 };
 
@@ -71,8 +70,8 @@ public:
 
   ~CGradientAnnealer() = default;
 
-  void update(const GradStats &grad_ref,
-              const std::vector<GradStats> &grad_data) {
+  void update(const SingleLossGradientStats &grad_ref,
+              const std::vector<SingleLossGradientStats> &grad_data) {
     assert(grad_data.size() == cfg_.n_data_terms);
 
     ++step_;

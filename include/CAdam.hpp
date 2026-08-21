@@ -59,11 +59,11 @@ public:
         mlpdouble(1.0) - std::pow(beta2_, timestep_);
 
     for (auto i = std::size_t{0}; i < parameters.size(); ++i) {
-      first_moment_[i] = beta1_ * first_moment_[i] +
-                         (mlpdouble(1.0) - beta1_) * gradients[i];
-      second_moment_[i] = beta2_ * second_moment_[i] +
-                          (mlpdouble(1.0) - beta2_) * gradients[i] *
-                              gradients[i];
+      first_moment_[i] =
+          beta1_ * first_moment_[i] + (mlpdouble(1.0) - beta1_) * gradients[i];
+      second_moment_[i] =
+          beta2_ * second_moment_[i] +
+          (mlpdouble(1.0) - beta2_) * gradients[i] * gradients[i];
 
       const auto corrected_first_moment =
           first_moment_[i] / first_moment_bias_correction;
@@ -85,11 +85,9 @@ public:
   mlpdouble GetBeta1() const { return beta1_; }
   mlpdouble GetBeta2() const { return beta2_; }
   mlpdouble GetEpsilon() const { return epsilon_; }
-  std::size_t GetTimestep() const { return timestep_; }
+  std::size_t GetTimeStep() const { return timestep_; }
 
-  const std::vector<mlpdouble> &GetFirstMoment() const {
-    return first_moment_;
-  }
+  const std::vector<mlpdouble> &GetFirstMoment() const { return first_moment_; }
   const std::vector<mlpdouble> &GetSecondMoment() const {
     return second_moment_;
   }

@@ -12,9 +12,9 @@
  * - Equations are declared by *name* (not by hard-coded indices).
  *   The mapping from equation-local indices onto the full network is
  *   resolved once at construction time.
- * - EvaluateOne() returns the *un-normalised* sum of weighted residual
- *   squares for a single collocation point.  The trainer is responsible
- *   for the final 1/(N·N_eq) averaging when streaming points.
+ * - EvaluateSingleSample() returns the *un-normalised* sum of weighted
+ *   residual squares for a single collocation point.  The trainer is
+ *   responsible for the final 1/(N·N_eq) averaging when streaming points.
  * - Evaluate() is the batch interface that performs that averaging.
  * - PhysicsData holds optional auxiliary variables (source terms,
  *   material properties, \ldots) that a residual may need.
@@ -25,7 +25,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <functional>
-#include <memory>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -38,7 +37,6 @@
 
 namespace MLPToolbox {
 
-// Forward declarations needed before ResidualFunction is defined.
 class PhysicsData;
 class PhysicsState;
 
@@ -82,7 +80,7 @@ public:
           std::string("names=") + std::to_string(names_.size()) +
           ", values=" + std::to_string(values_.size()));
     }
-    for (std::size_t i = 0; i < names_.size(); ++i) {
+    for (auto i = std::size_t{0}; i < names_.size(); ++i) {
       if (names_[i].empty()) {
         throw std::invalid_argument(
             "PhysicsData: physics variable name cannot be empty.");
@@ -120,8 +118,9 @@ public:
     return values_[it->second];
   }
 
-  // Convenience aliases used by residual writers.
+  /*! \brief Convenience aliases used by residual writers. */
   mlpdouble Ref(std::size_t index) const { return At(index); }
+  /*! \brief Convenience alias used by residual writers. */
   mlpdouble Ref(const std::string &name) const { return At(name); }
 
   const std::vector<std::string> &Names() const noexcept { return names_; }
@@ -311,28 +310,23 @@ private:
 /*!
  * \brief Description of a single residual equation.
  *
- * Members
- * -------
- * name                 Unique identifier (used only for diagnostics).
- * input_names          Subset of network input names that the residual depends
- * on. output_names         Subset of network output names that the residual
- * depends on. weight               Multiplicative factor applied to
- * residual^{2} (default 1). requires_jacobian    Must be true if the residual
- * reads any first derivative. requires_hessian     Must be true if the residual
- * reads any second derivative. residual             User-supplied callable that
- * returns the residual value.
- *
- * The trainer inspects requires_jacobian / requires_hessian to decide
+ * The trainer inspects requires_jacobian and requires_hessian to decide
  * which derivatives to request from the network at evaluation time.
  */
 struct CPhysicsEquation {
-  std::string name;
-  std::vector<std::string> input_names;
-  std::vector<std::string> output_names;
-  double weight{1.0};
-  bool requires_jacobian{false};
-  bool requires_hessian{false};
-  ResidualFunction residual;
+  std::string name; //!< Unique identifier, used only for diagnostics.
+  std::vector<std::string>
+      input_names; //!< Subset of network input names the residual depends on.
+  std::vector<std::string> output_names; //!< Subset of network output names the
+                                         //!< residual depends on.
+  mlpdouble weight{mlpdouble(1.0)};      //!< Multiplicative factor applied to
+                                         //!< residual^{2}.
+  bool requires_jacobian{
+      false}; //!< Must be true if the residual reads any first derivative.
+  bool requires_hessian{
+      false}; //!< Must be true if the residual reads any second derivative.
+  ResidualFunction residual; //!< User-supplied callable that returns the
+                             //!< residual value.
 };
 
 // ============================================================================
@@ -347,19 +341,17 @@ struct CPhysicsEquation {
  *
  * Evaluation contract
  * -------------------
- * - EvaluateOne(pred [, physics_data])
+ * - EvaluateSingleSample(pred [, physics_data])
  *     Returns the *un-normalised* sum
  *         sum_e  weight_e · residual_e(pred)^{2}
  *     for a single collocation point.  The caller (normally the trainer)
  *     is responsible for averaging over points and equations.
  *
  * - Evaluate(preds, physics_data)
- *     Batch interface: calls EvaluateOne for every point and returns the
- *     normalised mean
- *         (1/(N · N_eq)) · sum_p sum_e weight_e · residual_e^{2}.
+ *     Batch interface: calls EvaluateSingleSample for every point and
+ *     returns the normalised mean
+ *         (1/(N x N_eq)) x sum_p sum_e weight_e x residual_e^{2}.
  *
- * The two interfaces therefore differ by the normalisation factor; the
- * streaming trainer must use EvaluateOne exclusively.
  */
 class CPhysicsLoss : public CBaseLoss {
 public:
@@ -426,8 +418,9 @@ public:
    *                          NumPhysicsVariables() (may be empty).
    * \return sum_e weight_e · residual_e^{2}   (no division by N or N_eq)
    */
-  mlpdouble EvaluateOne(const PredictionResult &pred,
-                        const std::vector<mlpdouble> &physics_data = {}) const {
+  mlpdouble
+  EvaluateSingleSample(const PredictionResult &pred,
+                       const std::vector<mlpdouble> &physics_data = {}) const {
     ValidatePrediction(pred);
     if (physics_data.size() != physics_variable_names_.size()) {
       throw std::invalid_argument(
@@ -438,15 +431,14 @@ public:
     }
 
     PhysicsData data(physics_data, physics_variable_names_);
-    mlpdouble raw_loss = mlpdouble(0.0);
-    for (std::size_t e = 0; e < equations_.size(); ++e) {
+    auto raw_loss = mlpdouble(0.0);
+    for (auto e = std::size_t{0}; e < equations_.size(); ++e) {
       PhysicsState state(
           pred, equation_input_indices_[e], equation_output_indices_[e],
           equations_[e].input_names, equations_[e].output_names,
           network_input_names_.size(), network_output_names_.size());
-      const mlpdouble residual = equations_[e].residual(state, data);
-      const double w = equations_[e].weight;
-      raw_loss += mlpdouble(w) * residual * residual;
+      const auto residual = equations_[e].residual(state, data);
+      raw_loss += equations_[e].weight * residual * residual;
     }
     return raw_loss;
   }
@@ -454,19 +446,19 @@ public:
   /*!
    * \brief Normalised batch physics loss.
    *
-   * Calls EvaluateOne for every prediction and returns the mean
+   * Calls EvaluateSingleSample for every prediction and returns the mean
    * residual^{2} over points and equations:
-   *     (1/(N · N_eq)) · sum_p EvaluateOne(preds[p], \ldots)
+   *     (1/(N · N_eq)) · sum_p EvaluateSingleSample(preds[p], \ldots)
    *
-   * Prefer EvaluateOne when the trainer streams collocation points one
-   * at a time; the trainer itself performs the equivalent normalisation.
+   * Prefer EvaluateSingleSample when the trainer streams collocation points
+   * one at a time; the trainer itself performs the equivalent normalisation.
    */
   mlpdouble
   Evaluate(const std::vector<PredictionResult> &preds,
            const std::vector<std::vector<mlpdouble>> &physics_data) override {
-    const std::size_t N = preds.size();
+    const auto N = preds.size();
     if (N == 0) {
-      last_loss_value_ = 0.0;
+      last_loss_value_ = mlpdouble(0.0);
       return mlpdouble(0.0);
     }
     if (!physics_variable_names_.empty() && physics_data.size() != N) {
@@ -481,20 +473,16 @@ public:
           "': supplied physics_data has wrong number of rows.");
     }
 
-    mlpdouble raw_total = mlpdouble(0.0);
-    for (std::size_t p = 0; p < N; ++p) {
-      const std::vector<mlpdouble> empty_data;
+    auto raw_total = mlpdouble(0.0);
+    for (auto p = std::size_t{0}; p < N; ++p) {
+      const auto empty_data = std::vector<mlpdouble>{};
       const auto &point_data =
           physics_data.empty() ? empty_data : physics_data[p];
-      raw_total += EvaluateOne(preds[p], point_data);
+      raw_total += EvaluateSingleSample(preds[p], point_data);
     }
 
-    // Average over both points and equations so that the loss magnitude
-    // is independent of the number of residual equations.
-    const double denominator =
-        static_cast<double>(N) * static_cast<double>(equations_.size());
-    const mlpdouble normalized = raw_total / mlpdouble(denominator);
-    last_loss_value_ = to_double(normalized);
+    const auto normalized = raw_total / (N * equations_.size());
+    last_loss_value_ = normalized;
     return normalized;
   }
 
@@ -540,7 +528,7 @@ private:
   }
 
   /*!
-   * \brief Resolve every equation’s input/output names onto network indices.
+   * \brief Resolve every equation's input/output names onto network indices.
    *
    * After this call, equation_input_indices_[e][i] is the network index
    * that corresponds to the i-th name in equations_[e].input_names
@@ -550,7 +538,7 @@ private:
     equation_input_indices_.resize(equations_.size());
     equation_output_indices_.resize(equations_.size());
 
-    for (std::size_t e = 0; e < equations_.size(); ++e) {
+    for (auto e = std::size_t{0}; e < equations_.size(); ++e) {
       const auto &eq = equations_[e];
       if (eq.name.empty()) {
         throw std::invalid_argument("CPhysicsLoss '" + name_ +
@@ -562,7 +550,7 @@ private:
       ValidateUniqueNames(eq.output_names,
                           "output for equation '" + eq.name + "'");
 
-      std::vector<std::size_t> input_indices;
+      auto input_indices = std::vector<std::size_t>{};
       input_indices.reserve(eq.input_names.size());
       for (const auto &input_name : eq.input_names) {
         auto it = std::find(network_input_names_.begin(),
@@ -576,7 +564,7 @@ private:
             std::distance(network_input_names_.begin(), it)));
       }
 
-      std::vector<std::size_t> output_indices;
+      auto output_indices = std::vector<std::size_t>{};
       output_indices.reserve(eq.output_names.size());
       for (const auto &output_name : eq.output_names) {
         auto it = std::find(network_output_names_.begin(),
@@ -609,12 +597,13 @@ private:
       if (eq.weight < 0.0) {
         throw std::invalid_argument("CPhysicsLoss '" + name_ + "': equation '" +
                                     eq.name + "' has negative weight (" +
-                                    std::to_string(eq.weight) + ").");
+                                    std::to_string(to_double(eq.weight)) +
+                                    ").");
       }
     }
   }
 
-  /*! Aggregate the derivative requirements of all equations. */
+  /*! \brief Aggregate the derivative requirements of all equations. */
   void DetermineDerivativeRequirements() {
     requires_jacobian_ = false;
     requires_hessian_ = false;
@@ -624,8 +613,8 @@ private:
     }
   }
 
-  /*! Runtime check that a PredictionResult supplies everything the loss needs.
-   */
+  /*! \brief Runtime check that a PredictionResult supplies everything the
+   * loss needs. */
   void ValidatePrediction(const PredictionResult &pred) const {
     if (pred.inputs.size() != network_input_names_.size()) {
       throw std::invalid_argument(
@@ -659,12 +648,15 @@ private:
   std::vector<std::string> physics_variable_names_;
   std::vector<CPhysicsEquation> equations_;
 
-  // Per-equation mappings: equation-local index → network index.
-  std::vector<std::vector<std::size_t>> equation_input_indices_;
-  std::vector<std::vector<std::size_t>> equation_output_indices_;
+  std::vector<std::vector<std::size_t>>
+      equation_input_indices_; //!< Per equation: local input index -> network
+                               //!< input index.
+  std::vector<std::vector<std::size_t>>
+      equation_output_indices_; //!< Per equation: local output index ->
+                                //!< network output index.
 
-  bool requires_jacobian_{false};
-  bool requires_hessian_{false};
+  bool requires_jacobian_{false}; //!< Aggregated over all equations.
+  bool requires_hessian_{false};  //!< Aggregated over all equations.
 };
 
 } // namespace MLPToolbox

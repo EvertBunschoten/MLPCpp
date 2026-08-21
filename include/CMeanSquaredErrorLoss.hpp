@@ -17,7 +17,7 @@ public:
     }
 
     if (predictions.empty()) {
-      last_loss_value_ = 0.0;
+      last_loss_value_ = mlpdouble(0.0);
       return mlpdouble(0.0);
     }
 
@@ -45,7 +45,7 @@ public:
 
     mlpdouble loss = mse / static_cast<mlpdouble>(N * n_outputs);
 
-    last_loss_value_ = to_double(loss);
+    last_loss_value_ = loss;
     return loss;
   }
 };
