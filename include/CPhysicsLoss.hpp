@@ -301,18 +301,12 @@ private:
  */
 struct CPhysicsEquation {
   std::string name; //!< Unique identifier, used only for diagnostics.
-  std::vector<std::string>
-      input_names; //!< Subset of network input names the residual depends on.
-  std::vector<std::string> output_names; //!< Subset of network output names the
-                                         //!< residual depends on.
-  mlpdouble weight{mlpdouble(1.0)};      //!< Multiplicative factor applied to
-                                         //!< residual^{2}.
-  bool requires_jacobian{
-      false}; //!< Must be true if the residual reads any first derivative.
-  bool requires_hessian{
-      false}; //!< Must be true if the residual reads any second derivative.
-  ResidualFunction residual; //!< User-supplied callable that returns the
-                             //!< residual value.
+  std::vector<std::string> input_names; //!< Subset of network input names the residual depends on.
+  std::vector<std::string> output_names; //!< Subset of network output names the residual depends on.
+  mlpdouble weight{mlpdouble(1.0)};      //!< Multiplicative factor applied to residual^{2}.
+  bool requires_jacobian{false}; //!< Must be true if the residual reads any first derivative.
+  bool requires_hessian{false}; //!< Must be true if the residual reads any second derivative.
+  ResidualFunction residual; //!< User-supplied callable that returns the residual value.
 };
 
 // ============================================================================
@@ -429,18 +423,8 @@ public:
     return raw_loss;
   }
 
-  /*!
-   * \brief Normalised batch physics loss.
-   *
-   * Calls EvaluateSingleSample for every prediction and returns the mean
-   * residual^{2} over points and equations:
-   *     (1/(N · N_eq)) · sum_p EvaluateSingleSample(preds[p], \ldots)
-   *
-   * Prefer EvaluateSingleSample when the trainer streams collocation points
-   * one at a time; the trainer itself performs the equivalent normalisation.
-   */
-  mlpdouble
-  Evaluate(const std::vector<PredictionResult> &preds,
+
+  mlpdouble Evaluate(const std::vector<PredictionResult> &preds,
            const std::vector<std::vector<mlpdouble>> &physics_data) override {
     const auto N = preds.size();
     if (N == 0) {
@@ -587,7 +571,6 @@ private:
     }
   }
 
-  /*! \brief Aggregate the derivative requirements of all equations. */
   void DetermineDerivativeRequirements() {
     requires_jacobian_ = false;
     requires_hessian_ = false;
@@ -597,8 +580,7 @@ private:
     }
   }
 
-  /*! \brief Runtime check that a PredictionResult supplies everything the
-   * loss needs. */
+
   void ValidatePrediction(const PredictionResult &pred) const {
     if (pred.inputs.size() != network_input_names_.size()) {
       throw std::invalid_argument(
@@ -626,7 +608,6 @@ private:
     }
   }
 
-  // ---- Data members ------------------------------------------------------
   std::vector<std::string> network_input_names_;
   std::vector<std::string> network_output_names_;
   std::vector<std::string> physics_variable_names_;

@@ -57,7 +57,6 @@ public:
       throw std::invalid_argument("CGradientAnnealer: alpha must be in (0,1)");
   }
 
-  // Non-copyable (owns EMA state), movable.
   CGradientAnnealer(const CGradientAnnealer &) = delete;
   CGradientAnnealer &operator=(const CGradientAnnealer &) = delete;
   CGradientAnnealer(CGradientAnnealer &&) = default;
