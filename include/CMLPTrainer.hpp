@@ -1123,7 +1123,7 @@ private:
 
   void ApplyAdamUpdate(TrainStepState &st) {
     for (auto i = 0; i < st.n_w; ++i) {
-      clean_weights_ad_[i] = mlpdouble(to_double(st.weights[i]));
+      clean_weights_ad_[i] = st.weights[i];
       g_total_ad_[i] = mlpdouble(grad_total_[i]);
     }
     adam_.OptimizationStep(clean_weights_ad_, g_total_ad_);
