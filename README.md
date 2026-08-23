@@ -60,3 +60,19 @@ g++ ../main.cpp -o test_MLPCpp
 python test_problem.py
 ```
 This will train an MLP on some reference data, write the .mlp output file, and evaluate the network output using the MLPCpp module.
+
+# Documentation
+
+To generate HTML documentation, run this command from the repository root:
+
+```bash
+sphinx-build -b html docs docs/_build/html
+```
+
+The generated documentation will be available at:
+
+```text
+docs/_build/html/index.html
+```
+
+You can open `index.html` in a web browser to view the documentation locally.
