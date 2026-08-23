@@ -35,47 +35,47 @@
 #include <limits>
 #include <vector>
 
-#include "variable_def.hpp"
-#include "option_maps.hpp"
+#include "ActivationFunctions.hpp"
 #include "CNeuralNetwork.hpp"
-
-
+#include "ScalarFunctions.hpp"
+#include "variable_def.hpp"
 
 namespace MLPToolbox {
 class CReadNeuralNetwork {
 private:
-  std::vector<std::string> input_names, /*!< Input variable names. */
-      output_names;                     /*!< Output variable names. */
+  std::vector<std::string> input_names = {}, /*!< Input variable names. */
+      output_names = {};                     /*!< Output variable names. */
 
-  std::string filename; /*!< MLP input filename. */
+  std::string filename{"MLP_test.mlp"}; /*!< MLP input filename. */
 
-  unsigned long n_layers; /*!< Network total layer count. */
+  unsigned long n_layers{0}; /*!< Network total layer count. */
 
-  std::vector<unsigned long> n_neurons; /*!<  Neuron count per layer. */
+  std::vector<unsigned long> n_neurons = {}; /*!<  Neuron count per layer. */
 
-  std::vector<std::vector<std::vector<mlpdouble>>>
-      weights_mat; /*!< Network synapse weights. */
+  std::vector<std::vector<std::vector<mlpdouble>>> weights_mat =
+      {}; /*!< Network synapse weights. */
 
-  std::vector<std::vector<mlpdouble>>
-      biases_mat; /*!< Bias values per neuron. */
+  std::vector<std::vector<mlpdouble>> biases_mat =
+      {}; /*!< Bias values per neuron. */
 
-  std::vector<std::string>
-      activation_functions; /*!< Activation function per layer. */
+  std::vector<std::string> activation_functions =
+      {}; /*!< Activation function per layer. */
 
   std::vector<std::pair<mlpdouble, mlpdouble>>
-      input_norm,  /*!< Input variable normalization values (min, max). */
-      output_norm; /*!< Output variable normalization values (min, max). */
-  
+      input_norm = {},  /*!< Input variable normalization values (min, max). */
+      output_norm = {}; /*!< Output variable normalization values (min, max). */
 
-  ENUM_SCALING_FUNCTIONS input_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX},
-                         output_reg_method {ENUM_SCALING_FUNCTIONS::MINMAX};
+  ENUM_SCALING_FUNCTIONS input_reg_method{ENUM_SCALING_FUNCTIONS::MINMAX},
+      output_reg_method{ENUM_SCALING_FUNCTIONS::MINMAX};
+
 public:
+  CReadNeuralNetwork() = delete;
   /*!
    * \brief CReadNeuralNetwork class constructor
    * \param[in] filename_in - .mlp input file name containing network
    * information.
    */
-  CReadNeuralNetwork(const std::string filename_in) { filename = filename_in; }
+  CReadNeuralNetwork(const std::string &filename_in) : filename(filename_in) {}
 
   /*!
    * \brief Read input file and store necessary information
@@ -151,6 +151,7 @@ public:
           getline(file_stream, line);
           std::istringstream activation_stream(line);
           activation_stream >> word;
+          RetrieveActivationEnum(word);
           activation_functions[iLayer] = word;
         }
       }
@@ -169,13 +170,8 @@ public:
         getline(file_stream, line);
         std::istringstream input_norm_stream(line);
         input_norm_stream >> word;
-        const auto it = scaling_map.find(word);
-        if (it == scaling_map.end())
-            ErrorMessage("Input scaler function not recognized (" + word + ")", "CReadNeuralNetwork:ReadMLPFile");
-        else 
-          input_reg_method=it->second;
+        input_reg_method = RetrieveScalerEnum(word);
       }
-
 
       /* In case input normalization is applied, read upper and lower input
        * bounds
@@ -216,11 +212,7 @@ public:
         getline(file_stream, line);
         std::istringstream output_norm_stream(line);
         output_norm_stream >> word;
-        const auto it = scaling_map.find(word);
-        if (it == scaling_map.end())
-            ErrorMessage("Output scaler function not recognized (" + word + ")", "CReadNeuralNetwork:ReadMLPFile");
-        else 
-          output_reg_method=it->second;
+        output_reg_method = RetrieveScalerEnum(word);
       }
 
       /* In case output normalization is applied, read upper and lower output
@@ -329,9 +321,7 @@ public:
     return n_neurons[iLayer];
   }
 
-  std::vector<size_t> GetNneurons() const {
-    return n_neurons;
-  }
+  std::vector<size_t> GetNneurons() const { return n_neurons; }
   /*!
    * \brief Get synapse weight between two neurons in subsequent layers.
    * \param[in] iLayer - Total layer index.
@@ -368,7 +358,8 @@ public:
    * \param[in] iOutput - Input variable index.
    * \returns Output normalization values (min first, max second)
    */
-  std::pair<mlpdouble, mlpdouble> GetOutputNorm(const std::size_t iOutput) const {
+  std::pair<mlpdouble, mlpdouble>
+  GetOutputNorm(const std::size_t iOutput) const {
     return output_norm[iOutput];
   }
 
@@ -408,7 +399,4 @@ public:
   }
 };
 
-
-
 } // namespace MLPToolbox
-

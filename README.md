@@ -1,45 +1,55 @@
 ---
-title: Multi-Layer Perceptron regression in C++ code
+title: MLPCpp, a C++ library for multi-layer perceptrons
 ---
 
 # Multi-Layer Perceptrons in C++
 <img src="logo.png" alt="isolated" width="200"/>
 
-Artificial neural networks like multi-layer perceptrons (MLP), are useful a variety of applications. From turbulence closure models in computational fluid dynamics to data regression applications, MLP's have been shown to be a valuable tool. This library was developed to easily allow for the evaluation of MLP's within a C++ code environment through a set of header files. To clarify: this library **does not yet** allow for the training or optimization of MLP architectures. It only allows for the evaluation of MLP output, Jacobian, and Hessian with respect to the network input for networks which already have been trained through an external tool like Python Tensorflow. 
+The tools in this library is designed for the **inference of deep, dense, feed-forward multi-layer perceptrons** in C++ applications.
 
-# MLP class description
-The MLP library can be downloaded from the git repository https://github.com/EvertBunschoten/MLPCpp.git. By including the header file CLookUp_ANN.hpp, it enables the use of multi-layer perceptrons for regression operations in C++ code. 
-An MLP computes its outputs by having its inputs manipulated by a series of operations, depending on the architecture of the network. Interpreting the network architecture and its respective input and output variables is therefore crucial for the MLP functionality. Information regarding the network architecture, input and output variables, and activation functions has to be provided via a .mlp input file, of which two examples are provided in the main library folder ("MLP_1.mlp" and "MLP_2.mlp"). More information regarding the file structure is provided in a later section. 
+The library supports the inference of multi-faceted queries, making it an effective tool for effortlessly processing the input and output of multiple networks.
 
-The main class governing  which can be used for look-up operations is the CLookUp_ANN class. This class allows to load one or multiple networks given a list of input files. This librarly currently only supports **deep or shallow, dense, feed-forward** type neural networks. Each of the input files is read by the CReadNeuralNetwork class. This class reads the .mlp input file and stores the architectural information listed in it. It will also run some compatibility checks on the file format. For example, the total layer count should be provided before listing the activation functions. For every read .mlp file, an MLP class is generated using the CNeuralNetwork class. This class stores the input and output variables, network architecture, activation functions, and weights and biases of every synapse and neuron. Currently, the CNeuralNetwork class only supports simple, feed-forward, dense neural network types. Currently supported activation functions are:
-1. linear (y = x)
-2. relu
-3. elu
-4. swish
-5. sigmoid
-6. tanh
-7. selu
-8. gelu
-9. exponential (y = exp(x))
+Another key feature of MLPCpp is the **calculation of the Jacobian and Hessian** of the network output without the use of algorithmic differentiation. This feature makes MLPCpp an effective tool in physics-informed machine learning applications.
 
-It is possible to load multiple networks with different input and output variables. An error will be raised if none of the loaded MLP's contains all the input variables or if some of the desired outputs are missing from the MLP output variables.
-In addition to loading multiple networks with different input and output variables, it is possible to load multple networks with the same input and output variables, but with different data ranges. When performing a regression operation, the CLookUp_ANN class will check which of the loaded MLPs with the right input and output variables has an input variable normalization range that includes the query point. The corresponding MLP will then be selected for regression. If the query point lies outside the data range of all loaded MLPs, extrapolation will be performed using the MLP with a data range close to the query point. 
+MLPCpp is **differentiable**, supporting usage in adjoint-based simulation codes such as SU2 and eventually, also network training. To clarify: MLPCpp **does not yet** support training. That is an ongoing project.
 
-# Regularization of inputs and outputs 
-MLP's are often trained on regularized input and labeled data. MLPCpp supports three regularization methods: [min-max scaling](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMaxScaler.html#sklearn.preprocessing.MinMaxScaler), [standard deviation scaling](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html#sklearn.preprocessing.StandardScaler), and [robust scaling](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html#sklearn.preprocessing.RobustScaler). The default option is min-max scaling (feature range 0-1). 
+# Set-up and use
+Accessing the tools within MLPCpp is as simple as including the header files in your project and calling its functions and classes through the ```MLPToolbox``` namespace.
 
-Specify the regularization method in the header under [input regularization method] or [output regularization method] and list the following two normalization values under [input normalization] and [output normalization] respectively:
-1. min-max ("minmax") : training data lower limit, training data upper limit
-2. standard deviation ("standard") : mean value, standard deviation
-3. robust ("robust") : mean value, quantile range 
+# Inference
+The main functionality of MLPCpp is the inference of MLPs. Networks can be initialized by loading them from an ASCII file or can be initated with randomized weights within the C++ environment.
+Networks trained through external tools like TensorFlow can be translated into a corretly formatted MLPCpp input file using [this function](src/Tensorflow_Translation.py).
 
-# MLP Definition and Usage
-The input files required for loading MLP's into C++ through the MLPCpp library are in ASCII format. A supporting script is provided with allows for the translation of an MLP trained through Tensorflow to a supported .mlp file. This script is named "Tensorflow_Translation.py" script, which can be found under "src". Details regarding the functionality of this translation script can be found in the code itself.
+The process of network inference goes as follows. First, the network input is **scaled** at the input layer. MLPCpp supports three linear scaling methods:
+1. [Min-max scaling](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMaxScaler.html#sklearn.preprocessing.MinMaxScaler)
+2. [Scaling with standard deviation](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html#sklearn.preprocessing.StandardScaler)
+3. [Quantile-based scaling](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html#sklearn.preprocessing.RobustScaler)
 
-Using the MLPCpp library in your code is as simple as including the "CLookUp_ANN.hpp" file in your C++ code. An examplary script is provided through "main.cpp", which demonstrates the steps required for loading one or multiple .mlp files, preprocessing regression operations, and the evaluation of the network outputs and output derivatives. 
+The output value of the nodes in the hidden layers is calculated with $y_i = \psi_i(x_i)$, where $\psi$ is the activation function applied to the hidden layer and $x_i$ the node input value calculated with $x_i = \sum_{j=0}^{N_{i-1}}w_{i-1, j}y_{i-1,j}$. The following activation functions are currently supported:
+1. Linear (y = x)
+2. Rectified linear unit (relu)
+3. Exponential linear unit (elu)
+4. Sigmoid linear unit (swish)
+5. Sigmoid
+6. Hyperbolic tangent (tanh)
+7. Scaled exponential linear unit (selu)
+8. Gaussian linear unit (gelu)
+9. Exponential (y = exp(x))
 
-# Derivatives Calculation
-The MLPCpp module allows for the evaluation of the analytical Jacobian and Hessian of the network output with respect to the network input without the use of algorithmic differentiation. This can be useful in iterative Newton solvers and physics-informed machine learning. 
+The network output is retrieved by applying **inverse scaling** to the output of the nodes in the final layer of the network using the earlier mentioned scaling methods.
+
+# Jacobians and Hessians
+MLPCpp supports the evaluation of the network Jacobian and Hessian without the use of algorithmic differentiation, making it an attractive tool for physics-informed applications.
+The Jacobian and Hessian of the network output are calculated **analytically**, making the method very efficient and not prone to truncation errors.
+
+# Queries
+Another key functionality of MLPCpp is the setup of **inference queries**. These queries allow users to **retrieve specific outputs** from **multiple networks** without having to interface with the network directly.
+This powerful feature makes it easy to retrieve information from multiple networks without much bookkeeping and modification of the source code. Inference queries also support the retrieval of network Jacobian and Hessian information.
+
+
+# Integrations
+MLPCpp is currently used as a sub-module of the open-source CFD code [SU2](https://github.com/su2code/SU2.git) for data-driven fluid models used for the simulation of reacting and non-ideal compressible fluid flows (NICFD). Tutorials for these applications can be found [here](https://su2code.github.io/tutorials/Inc_Combustion/).
+The training MLPs for the regression of fluid properties in combustion and NICFD applications can be done with the [SU2 DataMiner](https://github.com/su2code/SU2_DataMiner.git) software library. SU2 DataMiner can be used to generate training data, train MLPs for the regression of fluid properties, and writing the network weights and biases to the ASCII file format supported by MLPCpp.
 
 # Test Case
 
@@ -49,4 +59,20 @@ cd TestCase
 g++ ../main.cpp -o test_MLPCpp
 python test_problem.py
 ```
-This will train an MLP on some reference data, write the .mlp output file, and evaluate the network output using the MLPCpp module. 
+This will train an MLP on some reference data, write the .mlp output file, and evaluate the network output using the MLPCpp module.
+
+# Documentation
+
+To generate HTML documentation, run this command from the repository root:
+
+```bash
+sphinx-build -b html docs docs/_build/html
+```
+
+The generated documentation will be available at:
+
+```text
+docs/_build/html/index.html
+```
+
+You can open `index.html` in a web browser to view the documentation locally.
